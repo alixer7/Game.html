@@ -179,7 +179,7 @@ t.ob('geyser', ('ford_in', 10), lane=-0.4, period=4.4)
 t.ob('geyser', ('ford_in', 30), lane=0.4, period=4.4, phase=0.5)
 
 # ---------------------------------------------------------------- scenery
-t.lm('rock', 'fin_u', along=0, lat=26, r=12)                         # the rock fin the canyon loops round
+t.lm('rock', ('fin_u', 4), along=0, lat=-19, r=6)                   # the rock fin INSIDE the U the canyon loops round
 t.lm('mesa', ('mesa_climb', 20), along=0, lat=-60, r=26, dy=10)
 t.lm('mesa', ('hoodoos', 60), along=0, lat=110, r=24, dy=8)
 t.lm('lagoon', ('bridge_in', 60), along=0, lat=-18, r=16)

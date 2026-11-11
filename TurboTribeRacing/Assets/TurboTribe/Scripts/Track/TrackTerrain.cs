@@ -6,6 +6,18 @@ namespace TurboTribe
     public static partial class TrackBuilder
     {
         // ------------------------------------------------------------------ terrain
+        /// <summary>Lowest terrain height under a circular footprint (centre + 8 points on its rim).</summary>
+        static float SeatHeight(TrackInstance ti, float x, float z, float r)
+        {
+            float h = ti.TerrainHeight(x, z);
+            for (int k = 0; k < 8; k++)
+            {
+                float a = k * Mathf.PI / 4f;
+                h = Mathf.Min(h, ti.TerrainHeight(x + Mathf.Cos(a) * r, z + Mathf.Sin(a) * r));
+            }
+            return h;
+        }
+
         static float IslandH(float x, float z, float d, float water, float roadY, int seed)
         {
             // low roads sit on beach/sea-level ground; raised roads (jungle, temple terraces) get a plateau under them
@@ -99,6 +111,14 @@ namespace TurboTribe
                                 if (road.Gap[i]) { target = floorY; t = Mathx.SmoothStep01(hw + inner, hw + inner + blend, d); }
                                 else if (Mathf.Abs(lat) <= hw + 0.6f) { target = s.Pos[i].y - 0.65f; t = 0f; }
                                 else if (cliff) { target = Mathf.Min(floorY, s.Pos[i].y - 14f); t = Mathx.SmoothStep01(hw + inner + 4f, hw + inner + blend + 4f, d); }
+                                else if (road.Tunnel[i])
+                                {
+                                    // tunnels run THROUGH a ridge: the hill rises beside the tube up to its crown (so the rock
+                                    // mass on top is carried by the ground, never floating over a canyon floor)
+                                    float crown = ti.Zones[road.Zone[i]].WallHeight + (hw + WallThick) * 0.62f + 1.2f;
+                                    target = s.Pos[i].y + crown * Mathx.SmoothStep01(hw + 0.6f, hw + 4.5f, Mathf.Abs(lat));
+                                    t = Mathx.SmoothStep01(hw + inner + 4f, hw + inner + blend + 8f, d);
+                                }
                                 else if (shoulder)
                                 {
                                     target = s.Pos[i].y - 0.25f - Mathf.Max(0f, Mathf.Abs(lat) - hw - ShoulderW) * 0.06f;
@@ -157,11 +177,13 @@ namespace TurboTribe
                     else nat = Mathf.Lerp(CanyonH(wx, wz, DT[x, z], YS[x, z], seed), MountainH(wx, wz, DT[x, z], YS[x, z], seed), t - 1f);
                     H[x, z] = BT[x, z] <= 1f ? Mathf.Lerp(BH[x, z], nat, BT[x, z]) : nat;
                 }
-            // designer basins: lagoons dip below the sea, lava pools below their lava surface (never under a road)
+            // designer basins: lagoons dip below the sea, lava pools below their lava surface (never under a road).
+            // A lava pool also FILLS a deeper pit (e.g. the chasm under a shortcut gap) up to its floor, so the glowing
+            // surface always has ground under it instead of hanging over the chasm.
             foreach (var lm in ti.Data.landmarks)
             {
                 if (lm.type != "lagoon" && lm.type != "lava" && lm.type != "ice") continue;
-                float floor = lm.type == "lagoon" ? ti.WaterLevel - 2.6f : lm.type == "ice" ? lm.y - 0.8f : lm.y - 2.5f;
+                float floor = lm.type == "lagoon" ? ti.WaterLevel - 2.6f : lm.type == "ice" ? lm.y - 0.8f : lm.y - 0.9f;   // shallow lava: rim rocks rest on its bed
                 for (int x = 0; x < nx; x++)
                     for (int z = 0; z < nz; z++)
                     {
@@ -169,6 +191,7 @@ namespace TurboTribe
                         float d = Mathf.Sqrt((wx - lm.x) * (wx - lm.x) + (wz - lm.z) * (wz - lm.z));
                         if (d > lm.r + 14f) continue;
                         float f = 1f - Mathx.SmoothStep01(lm.r - 4f, lm.r + 14f, d);
+                        if (lm.type == "lava" && H[x, z] < floor - 0.5f) { H[x, z] = Mathf.Lerp(H[x, z], floor - 0.5f, 1f - Mathx.SmoothStep01(lm.r + 3f, lm.r + 14f, d)); continue; }
                         f *= Mathf.Clamp01(BT[x, z] * 4f);     // keep road embankments intact
                         H[x, z] = Mathf.Lerp(H[x, z], Mathf.Min(H[x, z], floor), f);
                     }
@@ -354,7 +377,7 @@ namespace TurboTribe
                             for (int k = 0; k < Mathf.RoundToInt(lm.r * 0.6f); k++)
                             {
                                 float a = rng.Range(0f, Mathf.PI * 2f), d = rng.Range(0.2f, 0.9f) * lm.r;
-                                PropFactory.Obsidian(mb, new Vector3(lm.x + Mathf.Cos(a) * d, lm.y + 0.1f, lm.z + Mathf.Sin(a) * d), rng.Range(0.6f, 1.6f), rng);
+                                PropFactory.Obsidian(mb, new Vector3(lm.x + Mathf.Cos(a) * d, lm.y - 0.85f, lm.z + Mathf.Sin(a) * d), rng.Range(0.9f, 1.8f), rng);   // rooted in the pool bed
                             }
                             break;
                         }
@@ -451,7 +474,7 @@ namespace TurboTribe
                         float dist = s.HalfWidth[i] + WallThick + extra + rng.Range(4f, 24f) * (rng.Chance(0.3f) ? 2.2f : 1f);
                         Vector3 p = s.Pos[i] + Mathx.Flat(s.Right[i]).normalized * side * dist;
                         if (!ClearOfRoads(ti, p, 4.5f) || InBasin(ti, p, 3f)) continue;
-                        p.y = ti.TerrainHeight(p.x, p.z) - 0.1f;
+                        p.y = SeatHeight(ti, p.x, p.z, 1.8f) - 0.1f;      // lowest ground under the footprint: never floats on a slope
                         if (p.y < ti.WaterLevel - 0.3f && z.Decor != DecorSet.Beach) continue;
                         if (p.y < ti.WaterLevel - 1.2f) continue;
                         if (!keepRng.Chance(keep)) continue;
@@ -488,13 +511,13 @@ namespace TurboTribe
                 if (!ClearOfRoads(ti, p, 16f) || InBasin(ti, p, 10f)) continue;
                 if (z.Decor == DecorSet.Volcano)
                 {
-                    var c3 = chunkOf(p); p.y = ti.TerrainHeight(p.x, p.z) - 0.5f;
+                    var c3 = chunkOf(p); p.y = SeatHeight(ti, p.x, p.z, 4f) - 0.5f;
                     float lr = rng.Range(4f, 7f);
                     PropFactory.LavaRock(c3.Solid, c3.Glow, p, lr, z, rng);
                     SolidAt(ti, p, lr * 0.85f, lr);
                     continue;
                 }
-                p.y = ti.TerrainHeight(p.x, p.z) - 0.5f;
+                p.y = SeatHeight(ti, p.x, p.z, 4f) - 0.5f;
                 if (p.y < ti.WaterLevel - 2f && z.Decor != DecorSet.Beach) continue;
                 var ch = chunkOf(p);
                 float lmr = PropFactory.Landmark(ch.Solid, ch.Foliage, ch.Glow, z, p, rng, ti.WaterLevel);

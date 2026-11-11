@@ -762,7 +762,13 @@ namespace TurboTribe
                     float taper = 1f - Mathx.SmoothStep01(0.62f, 1f, Mathf.Abs(v));
                     float h = H * hu * taper;
                     grid[a * (across + 1) + c] = PointAtF(s, fi, centre + v * halfW, lift + 0.02f + h);
-                    Color cc = crestRow && taper > 0.5f ? crestCol : Color.Lerp(dirt, top, hu * taper);
+                    // the mound grows out of the road: road colour at its feet, packed dirt / sand on the flanks,
+                    // a lighter crest; shaded on the back slope so it reads as a mound, not a plate
+                    float rise = hu * taper;
+                    Color cc = Color.Lerp(z.Road, dirt, Mathx.SmoothStep01(0.0f, 0.35f, rise));
+                    cc = Color.Lerp(cc, top, Mathx.SmoothStep01(0.45f, 1f, rise));
+                    if (u > 0.62f) cc *= Mathf.Lerp(1f, 0.82f, (u - 0.62f) / 0.38f * taper);
+                    if (crestRow && taper > 0.5f) cc = Color.Lerp(cc, crestCol, 0.6f);
                     cc.a = 1;
                     cols[a * (across + 1) + c] = cc;
                 }
@@ -829,7 +835,7 @@ namespace TurboTribe
                 if (i % 7 == 0)
                 {
                     float rr = rng.Range(7f, 11f);
-                    Vector3 top = s.PointAt(i, rng.Range(-2f, 2f), wh + ri * 0.62f + rr * 0.55f + 1.5f);
+                    Vector3 top = s.PointAt(i, rng.Range(-2f, 2f), wh + ri * 0.62f + rr * 0.3f);   // embedded in the ridge over the tube
                     rocks.AddNaturalRock(Matrix4x4.TRS(top, Quaternion.Euler(0, rng.Range(0, 360f), 0), new Vector3(1.4f, 0.8f, 1.2f)), rr, z.Cliff, z.TerrainMid, rng, 1, 0.25f);
                     for (int side = -1; side <= 1; side += 2)
                     {

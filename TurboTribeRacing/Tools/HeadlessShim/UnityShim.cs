@@ -73,6 +73,7 @@ namespace UnityEngine
 
     public struct Quaternion
     {
+        public static Quaternion Inverse(Quaternion q) { float n = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w; if (n < 1e-12f) return q; return new Quaternion(-q.x / n, -q.y / n, -q.z / n, q.w / n); }
         public float x, y, z, w;
         public Quaternion(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; }
         public static Quaternion identity => new Quaternion(0, 0, 0, 1);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -567,99 +568,228 @@ namespace TurboTribe
             if (st == HeadStyle.Bear || st == HeadStyle.Yeti) hs = new Vector3(1.12f, 1.0f, 1.0f);
             if (st == HeadStyle.Croc) hs = new Vector3(0.96f, 0.86f, 1.05f);
 
-            // cranium + cheeks (fuller lower face)
-            Ellipsoid(mb, head, hs * hr, headCol, 14, 22, Mul(headCol, 0.88f));
-            for (int s = -1; s <= 1; s += 2)
-                Ellipsoid(mb, head + new Vector3(s * 0.16f, -0.12f, 0.12f), new Vector3(0.15f, 0.13f, 0.14f), Color.Lerp(headCol, light, st == HeadStyle.Fox || st == HeadStyle.Raccoon || st == HeadStyle.Tiger ? 0.85f : 0.2f), 10, 14);
+            // ---- one continuous SCULPTED head (signed-distance blend of cranium, jaw, cheeks, brow ridge and a
+            // species muzzle, with carved eye sockets and mouth crease), meshed radially with smooth normals.
+            // Eyes, nose, ears and accessories sit INTO this surface.
+            float eyeY = 0.065f, eyeZ = 0.245f, eyeX = 0.13f, eyeR = 0.118f;
+            if (st == HeadStyle.Croc) { eyeY = 0.19f; eyeZ = 0.13f; eyeX = 0.14f; }
+            if (st == HeadStyle.Penguin) { eyeY = 0.07f; eyeZ = 0.3f; eyeX = 0.11f; eyeR = 0.09f; }
+            float sx = hs.x;
+            bool furry = st != HeadStyle.Croc && st != HeadStyle.Penguin;
+            float furAmp = st == HeadStyle.Yeti ? 0.014f : furry ? 0.0025f : st == HeadStyle.Croc ? 0.005f : 0.001f;
+            Func<Vector3, float> muzzleF = q =>
+            {
+                switch (st)
+                {
+                    case HeadStyle.Fox:
+                        return Sculpt.SMin(Sculpt.Ellipsoid(q, new Vector3(0, -0.085f, 0.36f), new Vector3(0.1f, 0.08f, 0.25f), Quaternion.Euler(9, 0, 0)),
+                                           Sculpt.Capsule(q, new Vector3(0, 0.07f, 0.18f), new Vector3(0, -0.04f, 0.58f), 0.052f, 0.03f), 0.05f);
+                    case HeadStyle.Raccoon:
+                        return Sculpt.SMin(Sculpt.Ellipsoid(q, new Vector3(0, -0.09f, 0.3f), new Vector3(0.1f, 0.08f, 0.16f), Quaternion.Euler(6, 0, 0)),
+                                           Sculpt.Capsule(q, new Vector3(0, 0.06f, 0.2f), new Vector3(0, -0.04f, 0.43f), 0.045f, 0.03f), 0.05f);
+                    case HeadStyle.Bear:
+                        return Sculpt.SMin(Sculpt.Ellipsoid(q, new Vector3(0, -0.11f, 0.28f), new Vector3(0.16f, 0.12f, 0.14f)),
+                                           Sculpt.Capsule(q, new Vector3(0, 0.05f, 0.22f), new Vector3(0, -0.05f, 0.38f), 0.06f, 0.05f), 0.06f);
+                    case HeadStyle.Yeti:
+                        return Sculpt.SMin(Sculpt.Ellipsoid(q, new Vector3(0, -0.12f, 0.27f), new Vector3(0.17f, 0.12f, 0.13f)),
+                                           Sculpt.Ellipsoid(q, new Vector3(0, 0.13f, 0.19f), new Vector3(0.28f, 0.085f, 0.13f)), 0.06f);
+                    case HeadStyle.Tiger:
+                    case HeadStyle.Rabbit:
+                        {
+                            float k = st == HeadStyle.Tiger ? 1f : 0.78f;
+                            float pads = Mathf.Min(Sculpt.Ellipsoid(q, new Vector3(0.062f * k, -0.12f, 0.29f), new Vector3(0.085f, 0.07f, 0.08f) * k),
+                                                   Sculpt.Ellipsoid(q, new Vector3(-0.062f * k, -0.12f, 0.29f), new Vector3(0.085f, 0.07f, 0.08f) * k));
+                            pads = Sculpt.SMin(pads, Sculpt.Ellipsoid(q, new Vector3(0, -0.2f, 0.25f), new Vector3(0.08f, 0.05f, 0.07f) * k), 0.04f);
+                            return Sculpt.SMin(pads, Sculpt.Capsule(q, new Vector3(0, 0.06f, 0.24f), new Vector3(0, -0.06f, 0.35f), 0.05f * k, 0.045f * k), 0.05f);
+                        }
+                    case HeadStyle.Croc:
+                        {
+                            Vector3 f = new Vector3(q.x, (q.y + 0.1f) * 1.7f - 0.1f, q.z);            // flattened snout
+                            float snout = Sculpt.Capsule(f, new Vector3(0, -0.1f, 0.22f), new Vector3(0, -0.1f, 0.62f), 0.13f, 0.08f);
+                            snout = Sculpt.SMin(snout, Sculpt.Sphere(q, new Vector3(0.05f, -0.05f, 0.62f), 0.035f), 0.03f);   // nostril bumps
+                            snout = Sculpt.SMin(snout, Sculpt.Sphere(q, new Vector3(-0.05f, -0.05f, 0.62f), 0.035f), 0.03f);
+                            return snout;
+                        }
+                    default: // penguin: flat face, the beak is a separate part
+                        return 1f;
+                }
+            };
+            Func<Vector3, float> baseF = q =>
+            {
+                float d = Sculpt.SMin(Sculpt.Ellipsoid(q, new Vector3(0, 0.03f, -0.03f), new Vector3(0.33f * sx, 0.31f * hs.y, 0.3f)),
+                                      Sculpt.Ellipsoid(q, new Vector3(0, -0.12f, 0.06f), new Vector3(0.26f * sx, 0.19f, 0.25f)), 0.1f);
+                float ck = st == HeadStyle.Rabbit ? 1.15f : st == HeadStyle.Croc ? 0.8f : 1f;
+                d = Sculpt.SMin(d, Sculpt.Ellipsoid(q, new Vector3(0.17f * sx, -0.1f, 0.13f), new Vector3(0.14f, 0.12f, 0.13f) * ck), 0.06f);
+                d = Sculpt.SMin(d, Sculpt.Ellipsoid(q, new Vector3(-0.17f * sx, -0.1f, 0.13f), new Vector3(0.14f, 0.12f, 0.13f) * ck), 0.06f);
+                if (st != HeadStyle.Penguin) d = Sculpt.SMin(d, Sculpt.Ellipsoid(q, new Vector3(0, 0.12f, 0.19f), new Vector3(0.24f, 0.06f, 0.1f)), 0.05f);   // brow ridge
+                if (st == HeadStyle.Croc)
+                    for (int s2 = -1; s2 <= 1; s2 += 2)
+                        d = Sculpt.SMin(d, Sculpt.Sphere(q, new Vector3(s2 * eyeX, eyeY - 0.02f, eyeZ - 0.02f), 0.1f), 0.05f);   // raised eye turrets
+                d = Sculpt.SMin(d, muzzleF(q), 0.065f);
+                return d;
+            };
+            // eye centres: on the uncarved surface along the eye direction, sunk by part of the eye radius
+            var eyeC = new Vector3[2];
+            for (int s2 = -1, k2 = 0; s2 <= 1; s2 += 2, k2++)
+            {
+                Vector3 dir = new Vector3(s2 * eyeX, eyeY, eyeZ).normalized;
+                eyeC[k2] = Sculpt.Hit(baseF, Vector3.zero, dir, 0.8f) - dir * eyeR * 0.42f;
+            }
+            Func<Vector3, float> mouthF = q =>
+            {
+                // smile crease under the muzzle (a thin bent capsule)
+                if (st == HeadStyle.Penguin) return 1f;
+                if (st == HeadStyle.Croc)
+                    return Mathf.Min(Sculpt.Capsule(q, new Vector3(0.16f, -0.135f, 0.12f), new Vector3(0.07f, -0.13f, 0.6f), 0.011f),
+                                     Sculpt.Capsule(q, new Vector3(-0.16f, -0.135f, 0.12f), new Vector3(-0.07f, -0.13f, 0.6f), 0.011f));
+                float zc = st == HeadStyle.Fox ? 0.47f : st == HeadStyle.Raccoon ? 0.37f : 0.34f;
+                return Mathf.Min(Sculpt.Capsule(q, new Vector3(0, -0.15f, zc), new Vector3(0.11f, -0.13f, zc - 0.09f), 0.01f),
+                                 Sculpt.Capsule(q, new Vector3(0, -0.15f, zc), new Vector3(-0.11f, -0.13f, zc - 0.09f), 0.01f));
+            };
+            Func<Vector3, float> socketF = q => Mathf.Min(Sculpt.Sphere(q, eyeC[0], eyeR * 1.02f), Sculpt.Sphere(q, eyeC[1], eyeR * 1.02f));
+            Func<Vector3, float> headF = q =>
+            {
+                float d = baseF(q);
+                d = Sculpt.SSub(d, socketF(q), 0.035f);
+                d = Sculpt.SSub(d, mouthF(q), 0.012f);
+                return d + (Sculpt.Noise3(q * 34f, 5) - 0.5f) * furAmp;
+            };
+            Color dark = H("#2A2A33");
+            Func<Vector3, Vector3, Color> headCols = (q, n) =>
+            {
+                float muz = muzzleF(q);
+                Color c = headCol;
+                float lightK = 0f;
+                switch (st)
+                {
+                    case HeadStyle.Fox:
+                        lightK = Mathx.SmoothStep01(0.03f, -0.01f, muz) * (q.y < 0.0f ? 1f : 0.5f);
+                        lightK = Mathf.Max(lightK, Mathx.SmoothStep01(-0.02f, -0.1f, q.y) * Mathx.SmoothStep01(0.0f, 0.12f, q.z));   // white cheeks + chin
+                        break;
+                    case HeadStyle.Raccoon:
+                        lightK = Mathx.SmoothStep01(0.03f, -0.01f, muz);
+                        lightK = Mathf.Max(lightK, Mathx.SmoothStep01(0.05f, 0.0f, Mathf.Abs(q.y - (eyeY + 0.11f))) * Mathx.SmoothStep01(0.12f, 0.2f, q.z));   // pale brows
+                        break;
+                    case HeadStyle.Bear: case HeadStyle.Yeti:
+                        lightK = Mathx.SmoothStep01(0.02f, -0.02f, muz) * (q.y < 0.02f ? 1f : 0.35f);
+                        break;
+                    case HeadStyle.Tiger: case HeadStyle.Rabbit:
+                        lightK = Mathx.SmoothStep01(0.025f, -0.005f, muz);
+                        lightK = Mathf.Max(lightK, Mathx.SmoothStep01(-0.08f, -0.16f, q.y) * Mathx.SmoothStep01(0.05f, 0.18f, q.z) * 0.9f);
+                        break;
+                    case HeadStyle.Croc:
+                        lightK = Mathx.SmoothStep01(-0.1f, -0.16f, q.y);                                       // pale underjaw
+                        break;
+                    case HeadStyle.Penguin:
+                        lightK = Mathx.SmoothStep01(0.02f, -0.02f, Sculpt.Ellipsoid(q, new Vector3(0, -0.03f, 0.13f), new Vector3(0.26f, 0.25f, 0.24f))) * Mathx.SmoothStep01(0.0f, 0.1f, q.z);
+                        break;
+                }
+                c = Color.Lerp(c, light, lightK);
+                // species markings
+                if (st == HeadStyle.Raccoon)
+                {
+                    float band = Mathx.SmoothStep01(0.07f, 0.04f, Mathf.Abs(q.y - eyeY + 0.01f)) * Mathx.SmoothStep01(0.06f, 0.16f, q.z) * Mathx.SmoothStep01(0.02f, 0.06f, Mathf.Abs(q.x));
+                    c = Color.Lerp(c, dark, band);
+                }
+                if (st == HeadStyle.Tiger)
+                {
+                    float stripes = 0f;
+                    if (q.y > 0.12f && q.z > 0.0f)
+                        for (int k = -1; k <= 1; k++) stripes = Mathf.Max(stripes, Mathx.SmoothStep01(0.022f, 0.012f, Mathf.Abs(q.x - k * 0.075f - q.z * k * 0.15f)) * Mathx.SmoothStep01(0.12f, 0.2f, q.y));
+                    if (Mathf.Abs(q.x) > 0.2f && q.y > -0.15f)
+                        stripes = Mathf.Max(stripes, Mathx.SmoothStep01(0.55f, 0.75f, Mathf.Sin(q.y * 42f + q.z * 14f)) * Mathx.SmoothStep01(0.2f, 0.26f, Mathf.Abs(q.x)));
+                    c = Color.Lerp(c, H("#1A1A1A"), stripes);
+                }
+                if (st == HeadStyle.Croc)
+                {
+                    float sc = Sculpt.Noise3(q * 30f, 9);
+                    c = c * (0.86f + 0.22f * sc);
+                }
+                // fur / skin variation + ambient occlusion in the sockets and the mouth crease
+                c *= 0.93f + 0.12f * Sculpt.Noise3(q * 16f, 3);
+                float ao = Mathx.SmoothStep01(0.03f, 0.0f, socketF(q)) * 0.25f + Mathx.SmoothStep01(0.02f, 0.0f, mouthF(q)) * 0.45f;
+                c *= 1f - ao;
+                if (n.y < -0.3f) c *= 0.9f;   // a touch darker underneath
+                c.a = 1f;
+                return c;
+            };
+            Sculpt.Radial(mb, Matrix4x4.TRS(head, Quaternion.identity, Vector3.one), headF, headCols, 0.8f, Lo ? 22 : 44, Lo ? 36 : 72);
 
-            // muzzle / snout
-            Vector3 muzzle = head + new Vector3(0, -0.1f, 0.27f);
+            // nose + mouth details on the sculpted muzzle
             Vector3 noseTip;
             switch (st)
             {
-                case HeadStyle.Fox:
-                    Ellipsoid(mb, muzzle + new Vector3(0, 0.0f, 0.06f), new Vector3(0.12f, 0.1f, 0.2f), Quaternion.Euler(-8, 0, 0), light, 12, 16);
-                    noseTip = muzzle + new Vector3(0, 0.04f, 0.26f);
-                    break;
-                case HeadStyle.Croc:
-                    // long snout: upper jaw + lower jaw with a toothy grin
-                    var upper = new[] { S(0f, 0.2f, 0.11f, 0f, fur, 2.4f), S(0.18f, 0.16f, 0.09f, 0.0f, fur, 2.6f), S(0.36f, 0.13f, 0.07f, -0.01f, fur, 2.6f), S(0.46f, 0.1f, 0.05f, -0.02f, light, 2.4f) };
-                    mb.AddLoft(M(head + new Vector3(0, -0.04f, 0.16f)), upper, 18);
-                    var lower = new[] { S(0f, 0.17f, 0.06f, 0f, light, 2.4f), S(0.3f, 0.12f, 0.045f, 0f, light, 2.6f), S(0.42f, 0.08f, 0.03f, 0f, light, 2.4f) };
-                    mb.AddLoft(M(head + new Vector3(0, -0.17f, 0.16f)), lower, 16);
-                    for (int s = -1; s <= 1; s += 2)
-                        for (int k = 0; k < 6; k++)
-                        {
-                            float z = 0.2f + k * 0.055f;
-                            float x = s * (0.15f - k * 0.012f);
-                            mb.AddCone(Matrix4x4.TRS(head + new Vector3(x, -0.12f, z), Quaternion.Euler(180, 0, 0), Vector3.one), 0.016f, 0.045f, 4, teeth, teeth);
-                        }
-                    noseTip = head + new Vector3(0, 0.02f, 0.6f);
-                    for (int s = -1; s <= 1; s += 2) Ellipsoid(mb, noseTip + new Vector3(s * 0.045f, 0.01f, -0.02f), new Vector3(0.022f, 0.02f, 0.025f), nose, 5, 8);
-                    break;
-                case HeadStyle.Penguin:
-                    // white face mask + two-part beak
-                    Ellipsoid(mb, head + new Vector3(0, -0.03f, 0.12f), new Vector3(0.27f, 0.26f, 0.24f), light, 12, 18);
-                    var beakU = new[] { S(0f, 0.09f, 0.04f, 0f, H("#FF9A1E"), 2.4f), S(0.12f, 0.05f, 0.03f, -0.01f, H("#FFB74D"), 2.4f), S(0.2f, 0.012f, 0.012f, -0.03f, H("#FFB74D"), 2f) };
-                    mb.AddLoft(M(head + new Vector3(0, -0.06f, 0.33f)), beakU, 14);
-                    var beakL = new[] { S(0f, 0.07f, 0.025f, 0f, H("#E07B12"), 2.4f), S(0.13f, 0.03f, 0.015f, 0f, H("#E07B12"), 2.4f) };
-                    mb.AddLoft(M(head + new Vector3(0, -0.11f, 0.33f)), beakL, 12);
-                    noseTip = head + new Vector3(0, -0.05f, 0.53f);
-                    break;
-                default:
-                    Ellipsoid(mb, muzzle, new Vector3(st == HeadStyle.Bear ? 0.17f : 0.14f, 0.11f, 0.13f), light, 12, 16);
-                    noseTip = muzzle + new Vector3(0, 0.05f, 0.12f);
-                    break;
+                case HeadStyle.Fox: noseTip = Sculpt.Hit(headF, new Vector3(0, -0.03f, 0.3f), Vector3.forward, 0.4f); break;
+                case HeadStyle.Raccoon: noseTip = Sculpt.Hit(headF, new Vector3(0, -0.04f, 0.28f), Vector3.forward, 0.4f); break;
+                case HeadStyle.Croc: noseTip = Sculpt.Hit(headF, new Vector3(0, -0.06f, 0.4f), Vector3.forward, 0.4f); break;
+                case HeadStyle.Penguin: noseTip = new Vector3(0, -0.05f, 0.53f); break;
+                default: noseTip = Sculpt.Hit(headF, new Vector3(0, -0.05f, 0.2f), Vector3.forward, 0.4f); break;
             }
-            if (st != HeadStyle.Penguin && st != HeadStyle.Croc)
+            noseTip += head;
+            if (st == HeadStyle.Penguin)
+            {
+                var beakU = new[] { S(0f, 0.09f, 0.04f, 0f, H("#FF9A1E"), 2.4f), S(0.12f, 0.05f, 0.03f, -0.01f, H("#FFB74D"), 2.4f), S(0.2f, 0.012f, 0.012f, -0.03f, H("#FFB74D"), 2f) };
+                mb.AddLoft(M(head + new Vector3(0, -0.06f, 0.31f)), beakU, 14);
+                var beakL = new[] { S(0f, 0.07f, 0.025f, 0f, H("#E07B12"), 2.4f), S(0.13f, 0.03f, 0.015f, 0f, H("#E07B12"), 2.4f) };
+                mb.AddLoft(M(head + new Vector3(0, -0.11f, 0.31f)), beakL, 12);
+            }
+            else if (st == HeadStyle.Croc)
+            {
+                for (int s = -1; s <= 1; s += 2)
+                {
+                    Ellipsoid(mb, noseTip + new Vector3(s * 0.045f, 0.012f, -0.03f), new Vector3(0.018f, 0.014f, 0.02f), nose, 5, 8);   // nostrils
+                    for (int k = 0; k < 6; k++)
+                    {
+                        float z = 0.2f + k * 0.065f;
+                        Vector3 tp = Sculpt.Hit(headF, new Vector3(s * 0.02f, -0.13f, z), new Vector3(s, -0.15f, 0), 0.3f) + head;
+                        mb.AddCone(Matrix4x4.TRS(tp + new Vector3(-s * 0.012f, 0.004f, 0), Quaternion.Euler(180, 0, 0), Vector3.one), 0.014f, 0.04f, 4, teeth, teeth);
+                    }
+                }
+            }
+            else
             {
                 Color nc = st == HeadStyle.Rabbit ? H("#FF7FA8") : st == HeadStyle.Tiger ? H("#D96A6A") : st == HeadStyle.Yeti ? H("#3B5B8C") : nose;
-                Ellipsoid(mb, noseTip, new Vector3(0.055f, 0.04f, 0.04f), nc, 8, 12);
-                Ellipsoid(mb, noseTip + new Vector3(-0.015f, 0.018f, 0.025f), Vector3.one * 0.012f, Color.white, 3, 6);   // wet-nose highlight
-                // philtrum + smiling mouth with tongue
-                Vector3 mo = noseTip + new Vector3(0, -0.075f, -0.03f);
-                Tube(mb, noseTip + new Vector3(0, -0.03f, 0), mo, 0.008f, Mul(mouthCol, 0.8f), 4);
-                for (int s = -1; s <= 1; s += 2)
-                    mb.AddTube(Bezier(mo, mo + new Vector3(s * 0.06f, -0.02f, -0.01f), mo + new Vector3(s * 0.11f, 0.03f, -0.06f), 6), Radii(6, 0.012f, 0.01f), 5, mouthCol);
-                Ellipsoid(mb, mo + new Vector3(0, -0.025f, -0.015f), new Vector3(0.055f, 0.03f, 0.025f), mouthCol, 6, 10);
-                Ellipsoid(mb, mo + new Vector3(0, -0.035f, -0.005f), new Vector3(0.035f, 0.015f, 0.02f), tongue, 5, 8);
+                // a sculpted nose pad: two lobes with a centre groove, wet highlight
+                Vector3 nt = noseTip - Vector3.forward * 0.012f;
+                Ellipsoid(mb, nt + new Vector3(0.018f, 0, 0), new Vector3(0.036f, 0.034f, 0.034f), nc, 8, 12);
+                Ellipsoid(mb, nt + new Vector3(-0.018f, 0, 0), new Vector3(0.036f, 0.034f, 0.034f), nc, 8, 12);
+                Ellipsoid(mb, nt + new Vector3(0, 0.014f, 0.004f), new Vector3(0.045f, 0.02f, 0.03f), nc, 6, 10);
+                Ellipsoid(mb, nt + new Vector3(-0.016f, 0.024f, 0.028f), Vector3.one * 0.01f, Color.white, 3, 6);
+                // open smile in the crease: dark mouth with tongue, fangs
+                Vector3 mo = Sculpt.Hit(headF, new Vector3(0, -0.15f, 0.1f), Vector3.forward, 0.5f) + head;
+                Ellipsoid(mb, mo + new Vector3(0, -0.012f, -0.012f), new Vector3(0.05f, 0.026f, 0.025f), mouthCol, 6, 10);
+                Ellipsoid(mb, mo + new Vector3(0, -0.02f, -0.004f), new Vector3(0.032f, 0.013f, 0.02f), tongue, 5, 8);
                 if (st == HeadStyle.Rabbit)
                     for (int s = -1; s <= 1; s += 2)
-                        mb.AddRoundedBox(M(mo + new Vector3(s * 0.016f, -0.022f, 0.012f)), new Vector3(0.028f, 0.042f, 0.012f), 0.006f, teeth, 1);
+                        mb.AddRoundedBox(M(mo + new Vector3(s * 0.015f, -0.008f, 0.01f)), new Vector3(0.026f, 0.04f, 0.012f), 0.006f, teeth, 1);
                 if (st == HeadStyle.Tiger || st == HeadStyle.Bear || st == HeadStyle.Yeti || st == HeadStyle.Fox)
                     for (int s = -1; s <= 1; s += 2)
-                        mb.AddCone(Matrix4x4.TRS(mo + new Vector3(s * 0.04f, -0.008f, 0.008f), Quaternion.Euler(180, 0, 0), Vector3.one), 0.011f, st == HeadStyle.Tiger ? 0.04f : 0.025f, 5, teeth, teeth);
-                // whiskers
+                        mb.AddCone(Matrix4x4.TRS(mo + new Vector3(s * 0.035f, 0.004f, 0.006f), Quaternion.Euler(180, 0, 0), Vector3.one), 0.01f, st == HeadStyle.Tiger ? 0.036f : 0.022f, 5, teeth, teeth);
+                // whiskers rooted in the muzzle pads
                 if (!Lo && (st == HeadStyle.Tiger || st == HeadStyle.Fox || st == HeadStyle.Raccoon || st == HeadStyle.Rabbit))
                     for (int s = -1; s <= 1; s += 2)
                         for (int k = 0; k < 3; k++)
                         {
-                            Vector3 a = noseTip + new Vector3(s * 0.07f, -0.03f - k * 0.015f, -0.05f);
+                            Vector3 a = Sculpt.Hit(headF, new Vector3(0, -0.06f - k * 0.015f, noseTip.z - head.z - 0.07f), new Vector3(s, 0, 0.2f), 0.4f) + head;
                             mb.AddTube(Bezier(a, a + new Vector3(s * 0.1f, 0.01f - k * 0.01f, 0.0f), a + new Vector3(s * 0.2f, -0.01f - k * 0.025f, -0.03f), 4), Radii(4, 0.005f, 0.002f), 3, H("#F4F4F4"), null, false);
                         }
             }
 
-            // eyes: sclera, iris, pupil, two highlights, upper lids (determined look) + lower lid line
-            float eyeY = 0.065f, eyeZ = 0.245f, eyeX = 0.13f, eyeR = 0.118f;
-            if (st == HeadStyle.Croc) { eyeY = 0.2f; eyeZ = 0.14f; eyeX = 0.14f; }
-            if (st == HeadStyle.Penguin) { eyeY = 0.07f; eyeZ = 0.3f; eyeX = 0.11f; eyeR = 0.09f; }
-            for (int s = -1; s <= 1; s += 2)
+            // eyes in their sockets: sclera, iris, pupil, two highlights, upper lid (determined look) + brow
+            for (int s = -1, k2 = 0; s <= 1; s += 2, k2++)
             {
-                Vector3 e = head + new Vector3(s * eyeX, eyeY, eyeZ);
+                Vector3 e = head + eyeC[k2];
                 var eq = Quaternion.Euler(-4, s * 14f, 0);
-                if (st == HeadStyle.Croc) Ellipsoid(mb, e + new Vector3(0, -0.02f, -0.02f), new Vector3(0.12f, 0.1f, 0.11f), fur, 8, 12);   // croc eye bump
-                if (st == HeadStyle.Raccoon) Ellipsoid(mb, e + new Vector3(s * 0.01f, 0, -0.04f), new Vector3(0.15f, 0.11f, 0.09f), H("#2A2A33"), 8, 12);  // bandit mask
-                Ellipsoid(mb, e, new Vector3(eyeR * 0.85f, eyeR * 1.1f, eyeR * 0.6f), eq, eyeWhite, 10, 14);
+                Ellipsoid(mb, e, new Vector3(eyeR * 0.86f, eyeR * 1.0f, eyeR * 0.8f), eq, eyeWhite, 10, 14);
                 Vector3 front = eq * Vector3.forward;
-                Vector3 irisC = e + front * eyeR * 0.5f + new Vector3(-s * 0.008f, -0.006f, 0);
-                Ellipsoid(mb, irisC, new Vector3(eyeR * 0.55f, eyeR * 0.68f, eyeR * 0.14f), eq, iris, 8, 12, Mul(iris, 0.62f));
-                Ellipsoid(mb, irisC + front * eyeR * 0.06f, new Vector3(eyeR * 0.3f, eyeR * 0.4f, eyeR * 0.1f), eq, pupil, 6, 10);
-                Ellipsoid(mb, irisC + front * eyeR * 0.13f + new Vector3(s * 0.012f, 0.022f, 0), Vector3.one * eyeR * 0.13f, Color.white, 4, 8);
-                if (!Lo) Ellipsoid(mb, irisC + front * eyeR * 0.12f + new Vector3(-s * 0.012f, -0.018f, 0), Vector3.one * eyeR * 0.06f, Color.white, 3, 6);
-                // upper lid: a slightly bigger shell tilted down toward the nose
-                Ellipsoid(mb, e + new Vector3(0, eyeR * 0.78f, -eyeR * 0.1f), new Vector3(eyeR * 0.98f, eyeR * 0.42f, eyeR * 0.68f), Quaternion.Euler(-10, s * 14f, s * -12f), st == HeadStyle.Penguin ? light : Mul(headCol, 0.95f), 6, 12);
-                // brow (angled, determined)
-                Vector3 b0 = e + new Vector3(s * 0.08f, eyeR * 1.42f, -0.02f), b1 = e + new Vector3(-s * 0.06f, eyeR * 1.2f, 0.04f);
+                Vector3 irisC = e + front * eyeR * 0.74f + new Vector3(-s * 0.008f, -0.006f, 0);
+                Ellipsoid(mb, irisC, new Vector3(eyeR * 0.5f, eyeR * 0.6f, eyeR * 0.12f), eq, iris, 8, 12, Mul(iris, 0.62f));
+                Ellipsoid(mb, irisC + front * eyeR * 0.05f, new Vector3(eyeR * 0.27f, eyeR * 0.36f, eyeR * 0.09f), eq, pupil, 6, 10);
+                Ellipsoid(mb, irisC + front * eyeR * 0.11f + new Vector3(s * 0.012f, 0.022f, 0), Vector3.one * eyeR * 0.12f, Color.white, 4, 8);
+                if (!Lo) Ellipsoid(mb, irisC + front * eyeR * 0.1f + new Vector3(-s * 0.012f, -0.018f, 0), Vector3.one * eyeR * 0.055f, Color.white, 3, 6);
+                // upper lid: a shell over the top of the eyeball, tilted down toward the nose
+                Ellipsoid(mb, e + new Vector3(0, eyeR * 0.5f, eyeR * 0.05f), new Vector3(eyeR * 1.0f, eyeR * 0.55f, eyeR * 0.88f), Quaternion.Euler(-14, s * 14f, s * -12f), st == HeadStyle.Penguin ? light : Mul(headCol, 0.95f), 6, 12);
+                Vector3 b0 = e + new Vector3(s * 0.08f, eyeR * 1.32f, 0.0f), b1 = e + new Vector3(-s * 0.06f, eyeR * 1.1f, 0.05f);
                 mb.AddTube(Bezier(b0, (b0 + b1) * 0.5f + new Vector3(0, 0.02f, 0.01f), b1, 5), Radii(5, 0.012f, 0.022f, 0.014f), 6, st == HeadStyle.Penguin ? Mul(light, 0.7f) : brow);
             }
 

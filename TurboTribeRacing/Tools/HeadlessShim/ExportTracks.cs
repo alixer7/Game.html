@@ -48,7 +48,8 @@ namespace TurboTribe.Headless
                     {
                         var v = m.Vertices[i]; Color c = m.Colors.Count > i ? (Color)m.Colors[i] : Color.white;
                         if (go.name == "Water") c = new Color(0.2f, 0.5f, 0.9f);
-                        obj.AppendFormat(CultureInfo.InvariantCulture, "v {0:F2} {1:F2} {2:F2} {3:F3} {4:F3} {5:F3}\n", v.x, v.y, v.z, c.r, c.g, c.b);
+                        var nn = m.Normals.Count > i ? m.Normals[i] : Vector3.zero;
+                        obj.AppendFormat(CultureInfo.InvariantCulture, "v {0:F2} {1:F2} {2:F2} {3:F3} {4:F3} {5:F3} {6:F3} {7:F3} {8:F3}\n", v.x, v.y, v.z, c.r, c.g, c.b, nn.x, nn.y, nn.z);
                     }
                     for (int i = 0; i < m.Triangles.Count; i += 3)
                         obj.Append("f ").Append(m.Triangles[i] + baseIdx).Append(' ').Append(m.Triangles[i + 1] + baseIdx).Append(' ').Append(m.Triangles[i + 2] + baseIdx).Append('\n');
@@ -94,7 +95,8 @@ namespace TurboTribe.Headless
                     for (int k = 0; k < wheel.Vertices.Count; k++)
                     {
                         var v = wheel.Vertices[k]; if (w % 2 == 0) v.x = -v.x;
-                        wb.AddVertex(v, Vector3.up, wheel.Colors[k], Vector2.zero);
+                        var wn = wheel.Normals.Count > k ? wheel.Normals[k] : Vector3.up; if (w % 2 == 0) wn.x = -wn.x;
+                        wb.AddVertex(v, wn, wheel.Colors[k], Vector2.zero);
                     }
                     for (int k = 0; k < wheel.Triangles.Count; k += 3)
                         if (w % 2 == 0) wb.AddTriangle(wheel.Triangles[k], wheel.Triangles[k + 2], wheel.Triangles[k + 1]);
@@ -103,7 +105,7 @@ namespace TurboTribe.Headless
                 }
             }
             var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < mb.V.Count; i++) { Color c = mb.C[i]; sb.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "v {0:F3} {1:F3} {2:F3} {3:F3} {4:F3} {5:F3}\n", mb.V[i].x, mb.V[i].y, mb.V[i].z, c.r, c.g, c.b); }
+            for (int i = 0; i < mb.V.Count; i++) { Color c = mb.C[i]; var nn = mb.N[i]; sb.AppendFormat(System.Globalization.CultureInfo.InvariantCulture, "v {0:F3} {1:F3} {2:F3} {3:F3} {4:F3} {5:F3} {6:F3} {7:F3} {8:F3}\n", mb.V[i].x, mb.V[i].y, mb.V[i].z, c.r, c.g, c.b, nn.x, nn.y, nn.z); }
             for (int i = 0; i < mb.T.Count; i += 3) sb.Append("f ").Append(mb.T[i] + 1).Append(' ').Append(mb.T[i + 1] + 1).Append(' ').Append(mb.T[i + 2] + 1).Append('\n');
             System.IO.File.WriteAllText(System.IO.Path.Combine(outDir, "karts.obj"), sb.ToString());
             return Stats.ToString() + "karts: " + mb.V.Count + " verts";

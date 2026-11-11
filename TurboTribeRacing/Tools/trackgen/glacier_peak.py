@@ -160,7 +160,7 @@ t.ob('penguin', ('slalom_u', 40), lane=0, count=2, spread=10, period=5.5)
 t.lm('crystal', ('cave_in', 50), along=0, lat=-30, r=4)
 t.lm('crystal', ('helix', 60), along=0, lat=52, r=5)                      # inside the curl
 t.lm('rock', ('climb', 80), along=0, lat=40, r=12)
-t.lm('rock', ('slalom_u', 20), along=0, lat=26, r=8)
+t.lm('rock', ('slalom_u', 4), along=0, lat=21, r=7)    # boulder INSIDE the slalom U
 import numpy as np
 lake_c = (t.frame(('lake', 60))[0] + t.frame(('lake_exit', -40))[0] + t.frame(('lake', 5))[0] + t.frame(('lake_exit', 5))[0]) / 4
 t.lm('ice', pos=tuple(lake_c), r=46, y=0.2)                               # the frozen lake

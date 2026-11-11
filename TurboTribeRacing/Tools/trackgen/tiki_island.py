@@ -192,10 +192,10 @@ t.ob('crab', ('cliffs', 30), lane=0.0, count=2, spread=18, size=1.2, period=3.6)
 
 # ---------------------------------------------------------------- scenery
 t.lm('lagoon', 'bay_turn', along=24, lat=16, r=15)                   # the lagoon inside the bend
-t.lm('pyramid', ('court_u', 30), along=0, lat=-46, r=20)             # temple pyramid east of the court
+t.lm('pyramid', ('court_u', 30), along=0, lat=-56, r=18)             # temple pyramid east of the court
 t.lm('stonehead', ('hall_out', 6), along=0, lat=-18, r=3.6, yaw=200)
 t.lm('stonehead', ('temple', 4), along=0, lat=18, r=3.4, yaw=20)
-t.lm('volcano', ('loop_in', 36), along=0, lat=40, r=25)               # the cone the loop climbs round
+t.lm('volcano', ('loop_in', 36), along=0, lat=34, r=14)               # the cone the loop climbs round (tall + steep, inside the loop)
 t.lm('lava', ('switch_u', 33), along=0, lat=21, r=9, dy=-6)          # lava pit inside the switchback
 t.lm('rock', ('cliffs', 60), along=0, lat=-42, r=10)
 

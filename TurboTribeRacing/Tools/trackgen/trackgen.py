@@ -389,12 +389,34 @@ class Track:
         for o in self.obstacles:
             o2 = {k: v for k, v in o.items() if k != 'at'}; o2['t'] = r2(par(o['road'], o['at'])); obstacles.append(o2)
         lms = []
+        allpts = [(p_['x'], p_['z'], p_['w'] * 0.5) for p_ in self.pts] + [(p_['x'], p_['z'], p_['w'] * 0.5) for b in self.branches for p_ in b['pts']]
+        AP = np.array(allpts)
+
+        def clearance(x, z, l):
+            extent = l['r'] * (1.45 if l['type'] == 'pyramid' else 1.0)
+            return float((np.sqrt((AP[:, 0] - x) ** 2 + (AP[:, 1] - z) ** 2) - AP[:, 2] - extent).min())
         for l in getattr(self, 'landmarks', []):
             if l['pos'] is not None: x, z = l['pos']; yb = None
             else:
                 (x, z), yb = self._rel((l['at'], l['along'], l['lat']))
+                # solid landmarks slide outwards (along their lateral offset) until they clear every road by 2 m
+                if l['type'] not in ('lagoon', 'lava', 'ice') and l['lat'] != 0:
+                    lat = l['lat']
+                    for _ in range(80):
+                        if clearance(x, z, l) >= 2.0: break
+                        lat += 2.0 if lat > 0 else -2.0
+                        (x, z), yb = self._rel((l['at'], l['along'], lat))
+                    if lat != l['lat']: print(f"landmark {l['type']} moved from lateral {l['lat']} to {lat} m to clear the roads")
             y = l['y'] if l['y'] is not None else (yb + l['dy'] if (yb is not None and l['dy'] != 0.0) else -999.0)
             lms.append(dict(type=l['type'], x=r2(x), z=r2(z), r=r2(l['r']), y=r2(y), yaw=r2(l['yaw'])))
+        # solid landmarks must stand clear of every road (lagoon / lava / ice basins are meant to sit beside or under them)
+        allpts = [(p_['x'], p_['z'], p_['w'] * 0.5) for p_ in self.pts] + [(p_['x'], p_['z'], p_['w'] * 0.5) for b in self.branches for p_ in b['pts']]
+        AP = np.array(allpts)
+        for l in lms:
+            if l['type'] in ('lagoon', 'lava', 'ice'): continue
+            extent = l['r'] * (1.45 if l['type'] == 'pyramid' else 1.0)
+            gap = float((np.sqrt((AP[:, 0] - l['x']) ** 2 + (AP[:, 1] - l['z']) ** 2) - AP[:, 2] - extent).min())
+            if gap < 1.5: print(f"WARNING: landmark {l['type']} at ({l['x']:.0f}, {l['z']:.0f}) r {l['r']} is only {gap:.1f} m from a road")
         data = dict(self.meta, roads=roads, zones=zones, ranges=ranges, events=events, obstacles=obstacles, landmarks=lms)
         with open(path, 'w') as f: json.dump(data, f, indent=1)
         print(f"{self.meta['id']}: main {self.total:.0f} m, {len(self.pts)} pts, free straights {self.free_lengths[0]:.1f}/{self.free_lengths[1]:.1f} m, "

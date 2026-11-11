@@ -22,17 +22,18 @@ THEMES = {
 HTML = """<html><body style="margin:0;background:#000"><canvas id=c width=1280 height=720></canvas><script>
 const gl = document.getElementById('c').getContext('webgl2', {antialias:true});
 function b64(s, T){ const bin = atob(s); const u = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new T(u.buffer); }
-const P = b64('%POS%', Float32Array), C = b64('%COL%', Uint8Array), I = b64('%IDX%', Uint32Array);
+const P = b64('%POS%', Float32Array), C = b64('%COL%', Uint8Array), I = b64('%IDX%', Uint32Array), NN = b64('%NRM%', Float32Array);
 const T = %THEME%;
 const FP = b64('%FPOS%', Float32Array), FC = b64('%FCOL%', Uint8Array), FU = b64('%FUV%', Float32Array), FI = b64('%FIDX%', Uint32Array), TX = b64('%TEX%', Uint8Array);
 const TW = %TW%, TH = %TH%;
 const vs = `#version 300 es
-in vec3 p; in vec3 c; uniform mat4 vp; out vec3 vc; out vec3 wp;
-void main(){ vc=c; wp=p; gl_Position = vp*vec4(p,1.0); }`;
+in vec3 p; in vec3 c; in vec3 nn; uniform mat4 vp; out vec3 vc; out vec3 wp; out vec3 vn;
+void main(){ vc=c; wp=p; vn=nn; gl_Position = vp*vec4(p,1.0); }`;
 const fs = `#version 300 es
-precision highp float; in vec3 vc; in vec3 wp; uniform vec3 cam, sun, fogc, amb, ambg; uniform vec2 fogr; out vec4 o;
+precision highp float; in vec3 vc; in vec3 wp; in vec3 vn; uniform vec3 cam, sun, fogc, amb, ambg; uniform vec2 fogr; out vec4 o;
 void main(){ vec3 n = normalize(cross(dFdx(wp), dFdy(wp))); n = -n; // flat normal (Unity/left-handed screen)
  if (dot(n, cam-wp) < 0.0) n = -n;
+ if (dot(vn, vn) > 0.25) { vec3 s = normalize(vn); if (dot(s, n) > -0.2) n = s; } // smooth vertex normal when exported
  float ndl = dot(n, normalize(sun)); float wrap = clamp(ndl*0.5+0.5,0.0,1.0); float band = smoothstep(0.42,0.58,wrap);
  float diff = mix(wrap*0.55, 0.75+wrap*0.25, band); vec3 a = mix(ambg, amb, n.y*0.5+0.5);
  vec3 col = vc*(vec3(1.0,0.97,0.9)*1.05*diff*0.82 + a*0.42);
@@ -51,7 +52,7 @@ function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShade
 const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER,vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER,fs)); gl.linkProgram(pr); gl.useProgram(pr);
 function buf(data, loc, n, type, norm){ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW); const l=gl.getAttribLocation(pr,loc); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l,n,type,norm,0,0); }
 const vao1 = gl.createVertexArray(); gl.bindVertexArray(vao1);
-buf(P,'p',3,gl.FLOAT,false); buf(C,'c',3,gl.UNSIGNED_BYTE,true);
+buf(P,'p',3,gl.FLOAT,false); buf(C,'c',3,gl.UNSIGNED_BYTE,true); buf(NN.length ? NN : new Float32Array(P.length),'nn',3,gl.FLOAT,false);
 const ib=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,I,gl.STATIC_DRAW);
 const pr2 = gl.createProgram(); gl.attachShader(pr2, sh(gl.VERTEX_SHADER,vs2)); gl.attachShader(pr2, sh(gl.FRAGMENT_SHADER,fs2)); gl.linkProgram(pr2);
 const vao2 = gl.createVertexArray(); gl.bindVertexArray(vao2);
@@ -87,7 +88,7 @@ window.draw = function(cam, tgt, fov, nofog){
 </script></body></html>"""
 
 def main():
-    V, C, F = load(sys.argv[1])
+    V, C, F, NV = load(sys.argv[1], normals=True)
     tr = json.load(open(sys.argv[2]))
     prefix = sys.argv[3]
     theme = THEMES[tr.get('theme', 'beach')]
@@ -110,6 +111,7 @@ def main():
     html = HTML.replace('%POS%', base64.b64encode(V.astype(np.float32).tobytes()).decode()) \
                .replace('%COL%', base64.b64encode((np.clip(C, 0, 1) * 255).astype(np.uint8).tobytes()).decode()) \
                .replace('%IDX%', base64.b64encode(F.astype(np.uint32).tobytes()).decode()) \
+               .replace('%NRM%', base64.b64encode(NV.astype(np.float32).tobytes()).decode()) \
                .replace('%THEME%', json.dumps(theme)) \
                .replace('%FPOS%', base64.b64encode(FV.astype(np.float32).tobytes()).decode()) \
                .replace('%FCOL%', base64.b64encode((np.clip(FCc, 0, 1) * 255).astype(np.uint8).tobytes()).decode()) \

@@ -251,21 +251,23 @@ namespace TurboTribe
                 Vector3 d = Quaternion.Euler(0, a, 0) * Vector3.forward;
                 mb.AddTube(new[] { pos + Vector3.up * 1.2f * s, pos + d * 0.9f * s + Vector3.up * 0.3f * s, pos + d * 1.6f * s - Vector3.up * 0.2f }, new[] { 0.25f * s, 0.18f * s, 0.08f * s }, 5, bark * 0.8f);
             }
-            // branches + leafy canopy clumps (smooth blobs + leaf cards for silhouette)
+            // branches + ONE sculpted canopy: the clumps are lobes of a single leaf mass (no sphere stacks),
+            // with a few leaf cards on the rim for a ragged silhouette
             Vector3 top = path[5];
             int clumps = rng.Range(4, 7);
+            Vector3 cc = top + Vector3.up * 0.9f * s;
+            var lobes = new Vector3[clumps + 1]; var radii = new float[clumps + 1];
+            lobes[0] = Vector3.zero; radii[0] = 2.3f * s;
             for (int c = 0; c < clumps; c++)
             {
-                float a = rng.Range(0, 360f) * Mathf.Deg2Rad;
-                Vector3 off = new Vector3(Mathf.Cos(a) * rng.Range(1.2f, 2.6f), rng.Range(-0.6f, 1.4f), Mathf.Sin(a) * rng.Range(1.2f, 2.6f)) * s;
-                Vector3 cp = top + off;
-                mb.AddTube(new[] { top - Vector3.up * 0.8f * s, Vector3.Lerp(top, cp, 0.6f), cp }, new[] { 0.22f * s, 0.15f * s, 0.08f * s }, 5, bark);
-                float cr = rng.Range(1.6f, 2.4f) * s;
-                Color lc = rng.Jitter(leaf, 0.06f);
-                mb.AddSphere(M(cp, Quaternion.Euler(0, rng.Range(0, 360f), 0), new Vector3(1.2f, 0.75f, 1.1f)), cr, 8, 12, lc * 1.12f, lc * 0.62f);
-                Bush(fol, cp - Vector3.up * cr * 0.2f, cr * 0.9f, lc, rng);
+                float a = (c / (float)clumps * 360f + rng.Range(-25f, 25f)) * Mathf.Deg2Rad;
+                Vector3 off = new Vector3(Mathf.Cos(a) * rng.Range(1.4f, 2.5f), rng.Range(-1.1f, 0.7f), Mathf.Sin(a) * rng.Range(1.4f, 2.5f)) * s;
+                Vector3 cp = cc + off;
+                mb.AddTube(new[] { top - Vector3.up * 0.8f * s, Vector3.Lerp(top, cp, 0.55f) + Vector3.up * 0.2f * s, cp - Vector3.up * 0.6f * s }, new[] { 0.24f * s, 0.15f * s, 0.07f * s }, 6, bark);
+                lobes[c + 1] = off; radii[c + 1] = rng.Range(1.4f, 2.0f) * s;
+                if (c % 2 == 0) Bush(fol, cp - Vector3.up * 1.1f * s, 1.3f * s, rng.Jitter(leaf, 0.06f), rng);
             }
-            mb.AddSphere(M(top + Vector3.up * 0.8f * s, Quaternion.identity, new Vector3(1.3f, 0.7f, 1.3f)), 2.2f * s, 8, 12, leaf * 1.15f, leaf * 0.6f);
+            OrganicProps.Canopy(mb, cc, lobes, radii, rng.Jitter(leaf, 0.05f), rng.Range(0, 100000));
             // hanging vines
             for (int v = 0; v < 3; v++)
             {
@@ -284,13 +286,12 @@ namespace TurboTribe
             for (int i = 0; i < tiers; i++)
             {
                 float h = 2.3f * s;
-                // drooping tier: lathe with a snowy rim on top
-                var prof = new[] { new Vector2(0.15f * s, 0), new Vector2(r, 0.15f * h), new Vector2(r * 0.92f, 0.32f * h), new Vector2(r * 0.45f, 0.7f * h), new Vector2(0.05f, h) };
+                // ragged drooping skirt (sculpted), snow on its upper faces
                 Color c = i % 2 == 0 ? dark : mid;
-                mb.AddLathe(M(pos + Vector3.up * y, Quaternion.Euler(0, rng.Range(0, 60f), 0), Vector3.one), prof, 9, new[] { c * 0.7f, c * 0.85f, Color.Lerp(c, snow, 0.65f), Color.Lerp(c, snow, 0.85f), snow });
-                for (int b = 0; b < 6; b++)
+                OrganicProps.PineTier(mb, pos + Vector3.up * y, r, h, dark, c, snow, rng.Range(0, 100000), true);
+                for (int b = 0; b < 3; b++)
                 {
-                    float a = (b * 60f + i * 25f) * Mathf.Deg2Rad;
+                    float a = (b * 120f + i * 37f) * Mathf.Deg2Rad;
                     Vector3 d = new Vector3(Mathf.Cos(a), -0.15f, Mathf.Sin(a)).normalized;
                     fol.AddFrond(pos + Vector3.up * (y + 0.3f * h), d, Vector3.Cross(Vector3.up, d).normalized, r * 1.05f, 0.9f * s, 0.25f * s, U0(CellPine), U1(CellPine), c * 1.1f, 2);
                 }
@@ -330,7 +331,7 @@ namespace TurboTribe
         {
             var m = M(pos, Quaternion.Euler(rng.Range(-8, 8), rng.Range(0, 360), rng.Range(-8, 8)),
                 new Vector3(rng.Range(0.9f, 1.4f), rng.Range(0.65f, 1.0f), rng.Range(0.9f, 1.3f)));
-            mb.AddNaturalRock(m, size, col, top, rng, size > 4f ? 2 : 1, 0.22f, false);
+            OrganicProps.Rock(mb, m, size, col, top, rng.Range(0, 100000));
         }
 
         public static void LavaRock(MeshBuilder mb, MeshBuilder glow, Vector3 p, float size, ZoneStyle z, Rng rng)
@@ -352,8 +353,9 @@ namespace TurboTribe
             for (int k = 0; k < 7; k++)
             {
                 float a = k / 7f * Mathf.PI * 2f;
-                Vector3 rp = p + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * r * 1.05f;
-                mb.AddNaturalRock(M(rp, Quaternion.Euler(0, rng.Range(0, 360f), 0), new Vector3(1.3f, 0.5f, 1f)), rng.Range(0.6f, 1.1f), H("#2A2220"), H("#4A3C36"), rng, 1, 0.3f);
+                // rim boulders stand on the pool bed (shallow) and break through the surface
+                Vector3 rp = p + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * r * 1.05f - Vector3.up * 0.9f;
+                mb.AddNaturalRock(M(rp, Quaternion.Euler(0, rng.Range(0, 360f), 0), new Vector3(1.3f, 0.9f, 1f)), rng.Range(0.8f, 1.3f), H("#2A2220"), H("#4A3C36"), rng, 1, 0.3f);
             }
         }
 
@@ -385,42 +387,26 @@ namespace TurboTribe
 
         public static void Mesa(MeshBuilder mb, Vector3 pos, float radius, float height, ZoneStyle z, Rng rng)
         {
-            int layers = Mathf.Max(3, Mathf.RoundToInt(height / 3.5f));
-            float y = 0, r = radius;
-            var prof = new Vector2[layers * 2 + 2];
-            var cols = new Color[prof.Length];
-            for (int i = 0; i < layers; i++)
-            {
-                float lh = height / layers;
-                float r1 = r * rng.Range(0.88f, 0.98f);
-                prof[i * 2] = new Vector2(r * rng.Range(1f, 1.05f), y);
-                prof[i * 2 + 1] = new Vector2(r1, y + lh * 0.92f);
-                Color c = (i % 2 == 0) ? z.Cliff : Color.Lerp(z.TerrainLow, z.TerrainHigh, 0.5f);
-                cols[i * 2] = rng.Jitter(c, 0.03f); cols[i * 2 + 1] = cols[i * 2] * 0.95f;
-                y += lh; r = r1;
-            }
-            prof[layers * 2] = new Vector2(r * 0.97f, y + 0.3f); cols[layers * 2] = z.TerrainHigh;
-            prof[layers * 2 + 1] = new Vector2(0.01f, y + 0.6f); cols[layers * 2 + 1] = z.TerrainHigh;
-            mb.AddLathe(M(pos, Quaternion.Euler(0, rng.Range(0, 360f), 0), new Vector3(1f, 1f, rng.Range(0.8f, 1.2f))), prof, 14, cols);
+            OrganicProps.Butte(mb, pos, radius, height, z.Cliff, Color.Lerp(z.TerrainLow, z.TerrainHigh, 0.5f), z.TerrainHigh, rng.Range(0.75f, 1f), rng.Range(0, 100000));
         }
 
         public static void VolcanoCone(MeshBuilder mb, MeshBuilder glow, Vector3 pos, float r, ZoneStyle z, Rng rng)
         {
-            float h = r * 1.1f;
-            var prof = new[] { new Vector2(r * 1.3f, -2), new Vector2(r, h * 0.2f), new Vector2(r * 0.55f, h * 0.65f), new Vector2(r * 0.3f, h * 0.95f), new Vector2(r * 0.26f, h), new Vector2(r * 0.18f, h * 0.9f) };
-            mb.AddLathe(M(pos), prof, 20, new[] { z.TerrainLow, z.TerrainMid, z.Cliff, z.Cliff * 0.8f, z.Cliff * 0.7f, H("#3A1A10") });
-            glow.AddCylinder(M(pos + Vector3.up * (h * 0.9f + 0.2f)), r * 0.18f, r * 0.18f, 0.2f, 16, H("#FF6A10"), true, true, H("#FFC040"));
+            float h = r * 1.9f;
+            var sdf = OrganicProps.Volcano(mb, pos, r, h, z.TerrainLow, z.TerrainMid, z.Cliff, H("#3A1A10"), rng.Range(0, 100000));
+            glow.AddCylinder(M(pos + Vector3.up * (h - r * 0.1f)), r * 0.19f, r * 0.19f, 0.2f, 16, H("#FF6A10"), true, true, H("#FFC040"));
+            // lava streams follow the sculpted flank (each node is found on the surface, then lifted a little)
             for (int k = 0; k < 4; k++)
             {
                 float a = rng.Range(0, Mathf.PI * 2f);
                 Vector3 d = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
-                var path = new Vector3[6]; var rad = new float[6];
-                for (int i = 0; i < 6; i++)
+                var path = new Vector3[8]; var rad = new float[8];
+                for (int i = 0; i < 8; i++)
                 {
-                    float t = i / 5f;
-                    float rr = Mathf.Lerp(r * 0.26f, r * 0.95f, t);
-                    path[i] = pos + d * rr + Vector3.up * (Mathf.Lerp(h, h * 0.22f, t) + 0.4f);
-                    rad[i] = Mathf.Lerp(0.7f, 1.4f, t);
+                    float t = i / 7f;
+                    float y = Mathf.Lerp(h - r * 0.12f, h * 0.18f, t);
+                    path[i] = pos + Sculpt.Hit(sdf, new Vector3(0, y, 0), d, r * 1.6f) + Vector3.up * 0.25f;
+                    rad[i] = Mathf.Lerp(0.6f, 1.3f, t);
                 }
                 glow.AddTube(path, rad, 5, H("#FF6A10"), H("#FF3A08"));
             }
@@ -517,8 +503,9 @@ namespace TurboTribe
         {
             Color g = H("#3E9A4A"), g2 = H("#5FC069");
             float h = rng.Range(3.5f, 5.5f) * s;
-            var prof = new[] { new Vector2(0.38f * s, 0), new Vector2(0.48f * s, 0.3f * s), new Vector2(0.46f * s, h * 0.6f), new Vector2(0.4f * s, h - 0.3f * s), new Vector2(0.2f * s, h), new Vector2(0.01f, h + 0.05f) };
-            mb.AddLathe(M(pos), prof, 10, new[] { g * 0.8f, g, g, g2, g2, g2 });
+            // ribbed body growing out of a flared foot, arms that elbow up out of it (one smooth skin each)
+            var body = new[] { pos - Vector3.up * 0.2f, pos + Vector3.up * h * 0.3f, pos + Vector3.up * h * 0.65f, pos + Vector3.up * (h - 0.35f * s) };
+            OrganicProps.RibbedTube(mb, body, new[] { 0.5f * s, 0.46f * s, 0.44f * s, 0.38f * s }, 9, 0.16f, g, g2);
             int arms = rng.Range(1, 3);
             for (int a = 0; a < arms; a++)
             {
@@ -527,8 +514,9 @@ namespace TurboTribe
                 Quaternion yaw = Quaternion.Euler(0, rng.Range(0, 360), 0);
                 Vector3 dir = yaw * new Vector3(side, 0, 0);
                 float ah = rng.Range(1.0f, 1.8f) * s;
-                var path = new[] { pos + Vector3.up * ay, pos + Vector3.up * ay + dir * 0.8f * s, pos + Vector3.up * (ay + 0.4f * s) + dir * 1.1f * s, pos + Vector3.up * (ay + ah) + dir * 1.15f * s };
-                mb.AddTube(path, new[] { 0.3f * s, 0.29f * s, 0.28f * s, 0.25f * s }, 8, g, g2);
+                var path = new[] { pos + Vector3.up * ay, pos + Vector3.up * ay + dir * 0.75f * s, pos + Vector3.up * (ay + 0.3f * s) + dir * 1.05f * s,
+                                   pos + Vector3.up * (ay + 0.8f * s) + dir * 1.15f * s, pos + Vector3.up * (ay + ah) + dir * 1.15f * s };
+                OrganicProps.RibbedTube(mb, path, new[] { 0.3f * s, 0.29f * s, 0.28f * s, 0.27f * s, 0.24f * s }, 7, 0.16f, g, g2, 12);
             }
         }
 

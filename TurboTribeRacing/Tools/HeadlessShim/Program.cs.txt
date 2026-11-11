@@ -1,17 +1,20 @@
+// Entry point of the headless verification build (copied to Program.cs by run_sim.sh).
 using System;
+using System.Globalization;
 public static class Program {
   public static int Main(string[] a) {
-    string proj = a[0], mode = a[1];
+    string proj = a[0], mode = a.Length > 1 ? a[1] : "sim";
     string trackDir = proj + "/Assets/Resources/TurboTribe/Tracks";
+    string Arg(int i, string d) { return a.Length > i ? a[i] : d; }
     if (mode == "export") { Console.WriteLine(TurboTribe.Headless.ExportTracks.Run(trackDir, a[2])); Console.WriteLine(TurboTribe.Headless.ExportKarts.Run(a[2])); }
-    else if (mode == "shortcuts") Console.WriteLine(TurboTribe.Headless.SimRunner.ShortcutTest(trackDir, a[2], a.Length > 3 && a[3] == "obs"));
+    else if (mode == "shortcuts") Console.WriteLine(TurboTribe.Headless.SimRunner.ShortcutTest(trackDir, a[2], Arg(3, "") == "obs"));
     else if (mode == "ray") {
       UnityEngine.Resources.TrackDir = trackDir; UnityEngine.GameObject.All.Clear();
       var root = new UnityEngine.GameObject("root");
       var ti = TurboTribe.TrackBuilder.Build(TurboTribe.TrackDatabase.Load(a[2]), root.transform);
       UnityEngine.Physics.Build();
       for (int k = 3; k + 1 < a.Length; k += 2) {
-        float x = float.Parse(a[k], System.Globalization.CultureInfo.InvariantCulture), z = float.Parse(a[k + 1], System.Globalization.CultureInfo.InvariantCulture);
+        float x = float.Parse(a[k], CultureInfo.InvariantCulture), z = float.Parse(a[k + 1], CultureInfo.InvariantCulture);
         for (float top = 60f; ; ) {
           UnityEngine.RaycastHit h;
           if (!UnityEngine.Physics.Raycast(new UnityEngine.Vector3(x, top, z), UnityEngine.Vector3.down, out h, 200f, -1, UnityEngine.QueryTriggerInteraction.Ignore)) break;
@@ -21,7 +24,7 @@ public static class Program {
         }
       }
     }
-    else Console.WriteLine(TurboTribe.Headless.SimRunner.Run(trackDir, a[2], int.Parse(a[3]), a[4], a.Length > 5 ? int.Parse(a[5]) : 1, true, a.Length > 6 ? a[6] : null));
+    else Console.WriteLine(TurboTribe.Headless.SimRunner.Run(trackDir, a[2], int.Parse(Arg(3, "3")), Arg(4, "0.2,0.4,0.6,0.7,0.8,0.9,1.0,1.0"), int.Parse(Arg(5, "1")), true, a.Length > 6 ? a[6] : null));
     return 0;
   }
 }

@@ -585,9 +585,6 @@ namespace TurboTribe
         {
             float vn = Vector3.Dot(Velocity, wn);
             if (vn >= 0f) return;
-#if TT_DEBUG
-            System.Console.WriteLine($"DBG wallbounce n {wn} v {Velocity} pos {transform.position} road {Road.Name} idx {TrackIndex}");
-#endif
             float sp = Velocity.magnitude;
             float impact = -vn / Mathf.Max(sp, 0.1f);
             Velocity -= wn * vn * 1.2f;
@@ -698,9 +695,6 @@ namespace TurboTribe
         /// <summary>Fires a loaded lip jump. q = 1 - (time between the press and the takeoff) / LipWindow.</summary>
         void LipLaunch(float q)
         {
-#if TT_DEBUG
-            System.Console.WriteLine($"DBG liplaunch q {q} v {Velocity} up {Up} pos {transform.position} road {Road.Name} idx {TrackIndex}");
-#endif
             LipLoaded = false;
             float up = HopSpeed + LipBonusMax * q * q;
             Velocity += Vector3.up * up;        // straight up: a launch never costs forward speed
