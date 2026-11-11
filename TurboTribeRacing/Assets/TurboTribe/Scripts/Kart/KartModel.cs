@@ -12,6 +12,36 @@ namespace TurboTribe
         static Matrix4x4 M(Vector3 p) { return Matrix4x4.TRS(p, Quaternion.identity, Vector3.one); }
         static Color H(string hex) { Color c; ColorUtility.TryParseHtmlString(hex, out c); return c; }
 
+        static readonly Dictionary<string, Mesh> bodyCache = new Dictionary<string, Mesh>();
+
+        /// <summary>Chassis + sculpted driver for a character (cached: the raymarched heads are built only once).</summary>
+        static Mesh BodyMesh(CharacterDef ch, bool lo)
+        {
+            string key = ch.Name + (lo ? "#lo" : "#hi");
+            Mesh m;
+            if (bodyCache.TryGetValue(key, out m) && m != null) return m;
+            var mb = new MeshBuilder();
+            KartMeshes.Lo = lo;
+            KartMeshes.BuildChassis(mb, ch);
+            KartMeshes.BuildDriver(mb, ch);
+            KartMeshes.Lo = false;
+            m = mb.ToMesh(lo ? "KartMeshLOD1" : "KartMesh");
+            bodyCache[key] = m;
+            return m;
+        }
+
+        static GameObject MeshObject(string name, Mesh mesh, Transform parent, Material mat)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = mat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            return go;
+        }
+
         public static KartVisual Build(CharacterDef ch, Transform parent)
         {
             var root = new GameObject("Visual");
@@ -23,20 +53,14 @@ namespace TurboTribe
             vis.Body = bodyPivot;
 
             var kartMat = Art.Toon("kart", Art.Tex("grain", () => Art.GrainTexture(64, 0.10f, 11)), 0, default(Vector2), false, 0.1f, 0.35f, 0.35f);
-            var mb = new MeshBuilder();
-            KartMeshes.Lo = false;
-            KartMeshes.BuildChassis(mb, ch);
-            KartMeshes.BuildDriver(mb, ch);
-            var bodyGo = mb.ToObject("KartMesh", bodyPivot, kartMat);
+            // the sculpted driver + chassis are built once per character and LOD, then shared (menus, every race)
+            var bodyGo = MeshObject("KartMesh", BodyMesh(ch, false), bodyPivot, kartMat);
             bodyGo.transform.localPosition = Vector3.zero;
             // distant LOD: same silhouette, half the tessellation, no small parts
-            var lmb = new MeshBuilder();
             KartMeshes.Lo = true;
-            KartMeshes.BuildChassis(lmb, ch);
-            KartMeshes.BuildDriver(lmb, ch);
             var wheelLo = KartMeshes.BuildWheelMesh(Color.Lerp(ch.KartAccent, new Color(0.85f, 0.86f, 0.9f), 0.35f));
             KartMeshes.Lo = false;
-            var bodyLo = lmb.ToObject("KartMeshLOD1", bodyPivot, kartMat);
+            var bodyLo = MeshObject("KartMeshLOD1", BodyMesh(ch, true), bodyPivot, kartMat);
             var lod0 = new List<Renderer> { bodyGo.GetComponent<Renderer>() };
             var lod1 = new List<Renderer> { bodyLo.GetComponent<Renderer>() };
 

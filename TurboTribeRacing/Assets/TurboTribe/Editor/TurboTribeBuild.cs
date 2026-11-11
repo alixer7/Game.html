@@ -38,8 +38,8 @@ namespace TurboTribe.EditorTools
             PlayerSettings.companyName = "TurboTribe";
             PlayerSettings.productName = "Turbo Tribe Racing";
             PlayerSettings.SetApplicationIdentifier(android, "com.turbotribe.racing");
-            PlayerSettings.bundleVersion = "0.3.0";
-            PlayerSettings.Android.bundleVersionCode = 3;
+            PlayerSettings.bundleVersion = "0.4.0";
+            PlayerSettings.Android.bundleVersionCode = 4;
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
             PlayerSettings.allowedAutorotateToPortrait = false;
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;

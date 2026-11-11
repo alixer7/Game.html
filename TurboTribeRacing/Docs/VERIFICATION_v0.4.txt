@@ -1,0 +1,110 @@
+Turbo Tribe Racing v0.4 - verification log (generated 2026-11-11, real game code run headless via Tools/HeadlessShim)
+
+== 1. Track generation (Tools/trackgen)
+bay leap: clear of main at 44 m of 138 m, launcher crest 48 m, channel 17 m
+tiki_island: main 1882 m, 334 pts, free straights 76.2/86.3 m, branches bay_leap* 138 m (saves 64 m), temple_terrace* 87 m (saves 70 m), lava_steps* 100 m (saves 72 m)
+  overlap warnings: 0
+dustbowl_canyon: main 2188 m, 385 pts, free straights 5.8/17.4 m, branches fin_hop* 76 m (saves 62 m), broken_trestle* 110 m (saves 75 m), mesa_dive* 91 m (saves 73 m)
+  overlap warnings: 0
+rooftop run: clear of main at 49 m of 126 m, drift 52 m, roof gap 17 m
+ski jump skip: clear of main at 47 m of 115 m
+glacier_peak: main 2239 m, 392 pts, free straights 60.1/52.5 m, branches rooftop_run* 126 m (saves 67 m), cracked_ice* 163 m (saves 41 m), ski_jump_skip* 115 m (saves 89 m)
+  overlap warnings: 88
+
+== 2. Compile check against Unity reference assemblies (UnityEngine 2021.3 modules + UI + Editor)
+Assets/TurboTribe/Editor/TurboTribeBuild.cs(37,27): error CS0103: The name 'NamedBuildTarget' does not exist in the current context
+(NamedBuildTarget exists from Unity 2021.2 / Unity 6; the reference UnityEditor.dll used here is 2021.1)
+(glacier_peak: all overlap warnings are the CRACKED ICE branch peeling off the lake-shore road at the same height - an intentional gradual fork; walls open there)
+
+== 3. Races: 8 CPUs (skills 0.2,0.4,0.6,0.7,0.8,0.9,1.0,1.0), 3 laps, obstacles on
+TIKI ISLAND: build 1506 ms, main 1886 m (1886 samples), roads 4, pads 7, crates 35, fruit 110, obstacles 9
+  kart0 skill 0.20 Balanced     laps [65.6 65.1 62.6 ] bonks 16 (big 3) falls 0 hits 3 branches  0.0s
+  kart1 skill 0.40 Speed        laps [62.9 66.8 60.9 ] bonks 11 (big 1) falls 0 hits 3 branches  0.0s
+  kart2 skill 0.60 Acceleration laps [65.4 61.5 65.3 ] bonks 23 (big 7) falls 0 hits 4 branches  0.0s
+  kart3 skill 0.70 Turning      laps [61.8 63.2 59.0 ] bonks 19 (big 3) falls 0 hits 2 branches  0.0s
+  kart4 skill 0.80 Acceleration laps [68.8 65.4 64.1 ] bonks 19 (big 3) falls 2 hits 4 branches bay_leap/lava_steps 6.9s
+  kart5 skill 0.90 Turning      laps [65.0 56.4 60.7 ] bonks 29 (big 7) falls 1 hits 4 branches bay_leap/temple_terrace/lava_steps 9.0s
+  kart6 skill 1.00 Speed        laps [56.9 54.0 63.6 ] bonks 18 (big 6) falls 0 hits 3 branches bay_leap/lava_steps 12.5s
+  kart7 skill 1.00 Balanced     laps [64.4 59.2 60.1 ] bonks 24 (big 7) falls 0 hits 4 branches bay_leap/lava_steps 8.8s
+  wall contacts 159, hard (impact > 0.5) 36
+  falls total: 3
+DUSTBOWL CANYON: build 1744 ms, main 2192 m (2192 samples), roads 4, pads 6, crates 28, fruit 135, obstacles 11
+  kart0 skill 0.20 Balanced     laps [76.5 77.8 77.4 ] bonks 24 (big 3) falls 1 hits 1 branches mesa_dive 0.3s
+  kart1 skill 0.40 Speed        laps [82.7 76.3 75.3 ] bonks 24 (big 3) falls 0 hits 1 branches  0.0s
+  kart2 skill 0.60 Acceleration laps [75.6 74.7 77.5 ] bonks 28 (big 3) falls 0 hits 2 branches  0.0s
+  kart3 skill 0.70 Turning      laps [77.6 72.3 74.8 ] bonks 25 (big 3) falls 0 hits 3 branches mesa_dive 0.2s
+  kart4 skill 0.80 Acceleration laps [77.9 79.5 76.8 ] bonks 26 (big 3) falls 1 hits 3 branches mesa_dive/broken_trestle 4.8s
+  kart5 skill 0.90 Turning      laps [78.4 73.2 71.2 ] bonks 28 (big 6) falls 1 hits 4 branches mesa_dive/broken_trestle 3.1s
+  kart6 skill 1.00 Speed        laps [67.6 78.3 69.2 ] bonks 32 (big 7) falls 1 hits 0 branches broken_trestle/mesa_dive/fin_hop 6.0s
+  kart7 skill 1.00 Balanced     laps [65.3 66.3 69.7 ] bonks 26 (big 3) falls 0 hits 0 branches fin_hop/broken_trestle/mesa_dive 6.2s
+  wall contacts 213, hard (impact > 0.5) 30
+  falls total: 4
+GLACIER PEAK: build 2104 ms, main 2243 m (2243 samples), roads 4, pads 5, crates 27, fruit 175, obstacles 9
+  kart0 skill 0.20 Balanced     laps [72.6 75.9 73.0 ] bonks 14 (big 0) falls 0 hits 3 branches  0.0s
+  kart1 skill 0.40 Speed        laps [75.4 73.4 70.4 ] bonks 15 (big 1) falls 1 hits 4 branches ski_jump_skip 0.1s
+  kart2 skill 0.60 Acceleration laps [74.7 74.9 73.2 ] bonks 16 (big 1) falls 0 hits 3 branches  0.0s
+  kart3 skill 0.70 Turning      laps [71.8 73.9 73.6 ] bonks 21 (big 1) falls 0 hits 4 branches  0.0s
+  kart4 skill 0.80 Acceleration laps [71.0 74.3 70.5 ] bonks 14 (big 0) falls 1 hits 2 branches ski_jump_skip/rooftop_run 8.4s
+  kart5 skill 0.90 Turning      laps [68.2 68.3 71.8 ] bonks 15 (big 1) falls 1 hits 3 branches cracked_ice/ski_jump_skip/rooftop_run 18.1s
+  kart6 skill 1.00 Speed        laps [74.6 64.7 71.8 ] bonks 40 (big 8) falls 1 hits 4 branches rooftop_run/cracked_ice/ski_jump_skip 20.0s
+  kart7 skill 1.00 Balanced     laps [67.4 73.1 73.0 ] bonks 23 (big 3) falls 2 hits 5 branches cracked_ice/ski_jump_skip/rooftop_run 21.7s
+  wall contacts 158, hard (impact > 0.5) 15
+  falls total: 6
+
+== 4. Shortcut test matrices (forced skill-1 CPU; lead = seconds the jump is pressed before the takeoff; ok/3 runs and mean time; [main] = the normal route)
+bay_leap (hidden): branch 163 m vs main 203 m
+   BAL plain: [main 1/1 13.32] none:0/3 FALL  0.28:0/3 FALL  0.20:0/3 FALL  0.14:0/3 FALL  0.09:1/3 11.68  0.05:3/3 11.45  0.02:3/3 11.43  
+   BAL turbo: [main 1/1 12.70] none:0/3 FALL  0.28:0/3 FALL  0.20:0/3 FALL  0.14:0/3 FALL  0.09:0/3 FALL  0.05:1/3 11.60  0.02:3/3 10.88  
+   SPD plain: [main 1/1 14.73] none:0/3 FALL  0.28:0/3 FALL  0.20:0/3 FALL  0.14:0/3 FALL  0.09:3/3 11.38  0.05:3/3 11.26  0.02:3/3 11.26  
+   SPD turbo: [main 1/1 12.63] none:0/3 FALL  0.28:2/3 10.30  0.20:1/3 10.68  0.14:2/3 10.51  0.09:2/3 10.36  0.05:3/3 10.81  0.02:3/3 10.74  
+temple_terrace (hidden): branch 100 m vs main 157 m
+   BAL plain: [main 1/1 10.85] none:0/3 main  0.28:0/3 main  0.20:2/3 11.75  0.14:1/3 11.48  0.09:2/3 8.84  0.05:3/3 9.34  0.02:3/3 8.69  
+   BAL turbo: [main 1/1 10.72] none:0/3 main  0.28:0/3 main  0.20:0/3 main  0.14:2/3 8.44  0.09:3/3 9.36  0.05:3/3 8.29  0.02:3/3 8.26  
+   SPD plain: [main 1/1 10.88] none:0/3 main  0.28:2/3 8.31  0.20:2/3 8.18  0.14:2/3 8.38  0.09:2/3 8.24  0.05:2/3 8.23  0.02:2/3 8.23  
+   SPD turbo: [main 1/1 10.80] none:0/3 main  0.28:0/3 main  0.20:0/3 main  0.14:2/3 7.92  0.09:2/3 7.88  0.05:2/3 7.91  0.02:2/3 8.00  
+lava_steps (hidden): branch 127 m vs main 174 m
+   BAL plain: [main 1/1 11.85] none:0/3 FALL  0.28:3/3 9.21  0.20:1/3 9.05  0.14:3/3 8.98  0.09:3/3 9.04  0.05:3/3 9.17  0.02:3/3 9.06  
+   BAL turbo: [main 1/1 12.08] none:3/3 9.01  0.28:3/3 8.86  0.20:2/3 8.87  0.14:3/3 8.88  0.09:3/3 8.92  0.05:2/3 8.88  0.02:3/3 8.84  
+   SPD plain: [main 1/1 12.37] none:0/3 FALL  0.28:2/3 8.92  0.20:2/3 8.67  0.14:3/3 8.72  0.09:3/3 8.71  0.05:3/3 8.79  0.02:3/3 8.83  
+   SPD turbo: [main 1/1 12.58] none:3/3 8.55  0.28:3/3 8.53  0.20:3/3 8.57  0.14:3/3 8.58  0.09:2/3 8.53  0.05:2/3 8.60  0.02:3/3 8.53  
+
+fin_hop (hidden): branch 89 m vs main 138 m
+   BAL plain: [main 1/1 12.13] none:0/3 main  0.28:0/3 main  0.20:0/3 main  0.14:0/3 main  0.09:2/3 13.65  0.05:1/3 8.85  0.02:2/3 8.63  
+   BAL turbo: [main 1/1 12.27] none:0/3 main  0.28:0/3 main  0.20:0/3 main  0.14:0/3 main  0.09:0/3 main  0.05:2/3 8.58  0.02:2/3 8.55  
+   SPD plain: [main 1/1 12.37] none:0/3 main  0.28:0/3 main  0.20:0/3 main  0.14:0/3 main  0.09:2/3 10.40  0.05:1/3 8.32  0.02:1/3 8.18  
+   SPD turbo: [main 1/1 12.23] none:0/3 main  0.28:0/3 main  0.20:0/3 main  0.14:2/3 12.37  0.09:0/3 main  0.05:2/3 8.22  0.02:1/3 8.15  
+broken_trestle (hidden): branch 134 m vs main 185 m
+   BAL plain: [main 1/1 11.83] none:0/3 FALL  0.28:0/3 FALL  0.20:0/3 FALL  0.14:0/3 FALL  0.09:2/3 9.48  0.05:3/3 9.74  0.02:3/3 9.51  
+   BAL turbo: [main 1/1 11.50] none:0/3 FALL  0.28:3/3 9.02  0.20:3/3 9.03  0.14:3/3 8.96  0.09:3/3 8.96  0.05:3/3 8.88  0.02:3/3 8.88  
+   SPD plain: [main 1/1 11.88] none:0/3 FALL  0.28:0/3 FALL  0.20:0/3 FALL  0.14:2/3 9.34  0.09:3/3 9.39  0.05:3/3 9.28  0.02:3/3 9.39  
+   SPD turbo: [main 1/1 12.42] none:3/3 8.86  0.28:3/3 8.64  0.20:3/3 8.70  0.14:3/3 8.71  0.09:3/3 8.78  0.05:3/3 8.57  0.02:3/3 8.53  
+mesa_dive (hidden): branch 117 m vs main 165 m
+   BAL plain: [main 1/1 13.95] none:0/3 FALL  0.28:3/3 9.60  0.20:0/3 FALL  0.14:1/3 9.80  0.09:1/3 9.77  0.05:1/3 9.67  0.02:1/3 9.98  
+   BAL turbo: [main 1/1 13.53] none:3/3 9.44  0.28:3/3 9.15  0.20:3/3 8.93  0.14:3/3 9.03  0.09:3/3 8.82  0.05:3/3 8.95  0.02:3/3 9.06  
+   SPD plain: [main 1/1 13.03] none:0/3 FALL  0.28:0/3 FALL  0.20:1/3 9.50  0.14:3/3 9.43  0.09:1/3 9.50  0.05:0/3 FALL  0.02:1/3 9.75  
+   SPD turbo: [main 1/1 12.75] none:3/3 9.12  0.28:3/3 8.60  0.20:2/3 8.73  0.14:2/3 8.90  0.09:3/3 8.90  0.05:3/3 8.70  0.02:2/3 8.59  
+
+rooftop_run (hidden): branch 150 m vs main 193 m
+   BAL plain: [main 1/1 12.82] none:0/3 FALL  0.28:0/3 FALL  0.20:0/3 FALL  0.14:1/3 11.20  0.09:3/3 10.99  0.05:3/3 11.01  0.02:1/3 10.75  
+   BAL turbo: [main 1/1 13.10] none:0/3 FALL  0.28:0/3 FALL  0.20:0/3 FALL  0.14:1/3 10.62  0.09:2/3 10.47  0.05:3/3 10.69  0.02:1/3 10.50  
+   SPD plain: [main 1/1 12.98] none:0/3 FALL  0.28:0/3 FALL  0.20:2/3 10.39  0.14:3/3 10.69  0.09:3/3 10.59  0.05:3/3 10.70  0.02:2/3 10.40  
+   SPD turbo: [main 1/1 12.60] none:0/3 FALL  0.28:2/3 9.82  0.20:2/3 10.08  0.14:3/3 9.94  0.09:3/3 10.12  0.05:3/3 9.92  0.02:2/3 9.79  
+cracked_ice (hidden): branch 186 m vs main 203 m
+   BAL plain: [main 1/1 12.32] none:0/3 FALL  0.28:3/3 11.72  0.20:2/3 11.74  0.14:3/3 11.53  0.09:3/3 11.48  0.05:3/3 11.48  0.02:3/3 11.32  
+   BAL turbo: [main 1/1 11.95] none:1/3 11.15  0.28:3/3 11.17  0.20:3/3 11.20  0.14:3/3 10.94  0.09:3/3 11.08  0.05:3/3 11.12  0.02:3/3 10.87  
+   SPD plain: [main 1/1 12.20] none:0/3 FALL  0.28:2/3 11.17  0.20:3/3 11.30  0.14:3/3 11.13  0.09:3/3 10.90  0.05:3/3 10.74  0.02:3/3 11.12  
+   SPD turbo: [main 1/1 12.03] none:1/3 10.93  0.28:3/3 10.60  0.20:3/3 10.69  0.14:3/3 10.56  0.09:3/3 10.49  0.05:3/3 10.47  0.02:3/3 10.59  
+ski_jump_skip (hidden): branch 141 m vs main 204 m
+   BAL plain: [main 1/1 12.03] none:3/3 9.73  0.28:3/3 9.48  0.20:3/3 9.56  0.14:3/3 9.56  0.09:3/3 9.29  0.05:3/3 9.06  0.02:3/3 9.26  
+   BAL turbo: [main 1/1 12.12] none:3/3 9.42  0.28:3/3 9.11  0.20:3/3 8.95  0.14:3/3 9.04  0.09:3/3 8.96  0.05:3/3 9.02  0.02:3/3 9.11  
+   SPD plain: [main 1/1 12.32] none:3/3 9.31  0.28:3/3 9.06  0.20:3/3 8.97  0.14:3/3 9.08  0.09:3/3 8.94  0.05:3/3 8.86  0.02:3/3 8.86  
+   SPD turbo: [main 1/1 12.20] none:3/3 8.95  0.28:3/3 8.69  0.20:3/3 8.69  0.14:3/3 8.67  0.09:3/3 8.66  0.05:3/3 8.66  0.02:3/3 8.64  
+
+== 5. Scene QA (Tools/check_scene.py on the exported geometry)
+tiki_island: built in 1475 ms, 378278 verts, 406094 tris, samples 1886, crates 35, fruit 110, pads 7
+dustbowl_canyon: built in 789 ms, 353769 verts, 395082 tris, samples 2192, crates 28, fruit 135, pads 6
+glacier_peak: built in 1358 ms, 436338 verts, 507358 tris, samples 2243, crates 27, fruit 175, pads 5
+karts: 183422 verts
+tiki_island: 285 prop assemblies (2832 pieces) checked, 0 floating, 0 intruding into a road
+dustbowl_canyon: 300 prop assemblies (1603 pieces) checked, 0 floating, 0 intruding into a road
+glacier_peak: 286 prop assemblies (3905 pieces) checked, 0 floating, 0 intruding into a road
