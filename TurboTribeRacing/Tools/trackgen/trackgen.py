@@ -307,17 +307,21 @@ class Track:
         arr = b['d_arr']
         return b['p_off'] + float(np.interp(d, arr, np.arange(len(arr))))
 
-    def edge_clearance(self, q, skip=None):
-        """metres from point q (x, z) to the nearest main-road outer wall face (negative = on the road)."""
+    def edge_clearance(self, q, skip=None, y=None, dy=4.0):
+        """metres from point q (x, z) to the nearest main-road outer wall face (negative = on the road).
+        With y: main samples more than dy metres above / below are ignored (a crossing on another level)."""
         P = np.array([[p['x'], p['z']] for p in self.pts]); W = np.array([p['w'] for p in self.pts]) * 0.5
+        Y = np.array([p['y'] for p in self.pts])
         # densify (turtle samples are ~6 m apart)
-        Q = []; WW = []
+        Q = []; WW = []; YY = []
         for i in range(len(P)):
             j = (i + 1) % len(P)
             for u in np.linspace(0, 1, 6, endpoint=False):
-                Q.append(P[i] + (P[j] - P[i]) * u); WW.append(W[i] + (W[j] - W[i]) * u)
-        Q = np.array(Q); WW = np.array(WW)
+                Q.append(P[i] + (P[j] - P[i]) * u); WW.append(W[i] + (W[j] - W[i]) * u); YY.append(Y[i] + (Y[j] - Y[i]) * u)
+        Q = np.array(Q); WW = np.array(WW); YY = np.array(YY)
         d = np.sqrt(np.sum((Q - np.asarray(q)[None, :]) ** 2, axis=1)) - WW - 0.7
+        if y is not None:
+            d = np.where(np.abs(YY - y) > dy, 1e9, d)
         return float(d.min())
 
     def hop_line(self, at, lat, ahead):
@@ -334,7 +338,7 @@ class Track:
         first = None
         for p in b['pts']:
             if p['d'] < start: continue
-            ok = self.edge_clearance(np.array([p['x'], p['z']])) - p['w'] * 0.5 >= margin
+            ok = self.edge_clearance(np.array([p['x'], p['z']]), y=p['y']) - p['w'] * 0.5 >= margin
             if ok and first is None: first = p['d']
             if not ok: first = None
             if first is not None and p['d'] - first > 25: break

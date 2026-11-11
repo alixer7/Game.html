@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GLACIER PEAK (v0.3)  -  village -> frozen lake -> ice cave -> alpine curl -> west face -> summit -> ski jump -> slalom.
+"""GLACIER PEAK (v0.4)  -  village -> frozen lake -> ice cave -> alpine curl -> west face -> summit -> ski jump -> slalom.
 Clockwise with a climbing curl that crosses OVER the ice-cave road on a timber trestle (total turning 720).
 
 Three hidden skill shortcuts:
@@ -11,6 +11,7 @@ Three hidden skill shortcuts:
                   onto the lower piste. Short = you land in the slalom (no harm) or in the gully (respawn).
 """
 import sys, os
+import json as _json
 sys.path.insert(0, os.path.dirname(__file__))
 from trackgen import Track
 import trackgen
@@ -23,14 +24,14 @@ t.M('start')
 t.S(46)
 t.T(-28, 64, w=22)                  # chicane between the cabins
 t.T(+28, 64)
-t.S(10)
+t.S(12)
 t.M('square')
-t.T(+90, 24, y=3.8, bank=5)         # right round the church square ...
+t.T(+90, 24, y=2.4, bank=2)         # right, down into the sunken church square ...
 t.S(8)
 t.M('square_u')
-t.T(-180, 20, y=3.4, bank=6)        # ... tight left U past the church ...
+t.T(-180, 22, y=2.2, bank=3)        # ... tight left U past the church ...
 t.S(8)
-t.T(+90, 24, y=3.6, bank=5)         # ... right, east-bound again
+t.T(+90, 24, y=3.6, bank=2)         # ... right, back up and east-bound again
 t.M('square_out')
 t.S(12, w=22)
 t.T(+90, 56, w=24, bank=4)          # out of the village, south
@@ -40,7 +41,7 @@ t.M('lake')
 # ---------------------------------------------------------------- FROZEN LAKE (shore road)
 t.T(+40, 110, y=0.8, w=24)          # the shore road bulges round the lake ...
 t.S(30)
-t.T(+100, 55)                       # ... tight right at the far shore ...
+t.T(+100, 34, bank=3)               # ... tight right at the far shore (slide it) ...
 t.T(-50, 100)                       # ... and back
 t.M('lake_exit')
 t.S(30)
@@ -52,6 +53,14 @@ t.T(-22, 120, y=2.0)                # curving ice cave (icicles)
 t.S(40)
 t.T(+22, 120, y=2.5)
 t.M('cave_out')
+t.S(16, y=2.6)
+t.M('falls')
+t.T(-38, 52, w=20)                  # FROZEN FALLS esses: left ...
+t.S(6)
+t.T(+76, 40, bank=3)                # ... right (slide it from the left edge) ...
+t.S(6)
+t.T(-38, 52)                        # ... left: the pad on the exit is on the WRONG side for the curl entry
+t.M('falls_out')
 t.FREE(y=3)
 t.T(+90, 36, y=5, bank=5, w=20)     # north out of the cave into the curl
 t.M('helix')
@@ -74,14 +83,14 @@ t.S(26, y=28)
 t.M('ski_jump')
 t.S(18, y=28.5, prof='crest')       # run-in to the kicker
 t.M('kicker')
-t.S(24, y=21, prof='early', w=24)   # landing slope
+t.S(36, y=20, prof='early', w=24)   # landing slope (long enough for everyone's flight)
 t.M('jump_bottom')
-t.T(-90, 22, y=19, bank=5, w=20)    # SLALOM LOOP: left ...
+t.T(-90, 22, y=19, bank=2, w=20)    # SLALOM LOOP: left ...
 t.S(20, y=16)
 t.M('slalom_u')
-t.T(+180, 20, y=11.5, bank=6)       # ... right U down the piste ...
+t.T(+180, 21, y=11.5, bank=3)       # ... right U down the piste ...
 t.S(20, y=8.5)
-t.T(-90, 22, y=7, bank=5)           # ... left, east-bound below the jump
+t.T(-90, 22, y=7, bank=2)           # ... left, east-bound below the jump
 t.M('slalom_out')
 t.S(20, y=6, w=24)
 t.T(-25, 120, y=5, w=26)            # GRADUAL DROP into the village
@@ -89,7 +98,7 @@ t.T(+25, 120, y=4)
 t.S(40, y=4)
 
 if len(sys.argv) > 1 and sys.argv[1] == "sketch":
-    trackgen.sketch(t, "/tmp/claude-0/-home-claude/d88b25c4-563d-5247-a90f-bac6329343eb/scratchpad/sketch.png"); sys.exit()
+    trackgen.sketch(t, sys.argv[2] if len(sys.argv) > 2 else "/tmp/sketch.png"); sys.exit()
 t.build()
 print('free', [round(x, 1) for x in t.free_lengths], 'total', round(t.total))
 
@@ -100,7 +109,7 @@ t.zone(('cave', -10), 'helix', 'icecave')
 t.zone('helix', ('slalom_out', 30), 'alpine')
 
 # ---------------------------------------------------------------- sides / surfaces
-t.rng('lowL', ('square', -2), ('square', 26))          # low snow wall on the OUTSIDE of the square entry
+# (the square entry's outside is a normal wall; ROOFTOP RUN leaves through the gap behind the washing lines)
 t.rng('cliffR', ('square_u', 4), ('square_u', 58))     # the frozen church pond inside the U
 t.rng('open', ('downhill', 20), 'lake')                # snowy slope down to the lake
 t.rng('openR', 'lake', 'lake_exit')                    # lake side (inside): snow shoulder then ice
@@ -110,7 +119,7 @@ t.rng('cliffL', ('helix', 30), 'trestle')              # outside of the climbing
 t.rng('cliff', ('trestle', 4), ('trestle', 66))        # the trestle: open both sides
 t.rng('cliffL', 'climb', 'summit')                     # west face: sheer drop on the left
 t.rng('cliff', 'summit', 'kicker')                     # summit ledge: both sides
-t.rng('cliffR', 'kicker', ('slalom_u', 4))             # right of the landing slope: the gully
+t.rng('cliffR', ('jump_bottom', 40), ('slalom_u', 4))   # gully beside the slalom (the landing slope itself is walled: no flying off its side)
 t.rng('openL', 'kicker', 'jump_bottom')
 t.rng('open', ('slalom_u', 50), ('slalom_out', 40))    # open piste
 
@@ -123,12 +132,12 @@ t.ev('bump', ('helix', 10), h=0.5, len=7)
 t.ev('rumble', ('trestle', 20), h=0.1, len=2.0, count=12)          # trestle planks
 t.ev('hump', ('climb', 30), lane=-1, h=1.25, len=12)                # west face: left (cliff side!) hump - brave
 t.ev('bump', ('climb', 90), h=1.3, len=14)                          # HIGH crest on the west face
-t.ev('ramp', 'kicker', lane=0.0, h=1.4, len=8, width=14)            # the SKI JUMP kicker (everyone flies)
+t.ev('ramp', 'kicker', lane=0.0, h=1.0, len=8, width=14)            # the SKI JUMP kicker (everyone flies)
 t.ev('hump', ('slalom_out', 30), lane=-1, h=1.1, len=10)
 t.ev('bump', ('slalom_out', 120), h=0.6, len=8)
 
 t.ev('pad', ('downhill', 10), lane=0.4)
-t.ev('pad', ('cave_out', 5), lane=-0.35)
+t.ev('pad', ('falls_out', 6), lane=-0.4)
 t.ev('pad', ('trestle', 5), lane=0.0)
 t.ev('pad', ('ski_jump', 4), lane=0.0)                               # speed for the jump
 t.ev('pad', ('slalom_out', 10), lane=-0.4)
@@ -157,58 +166,57 @@ lake_c = (t.frame(('lake', 60))[0] + t.frame(('lake_exit', -40))[0] + t.frame(('
 t.lm('ice', pos=tuple(lake_c), r=46, y=0.2)                               # the frozen lake
 t.lm('ice', ('square_u', 30), along=0, lat=-22, r=8, y=3.0)               # frozen church pond
 
-# ---------------------------------------------------------------- SECRET 1: ROOFTOP RUN (low-wall hop into the back alley)
+# ---------------------------------------------------------------- SECRET 1: ROOFTOP RUN (straight on into the back alley)
+# where the street turns right into the sunken square, keep LEFT and go straight on through the gap behind the
+# icicle-hung washing lines: a snowdrift at the end of the alley launches you across the gap between two roofs.
 rf = 'rooftop_run'
-RF = dict(hump=-4.0, line=-7.5, hw=6.0, shift=2.0)
-for ahead in range(8, 60):
-    q, hh = t.hop_line(('square', RF['hump']), RF['line'] - RF['shift'], ahead)
-    edge = q + trackgen._dir(hh + 90) * RF['hw']
-    if t.edge_clearance(edge) >= 1.3 and t.edge_clearance(q) > RF['hw'] + 1.3: break
-q0, hh = t.hop_line(('square', RF['hump']), RF['line'] - RF['shift'], ahead)
-q1, _ = t.hop_line(('square', RF['hump']), RF['line'] - RF['shift'], ahead + 26)
-print(f"rooftop run: alley starts {ahead} m past the hump crest")
-t.branch(rf, 'shortcut', ('square', RF['hump'] + ahead), ('square_out', 14),
-         via=[dict(pos=tuple(q0), y=4.0, w=RF['hw'] * 2, h=hh), dict(pos=tuple(q1), y=4.2, w=RF['hw'] * 2, h=hh)],
-         w=RF['hw'] * 2, sp=5, flat=10, hidden=True, detach_start=True)
-t.ev('hump', ('square', RF['hump']), lane=-0.62, h=1.35, len=12, width=8)    # snowdrift hugging the LEFT wall
-t.rng('bareR', 0.0, 'f0.45', road=rf)
-t.rng('lowL', 0.0, 'f0.4', road=rf)
-t.rng('trail', 'f0.0', 'f0.85', road=rf)
-t.ev('curtain', 'f0.55', road=rf, width=12, h=6)                           # icicle-hung washing lines over the alley
+h_sq = t.frame(('square', -12))[1]
+t.branch(rf, 'shortcut', ('square', -18), ('square_out', 14),
+         via=[dict(pos=tuple(t.hop_line(('square', -12), -7, a)[0]), y=y, w=10, h=h_sq) for a, y in ((18, 4.2), (44, 4.6), (70, 4.4))],
+         w=10, sp=4, flat=8, hidden=True)
+c0, BLr = t.clear_from(rf, margin=1.0)
+RF = dict(crest=c0 + 3.0, gap=17.0)
+RF.update(_json.loads(os.environ.get('TT_RF', '{}')))
+print(f"rooftop run: clear of main at {c0:.0f} m of {BLr:.0f} m, drift {RF['crest']:.0f} m, roof gap {RF['gap']:.0f} m")
+t.ev('hump', RF['crest'], road=rf, lane=0.0, h=1.2, len=10, width=8)              # the snowdrift launcher
+t.rng('gap', RF['crest'] + 1.0, RF['crest'] + 1.0 + RF['gap'], road=rf)           # the gap between the roofs
+t.rng('cliff', RF['crest'] - 6.0, RF['crest'] + 1.0 + RF['gap'] + 10.0, road=rf)
+t.rng('trail', 'f0.06', 'f0.94', road=rf)
+cf = t.curtain_spot(rf, 10.6, lo=0.08, hi=0.4)
+print('rooftop curtain at', cf)
+if cf: t.ev('curtain', 'f%.3f' % cf, road=rf, width=10.6, h=6)                    # icicle-hung washing lines
+t.ev('crates', RF['crest'] + RF['gap'] + 14, road=rf, count=2)
 
 # ---------------------------------------------------------------- SECRET 2: CRACKED ICE (glare ice + open-water crack)
 ci = 'cracked_ice'
-CI = dict(hump=0.36, g0=0.40, g1=0.50)
+CI = dict(hump=0.36, g0=0.40, g1=0.455)
+CI.update(_json.loads(os.environ.get('TT_CI', '{}')))
 t.branch(ci, 'shortcut', ('lake', 4), ('lake_exit', -46), via=[], w=16, sp=6, hidden=True)
 t.ev('hump', 'f%.3f' % CI['hump'], road=ci, lane=0.0, h=1.25, len=10, width=10)    # pressure ridge = the launcher
 t.rng('gap', 'f%.3f' % CI['g0'], 'f%.3f' % CI['g1'], road=ci)                     # open-water crack
-t.rng('ice', 'f0.12', 'f%.3f' % (CI['hump'] - 0.06), road=ci)
-t.rng('ice', 'f%.3f' % CI['g1'], 'f0.88', road=ci)
+t.rng('ice', 'f%.3f' % (CI['g1'] + 0.04), 'f%.3f' % (CI['g1'] + 0.16), road=ci)   # glare ice on the far side of the crack: land straight!
 t.rng('open', 'f0.1', 'f0.9', road=ci)
 t.ob('penguin', 'f0.75', road=ci, lane=0, count=2, spread=10, period=5.0)
 
-# ---------------------------------------------------------------- SECRET 3: SKI JUMP SKIP (perfect launch past the slalom)
+# ---------------------------------------------------------------- SECRET 3: SKI JUMP SKIP (narrow ice bridge over the slalom)
+# at the bottom of the landing slope everybody turns left into the slalom loop. Straight on, behind the icicles, a
+# narrow glare-ice bridge spans the slalom: no grip, sheer drops both sides, and you arrive with the ski jump's air
+# turbo - you must come off the jump dead straight and hold the line.
 sk = 'ski_jump_skip'
-SK = dict(strip=26.0, y_strip=6.0)
-jb, hjb, yjb, wjb = t.frame('jump_bottom')
-t.branch(sk, 'shortcut', ('kicker', 0), ('slalom_out', 12),
-         via=[dict(rel=('jump_bottom', SK['strip'] - 6, 0), y=SK['y_strip'] + 1.0, w=14), dict(rel=('jump_bottom', SK['strip'] + 4, 0), y=SK['y_strip'], w=14),
-              dict(rel=('jump_bottom', SK['strip'] + 30, 0), y=8.0, w=14)],
-         w=14, sp=4, flat=4, hidden=True)
-L_sk = None
-t.rng('gap', 'f0.02', 'f%.3f' % 0.0, road=sk)       # placeholder, replaced below once the branch length is known
-t.rng('cliff', 'f0.1', 'f0.95', road=sk)
-t.rng('trail', 'f0.4', 'f0.95', road=sk)
-
+h_jb = t.frame('jump_bottom')[1]
+SK = dict(w_bridge=7.0)
+SK.update(_json.loads(os.environ.get('TT_SK', '{}')))
+t.branch(sk, 'shortcut', ('jump_bottom', -14), ('slalom_out', 14),
+         via=[dict(pos=tuple(t.hop_line('jump_bottom', 3, a)[0]), y=y, w=w, h=h_jb)
+              for a, y, w in ((14, 20.1, 12), (44, 20.0, SK['w_bridge']), (66, 18.0, SK['w_bridge']), (86, 13.5, SK['w_bridge']))],
+         w=12, w_end=14, sp=4, flat=8, hidden=True)
+c0, BLk = t.clear_from(sk, margin=1.0)
+print(f"ski jump skip: clear of main at {c0:.0f} m of {BLk:.0f} m")
+t.rng('ice', c0 - 4.0, c0 + 50.0, road=sk)
+t.rng('cliff', c0 - 2.0, 'f0.9', road=sk)
+t.rng('trail', 'f0.05', c0 - 4.0, road=sk)
+cf = t.curtain_spot(sk, 12.6, lo=0.1, hi=0.45)
+print('ski skip curtain at', cf)
+if cf: t.ev('curtain', 'f%.3f' % cf, road=sk, width=12.6, h=6)              # icicle curtain hides the bridge
 out = os.path.join(os.path.dirname(__file__), '../../Assets/Resources/TurboTribe/Tracks/glacier_peak.json')
-# the gap runs from the kicker lip to the start of the landing strip (strip starts SK['strip'] m past jump_bottom)
-b_sk = [b for b in t.branches if b['id'] == sk][0]
-t._build_branch(b_sk)
-d_strip = None
-P = np.array([[p['x'], p['z']] for p in b_sk['pts']]); D = np.array([p['d'] for p in b_sk['pts']])
-target = t._rel(('jump_bottom', SK['strip'], 0))[0]
-d_strip = float(D[int(np.argmin(np.sum((P - target) ** 2, axis=1)))])
-t.ranges = [r for r in t.ranges if not (r['road'] == sk and r['type'] == 'gap')]
-t.rng('gap', 'f0.03', 'f%.3f' % (d_strip / b_sk['total']), road=sk)
-print(f"ski jump skip: gap {d_strip:.0f} m of {b_sk['total']:.0f} m")
-t.export(out)
+t.export(sys.argv[1] if len(sys.argv) > 1 else out)
