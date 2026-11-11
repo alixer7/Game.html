@@ -30,6 +30,8 @@ namespace TurboTribe
         public float[] MainIdx;      // where this sample sits along the main loop (lap progress)
         public float[] AiLane;       // preferred lateral fraction for CPUs (NaN = free)
         public float[] HumpLane;     // lane of a half-road hump just ahead (NaN = none) - bold CPUs aim for it
+        public float[] SecretLane;   // lateral fraction of a hidden shortcut's launcher on this road just ahead (NaN = none):
+                                     // CPUs that are not going for that secret keep off it
         public int[] Zone;           // index into TrackInstance.Zones
         public int FromMain = -1, ToMain = -1;
         public int StartIdx, EndIdx;   // branch samples sitting on the main-road junction anchors

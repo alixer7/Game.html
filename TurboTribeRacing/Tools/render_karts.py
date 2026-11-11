@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Renders Tools/HeadlessShim ExportKarts output (karts.obj) with the same WebGL toon approximation.
 usage: render_karts.py karts.obj out_prefix 'cam;target;fov|cam;target;fov...'   (cam/target as x,y,z)"""
-import base64, json, sys
+import base64, json, os, sys
 import numpy as np
 sys.path.insert(0, __file__.rsplit('/', 1)[0])
 from webgl_render import HTML, THEMES
@@ -19,7 +19,7 @@ def main():
     open('/tmp/render_k.html', 'w').write(html)
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
-        b = p.chromium.launch(args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+        b = p.chromium.launch(executable_path=os.environ.get('PW_CHROMIUM') or None, args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
         pg = b.new_page(viewport={'width': 1280, 'height': 720})
         pg.goto('file:///tmp/render_k.html')
         for k, spec in enumerate(sys.argv[3].split('|')):

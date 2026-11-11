@@ -51,6 +51,7 @@ namespace TurboTribe.Headless
                 kc.Init(ch, track, pos, Quaternion.LookRotation(s.Fwd[idx], s.Up[idx]), false, ch.Name);
                 var ai = go.AddComponent<AIDriver>();
                 ai.Kart = kc; ai.Skill = skills[k];
+                CallStart(ai);
                 var st = new Stat();
                 int kk = k;
                 kc.OnBonk += imp => { st.Bonks++; if (imp > 0.5f) st.BigBonks++; Log.AppendLine($"bonk k{kk} imp {imp:F2} road {kc.Road.Name} idx {kc.TrackIndex} main {kc.MainIndex:F0} t {Time.time:F1}"); };
@@ -127,6 +128,110 @@ namespace TurboTribe.Headless
             sb.AppendLine($"  rays {Physics.RayCount}, sim time {time:F1}s");
             sb.Append(Log.ToString());
             if (trace != null) System.IO.File.WriteAllText(tracePath, trace.ToString());
+            return sb.ToString();
+        }
+
+        static void CallStart(object o)
+        {
+            var m = o.GetType().GetMethod("Start", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            if (m != null) m.Invoke(o, null);
+        }
+
+        /// <summary>
+        /// Drives every branch with the REAL kart + AI code: a skill-1 CPU forced onto the branch with different lip-jump
+        /// lead times (never / early / medium / late / last moment), with and without a turbo, plus the main-road
+        /// baseline. Reports success (stayed on the branch and rejoined without falling) and the time from a point
+        /// 140 m before the junction to a point 60 m past the rejoin, versus the main road.
+        /// </summary>
+        public static string ShortcutTest(string trackDir, string id, bool obstacles)
+        {
+            Resources.TrackDir = trackDir; Log.Clear();
+            GameObject.All.Clear();
+            var root = new GameObject("root");
+            var track = TrackBuilder.Build(TrackDatabase.Load(id), root.transform);
+            Physics.Build();
+            ObstacleManager om = null;
+            if (obstacles)
+            {
+                var og = new GameObject("obs");
+                om = og.AddComponent<ObstacleManager>();
+                om.BuildVisuals = false;
+                om.Build(track, TrackBuilder.StableHash(id));
+                om.Karts = new List<KartController>();
+                AIDriver.Obstacles = om;
+            }
+            else AIDriver.Obstacles = null;
+            var upd = typeof(KartController).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic);
+            var sb = new StringBuilder();
+            string trace = System.Environment.GetEnvironmentVariable("TT_TRACE");
+            var ms = track.Main.S; int n = ms.Count;
+            float dt = 1f / 60f; Time.deltaTime = dt;
+            float[] leads = { 9f, 0.28f, 0.2f, 0.14f, 0.09f, 0.05f, 0.02f };
+            foreach (var b in track.Roads)
+            {
+                if (b.IsMain) continue;
+                int startIdx = ms.Wrap(b.FromMain - 140);
+                float span = (b.ToMain - b.FromMain + n) % n;
+                float goal = 140 + span + 60;
+                sb.AppendLine($"{b.Name}{(b.Hidden ? " (hidden)" : "")}: branch {b.S.Length:F0} m vs main {span * ms.Step:F0} m");
+                for (int cls = 0; cls < 2; cls++)
+                    for (int turbo = 0; turbo < 2; turbo++)
+                    {
+                        var line = new StringBuilder();
+                        line.Append($"   {(cls == 0 ? "BAL" : "SPD")} {(turbo == 1 ? "turbo" : "plain")}: ");
+                        for (int li = -1; li < leads.Length; li++)
+                        {
+                            int ok = 0, seeds = li < 0 ? 1 : 3; float tsum = 0f; string lastRes = "";
+                            for (int seed = 0; seed < seeds; seed++)
+                            {
+                                UnityEngine.Random.R = new System.Random(7 + li * 31 + seed * 1009);
+                                var go = new GameObject("tk");
+                                var kc = go.AddComponent<KartController>();
+                                KartClass want = cls == 0 ? KartClass.Balanced : KartClass.Speed;
+                                var ch = CharacterDef.All[0];
+                                for (int q = 0; q < CharacterDef.All.Length; q++) if (CharacterDef.All[q].Class == want) { ch = CharacterDef.All[q]; break; }
+                                Vector3 pos = ms.PointAt(startIdx, (seed - 1) * 2.5f, 0.3f);
+                                kc.Init(ch, track, pos, Quaternion.LookRotation(ms.Fwd[startIdx], ms.Up[startIdx]), false, "t");
+                                kc.Velocity = ms.Fwd[startIdx] * kc.Stats.MaxSpeed;
+                                kc.ControlsEnabled = true;
+                                var ai = go.AddComponent<AIDriver>();
+                                ai.Kart = kc; ai.Skill = 1f;
+                                if (li < 0) { ai.NeverBranch = true; ai.LipLeadOverride = 0.05f; }
+                                else { ai.ForceBranch = b.Name; ai.LipLeadOverride = leads[li]; }
+                                CallStart(ai);
+                                if (om != null) om.Karts = new List<KartController> { kc };
+                                float p0 = kc.Progress, t = 0f; bool fell = false, used = false;
+                                kc.OnFall += () => fell = true;
+                                kc.OnLaunch += qq => { if (trace != null && trace == $"{b.Name}:{cls}:{turbo}:{li}:{seed}") sb.AppendLine($"      LAUNCH q {qq:F2} at t {t:F2}"); };
+                                int frames = 0; bool boosted = false;
+                                while (t < 30f)
+                                {
+                                    // "turbo": a slide turbo / reserves picked up ~60 m before the junction
+                                    if (turbo == 1 && !boosted && kc.Progress - p0 >= 80f) { kc.Boost(6.5f, 2.2f); boosted = true; }
+                                    ai.Tick(dt); upd.Invoke(kc, null);
+                                    if (om != null) om.Step(dt);
+                                    t += dt; frames++; Time.time += dt;
+                                    if (kc.Road == b) used = true;
+                                    if (trace != null && trace == $"{b.Name}:{cls}:{turbo}:{li}:{seed}" && frames % 2 == 0)
+                                    {
+                                        var rr = kc.Road.S; int ix = kc.TrackIndex;
+                                        float lat = rr.Lateral(kc.transform.position, ix);
+                                        sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "      t {0:F2} road {1} idx {2} lat {3:F1}/{4:F1} y {5:F2} spd {6:F1} gr {7} sl {8} tko {9:F2} lip {10} air {11:F2} gap {12} steer {13:F2} hop {14}",
+                                            t, kc.Road.Name, ix, lat, rr.HalfWidth[ix], kc.transform.position.y, kc.ForwardSpeed, kc.Grounded ? 1 : 0, kc.Sliding ? 1 : 0, kc.TakeoffIn, kc.LipLoaded ? 1 : 0, kc.AirTime, kc.Road.Gap[ix] ? 1 : 0, kc.Input.Steer, kc.Input.HopHeld ? 1 : 0));
+                                    }
+                                    if (fell) break;
+                                    if (kc.Progress - p0 >= goal) break;
+                                }
+                                if (!fell && t < 30f && (used || li < 0)) { ok++; tsum += t; }
+                                lastRes = fell ? (used ? "FALL" : "fall(main)") : t >= 30f ? "STUCK" : used ? "" : "main";
+                                GameObject.All.Remove(go);
+                            }
+                            string cell = ok > 0 ? $"{ok}/{seeds} {(tsum / ok).ToString("F2", CultureInfo.InvariantCulture)}" : $"0/{seeds} {lastRes}";
+                            line.Append(li < 0 ? $"[main {cell}] " : $"{(leads[li] > 5 ? "none" : leads[li].ToString("F2", CultureInfo.InvariantCulture))}:{cell}  ");
+                        }
+                        sb.AppendLine(line.ToString());
+                    }
+            }
             return sb.ToString();
         }
     }

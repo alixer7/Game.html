@@ -124,9 +124,9 @@ namespace TurboTribe
                 Gap = new bool[n], Ice = new bool[n], Tunnel = new bool[n], WallL = new bool[n], WallR = new bool[n],
                 CliffL = new bool[n], CliffR = new bool[n], ShoulderL = new bool[n], ShoulderR = new bool[n],
                 LowL = new bool[n], LowR = new bool[n], Trail = new bool[n],
-                MainIdx = new float[n], AiLane = new float[n], HumpLane = new float[n], Zone = new int[n]
+                MainIdx = new float[n], AiLane = new float[n], HumpLane = new float[n], SecretLane = new float[n], Zone = new int[n]
             };
-            for (int i = 0; i < n; i++) { r.WallL[i] = r.WallR[i] = true; r.AiLane[i] = float.NaN; r.HumpLane[i] = float.NaN; }
+            for (int i = 0; i < n; i++) { r.WallL[i] = r.WallR[i] = true; r.AiLane[i] = float.NaN; r.HumpLane[i] = float.NaN; r.SecretLane[i] = float.NaN; }
             return r;
         }
 
@@ -246,7 +246,19 @@ namespace TurboTribe
             {
                 // only the "half-road" humps (lane +-1) are race-line material; a hump placed off-centre on purpose is a
                 // secret's launcher towards a low wall - CPUs only use it when they go for that secret
-                if (e.road != r.Name || e.type != "hump" || Mathf.Abs(e.lane) < 0.99f) continue;
+                if (e.road != r.Name || e.type != "hump") continue;
+                if (Mathf.Abs(e.lane) < 0.99f)
+                {
+                    // off-centre hump on a road = the launcher of a secret (towards a low wall / ledge)
+                    int ci = s.IndexOfParam(e.t);
+                    for (int k = -40; k <= 3; k++)
+                    {
+                        int j = ci + k;
+                        if (!s.Closed && (j < 0 || j >= s.Count)) continue;
+                        r.SecretLane[s.Wrap(j)] = e.lane;
+                    }
+                    continue;
+                }
                 int idx = s.IndexOfParam(e.t);
                 float lane = HumpLaneFrac(e);
                 for (int k = -40; k <= 2; k++)
@@ -258,9 +270,11 @@ namespace TurboTribe
             }
             foreach (var e in data.events)
             {
-                if (e.road != r.Name || (e.type != "pad" && e.type != "ramp")) continue;
+                // a launcher on a branch (hidden shortcut dune / rock lip) is THE line: CPUs that go for it aim at its centre
+                bool launcher = e.type == "hump" && !r.IsMain && Mathf.Abs(e.lane) < 0.99f;
+                if (e.road != r.Name || (e.type != "pad" && e.type != "ramp" && !launcher)) continue;
                 int idx = s.IndexOfParam(e.t);
-                int from = e.type == "ramp" ? -45 : -35, to = e.type == "ramp" ? 1 : 4;
+                int from = e.type == "pad" ? -35 : -45, to = e.type == "pad" ? 4 : 1;
                 for (int k = from; k <= to; k++)
                 {
                     int j = idx + k;

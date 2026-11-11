@@ -1,0 +1,27 @@
+using System;
+public static class Program {
+  public static int Main(string[] a) {
+    string proj = a[0], mode = a[1];
+    string trackDir = proj + "/Assets/Resources/TurboTribe/Tracks";
+    if (mode == "export") { Console.WriteLine(TurboTribe.Headless.ExportTracks.Run(trackDir, a[2])); Console.WriteLine(TurboTribe.Headless.ExportKarts.Run(a[2])); }
+    else if (mode == "shortcuts") Console.WriteLine(TurboTribe.Headless.SimRunner.ShortcutTest(trackDir, a[2], a.Length > 3 && a[3] == "obs"));
+    else if (mode == "ray") {
+      UnityEngine.Resources.TrackDir = trackDir; UnityEngine.GameObject.All.Clear();
+      var root = new UnityEngine.GameObject("root");
+      var ti = TurboTribe.TrackBuilder.Build(TurboTribe.TrackDatabase.Load(a[2]), root.transform);
+      UnityEngine.Physics.Build();
+      for (int k = 3; k + 1 < a.Length; k += 2) {
+        float x = float.Parse(a[k], System.Globalization.CultureInfo.InvariantCulture), z = float.Parse(a[k + 1], System.Globalization.CultureInfo.InvariantCulture);
+        for (float top = 60f; ; ) {
+          UnityEngine.RaycastHit h;
+          if (!UnityEngine.Physics.Raycast(new UnityEngine.Vector3(x, top, z), UnityEngine.Vector3.down, out h, 200f, -1, UnityEngine.QueryTriggerInteraction.Ignore)) break;
+          string nm = "?"; foreach (var g in UnityEngine.GameObject.All) { var c = g.GetComponent<UnityEngine.Collider>(); if (c != null && c == h.collider) nm = g.name; }
+          Console.WriteLine($"({x},{z}) hit y {h.point.y:F2} {nm} surf {ti.SurfaceOf(h.collider)}");
+          top = h.point.y - 0.01f;
+        }
+      }
+    }
+    else Console.WriteLine(TurboTribe.Headless.SimRunner.Run(trackDir, a[2], int.Parse(a[3]), a[4], a.Length > 5 ? int.Parse(a[5]) : 1, true, a.Length > 6 ? a[6] : null));
+    return 0;
+  }
+}

@@ -325,6 +325,38 @@ class Track:
         p, h, y, w = self.frame(at)
         return p + _dir(h + 90) * lat + _dir(h) * ahead, h
 
+    def clear_from(self, bid, margin=1.5, start=0.0):
+        """distance along branch 'bid' (built on demand) from which its whole width stays clear of the main road
+        (edge to main's outer wall face >= margin) - where a gap / pit may begin."""
+        if not hasattr(self, 'pts'): self.build()
+        b = next(x for x in self.branches if x['id'] == bid)
+        if 'pts' not in b: self._build_branch(b)
+        first = None
+        for p in b['pts']:
+            if p['d'] < start: continue
+            ok = self.edge_clearance(np.array([p['x'], p['z']])) - p['w'] * 0.5 >= margin
+            if ok and first is None: first = p['d']
+            if not ok: first = None
+            if first is not None and p['d'] - first > 25: break
+        return first, b['total']
+
+    def curtain_spot(self, bid, width, lo=0.3, hi=0.95, margin=1.2):
+        """first fraction along branch 'bid' where a curtain of 'width' has both posts (at +-(width/2 + 1.2) m)
+        clear of the main road surface + walls - or None."""
+        b = next(x for x in self.branches if x['id'] == bid)
+        if 'pts' not in b: self._build_branch(b)
+        pts = b['pts']
+        for k in range(1, len(pts) - 1):
+            f = pts[k]['d'] / b['total']
+            if f < lo or f > hi: continue
+            a, c = pts[k - 1], pts[k + 1]
+            tg = np.array([c['x'] - a['x'], c['z'] - a['z']]); tg /= np.linalg.norm(tg)
+            rt = np.array([tg[1], -tg[0]])
+            q = np.array([pts[k]['x'], pts[k]['z']])
+            if all(self.edge_clearance(q + rt * sd * (width * 0.5 + 1.2)) >= margin for sd in (-1, 1)):
+                return round(f, 3)
+        return None
+
     def saving(self, b):
         """metres of main road skipped minus branch length (positive = a real shortcut)."""
         span = (self.D(b['to']) - self.D(b['frm'])) % self.total

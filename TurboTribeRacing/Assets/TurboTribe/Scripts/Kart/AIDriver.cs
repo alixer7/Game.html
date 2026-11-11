@@ -15,6 +15,13 @@ namespace TurboTribe
         public KartController Kart;
         public float Skill = 0.6f;       // 0..1
         public static ObstacleManager Obstacles;
+        /// <summary>Route override (time trial ghosts / tooling): always take this branch, or never take any.</summary>
+        public string ForceBranch;
+        public bool NeverBranch;
+        /// <summary>Lip-jump lead time override in seconds (&lt; 0 = skill based; 9 = never press).</summary>
+        public float LipLeadOverride = -1f;
+        int failedBranch = -1;   // the branch we just fell off: not retried until the next lap
+        float failedLap = -1f;
         float laneOffset, laneTarget, laneTimer;
         float boostAt = 0.7f;
         int lastBoostCount;
@@ -30,10 +37,16 @@ namespace TurboTribe
         float avoid;             // lateral obstacle avoidance offset (metres)
         bool lipTried;           // already pressed for the coming lip
         float lipPressAt;        // press this many seconds before the predicted takeoff
+        float lipEta = -1f;      // own countdown to the predicted takeoff (smooths the predictor's 45 ms steps)
         bool likesHumps;         // bold drivers aim for the half-road humps
 
         void Start()
         {
+            if (Kart != null) Kart.OnFall += () =>
+            {
+                if (Kart.Road != null && !Kart.Road.IsMain) { failedBranch = Kart.Road.Id; failedLap = Kart.Progress; }
+                decidedFor = -1; planned = null;
+            };
             laneTarget = Random.Range(-0.35f, 0.35f);
             likesHumps = Random.value < Skill * 0.85f;
             PickBoostPoint();
@@ -55,8 +68,9 @@ namespace TurboTribe
 
         void PickLipTiming()
         {
+            if (LipLeadOverride >= 0f) { lipPressAt = LipLeadOverride; return; }
             // good drivers press in the last few frames before the lip (high launch); weak ones press early or not at all
-            lipPressAt = Mathf.Clamp(Mathf.Lerp(0.27f, 0.035f, Skill) + Random.Range(-0.03f, 0.06f) * (1.2f - Skill), 0.025f, 0.3f);
+            lipPressAt = Mathf.Clamp(Mathf.Lerp(0.27f, 0.05f, Skill) + Random.Range(-0.02f, 0.06f) * (1.2f - Skill), 0.045f, 0.3f);
         }
 
         void Update() { Tick(Time.deltaTime); }
@@ -97,7 +111,7 @@ namespace TurboTribe
                     fi = planned.S.Nearest(k.transform.position, Mathf.Clamp(planned.StartIdx + past, 0, planned.Count - 1), 24);
                 }
                 else if (dist > n / 2) { planned = null; }
-                else if (dist < lookSamples + 6)
+                else if (dist < lookSamples + (planned.NeedsJump ? 45 : 6))     // jump shortcuts: line up early
                 {
                     follow = planned;
                     fi = Mathf.Clamp(planned.StartIdx - dist, 0, planned.Count - 1);
@@ -113,6 +127,13 @@ namespace TurboTribe
             if (!float.IsNaN(aiLane)) line = aiLane;
             float humpLane = follow.HumpLane[fs.Wrap(fi + Mathf.RoundToInt(look * 0.5f / fs.Step))];
             if (likesHumps && !float.IsNaN(humpLane) && float.IsNaN(aiLane)) line = humpLane;
+            // a secret's launcher (off-centre hump) that we are NOT going for: keep off it, it throws you at a wall
+            float secret = follow.SecretLane[fs.Wrap(fi + Mathf.RoundToInt(look * 0.5f / fs.Step))];
+            if (!float.IsNaN(secret) && follow == road)
+            {
+                float away = secret >= 0f ? secret - 0.42f : secret + 0.42f;
+                if (secret >= 0f ? line > away : line < away) line = away;
+            }
             // keep off open edges (cliffs / shoulders) unless the line demands it
             if (follow.CliffL[ahead] || follow.ShoulderL[ahead]) line = Mathf.Max(line, -0.45f);
             if (follow.CliffR[ahead] || follow.ShoulderR[ahead]) line = Mathf.Min(line, 0.45f);
@@ -139,7 +160,9 @@ namespace TurboTribe
             slideCooldown -= dt;
             float nowRate = cPath * spd * Mathf.Rad2Deg;
             bool lipSoon = k.TakeoffIn >= 0f && k.TakeoffIn < 0.45f;
-            bool wantSlide = spd > 14f && !gapAhead && !lipSoon && (Mathf.Abs(peak) > normalMax * 0.85f || Mathf.Abs(peak) > k.Stats.SlideMin * 0.9f)
+            // lining up a jump shortcut: no slide-hops (a hop pressed near a lip would load a weak launch)
+            bool jumpRun = follow.NeedsJump && (!road.IsMain || follow != road);
+            bool wantSlide = spd > 14f && !gapAhead && !lipSoon && !jumpRun && (Mathf.Abs(peak) > normalMax * 0.85f || Mathf.Abs(peak) > k.Stats.SlideMin * 0.9f)
                              && (Mathf.Sign(nowRate) == Mathf.Sign(peak) || Mathf.Abs(nowRate) < 12f);
 
             if (!k.Sliding)
@@ -169,8 +192,8 @@ namespace TurboTribe
                 float rate = desired * k.SlideDir;
                 float rel = (rate - k.Stats.SlideMin) / Mathf.Max(k.Stats.SlideMax - k.Stats.SlideMin, 1f) * 2f - 1f;
                 steer = Mathf.Clamp(rel, -1f, 1f) * k.SlideDir;
-                bool keep = rate > k.Stats.SlideMin * 0.55f && !gapAhead;
-                if (k.SlideBoosts < 3 && k.SlideTime < 0.6f + Skill * 0.6f && rate > k.Stats.SlideMin * 0.25f && !gapAhead) keep = true;
+                bool keep = rate > k.Stats.SlideMin * 0.55f && !gapAhead && !jumpRun;
+                if (k.SlideBoosts < 3 && k.SlideTime < 0.6f + Skill * 0.6f && rate > k.Stats.SlideMin * 0.25f && !gapAhead && !jumpRun) keep = true;
                 fightTimer = rate < k.Stats.SlideMin * 0.4f ? fightTimer + dt : 0f;
                 if (fightTimer > 0.18f || Mathf.Abs(ang) > 70f) keep = false;
                 k.Input.HopHeld = keep;
@@ -182,23 +205,34 @@ namespace TurboTribe
                 }
             }
 
-            // timed lip jump: press just before the road falls away (crest / kicker / hump / gap); the later, the higher
-            if (k.Grounded && !k.Sliding && !k.LipLoaded && k.TakeoffIn >= 0f)
+            // timed lip jump: press just before the road falls away (crest / kicker / hump / gap); the later, the higher.
+            // The predictor reports the takeoff in coarse steps (one node = 45 ms of travel), so the CPU keeps its own
+            // countdown to the predicted takeoff and presses on the frame that reaches its chosen lead time.
+            if (k.Grounded && !k.LipLoaded && k.TakeoffIn >= 0f)
             {
+                float eta = k.TakeoffIn;
+                if (lipEta >= 0f && k.TakeoffIn < lipEta + 0.1f) eta = Mathf.Min(eta, Mathf.Max(0f, lipEta - dt));   // continuous between predictor updates
+                lipEta = eta;
                 bool must = follow.NeedsJump || gapAhead;          // shortcuts that need the big launch
-                if (!lipTried && k.TakeoffIn <= lipPressAt && (must || Random.value < 0.25f + Skill * 0.7f))
+                if (!lipTried && !k.Sliding && eta - dt * 0.5f <= lipPressAt)
                 {
-                    k.Input.HopPressed = true;
+                    bool never = LipLeadOverride > 5f;
+                    if (!never && (must || Random.value < 0.25f + Skill * 0.7f)) k.Input.HopPressed = true;
                     lipTried = true;
                 }
             }
-            else if (k.TakeoffIn < 0f && k.Grounded && lipTried) { lipTried = false; PickLipTiming(); }
+            else if (!k.Grounded) lipEta = -1f;
+            else if (k.TakeoffIn < 0f)
+            {
+                lipEta = -1f;
+                if (lipTried) { lipTried = false; PickLipTiming(); }
+            }
             // hang-time trick: hop again in the air off big jumps
             if (k.Grounded) airHop = false;
             else if (!airHop && k.AirTime > 0.12f)
             {
                 airHop = true;
-                if (Random.value < 0.3f + Skill * 0.6f) k.Input.HopPressed = true;
+                if (LipLeadOverride <= 5f && Random.value < 0.3f + Skill * 0.6f) k.Input.HopPressed = true;
             }
 
             // stuck recovery
@@ -220,6 +254,27 @@ namespace TurboTribe
                 if (need > normalMax * 1.45f && spd > 12f) brake = true;
             }
             if (k.Sliding && Mathf.Abs(desired) > k.Stats.SlideMax * 1.35f && spd > 16f) gas = false; // too hot even for the tightest arc
+            // corner speed planner: never arrive faster than the tightest arc ahead allows (the kart's best yaw rate,
+            // a little less for weaker drivers), with room to scrub the speed before it. Flicks (left -> right while
+            // still turning) cost extra because the yaw has to swing through zero first.
+            if (k.Grounded && !jumpRun)
+            {
+                float hiF = Mathf.Lerp(1f, 0.5f, Mathf.Clamp01(spd / k.Stats.MaxSpeed));
+                float bestRate = Mathf.Max(k.Stats.TurnRate * hiF, k.Stats.SlideMax) * Mathf.Deg2Rad * Mathf.Lerp(0.82f, 0.95f, Skill);
+                float horizon = 8f + spd * 1.25f;
+                for (float g = 2f; g < horizon; g += 2f)
+                {
+                    float cv = fs.CurvatureAhead(fi, g, 4f);
+                    float ac = Mathf.Abs(cv);
+                    if (ac < 0.006f) continue;
+                    float rate = bestRate;
+                    if (Mathf.Abs(k.YawRate) > 20f && Mathf.Sign(cv) != Mathf.Sign(k.YawRate)) rate *= 0.88f;
+                    float vmax = rate / ac;
+                    float allowed = Mathf.Sqrt(vmax * vmax + 2f * 11f * Mathf.Max(0f, g - 4f));
+                    if (spd > allowed + 2.5f) { gas = false; brake = spd > 12f; break; }
+                    if (spd > allowed) gas = false;
+                }
+            }
             if (follow.NeedsJump && !k.Sliding) { gas = true; brake = false; }                       // commit to the jump
             k.Input.Steer = steer;
             k.Input.Gas = gas;
@@ -238,12 +293,16 @@ namespace TurboTribe
                 if (dist > 120 || dist < 10) { if (decidedFor == b.Id && dist > 120) decidedFor = -1; continue; }
                 if (decidedFor == b.Id) continue;
                 decidedFor = b.Id;
+                if (NeverBranch) { planned = null; continue; }
+                if (!string.IsNullOrEmpty(ForceBranch)) { planned = b.Name == ForceBranch ? b : null; if (planned != null) return; continue; }
+                // a shortcut we just fell off is not retried on the same lap (CTR CPUs learn too)
+                if (b.Id == failedBranch && k.Progress < failedLap + k.Track.MainCount) { planned = null; continue; }
                 // gap / ramp shortcuts need speed: only confident drivers commit
                 bool risky = b.NeedsJump;
                 float chance = b.Kind == "route" ? 0.45f : Mathf.Lerp(0.15f, 0.85f, Skill);
                 if (risky) chance *= Mathf.Lerp(0.4f, 1f, Skill);
                 // hidden shortcuts are secrets: only the best CPUs know them (and still have to land the jump)
-                if (b.Hidden) chance = Skill < 0.6f ? 0f : Mathf.Lerp(0.2f, 0.7f, (Skill - 0.6f) / 0.4f);
+                if (b.Hidden) chance = Skill < 0.75f ? 0f : Mathf.Lerp(0.3f, 0.8f, (Skill - 0.75f) / 0.25f);
                 planned = Random.value < chance ? b : null;
             }
         }
