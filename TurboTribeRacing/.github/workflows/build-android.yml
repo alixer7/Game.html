@@ -1,0 +1,42 @@
+# Builds the Android APK in the cloud with GameCI (https://game.ci).
+# One-time setup (repository Settings -> Secrets and variables -> Actions):
+#   UNITY_EMAIL, UNITY_PASSWORD  - your Unity account
+#   UNITY_LICENSE                - contents of your Unity .ulf license file (see https://game.ci/docs/github/activation)
+# Then: Actions tab -> "Build Android APK" -> Run workflow. The APK is attached to the run as an artifact.
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'Assets/**', 'Packages/**', 'ProjectSettings/**' ]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-Android-
+
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: Android
+          # unityVersion is read from ProjectSettings/ProjectVersion.txt
+          buildName: TurboTribeRacing
+          buildMethod: TurboTribe.EditorTools.TurboTribeBuild.BuildAndroidCLI
+          androidExportType: androidPackage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TurboTribeRacing-APK
+          path: build/Android
