@@ -119,6 +119,7 @@ namespace TurboTribe
         float steerSmoothed;
         float prevFwdSpeed;
         int outsideSide;                // 0 = within the current road's walls, -1/+1 = legitimately outside that side
+        float outsideWalledTimer;       // time spent outside a road whose side is walled here (trapped: picked up)
         int respawnMain = -1;           // main sample to respawn at (falls from a branch go back before its junction)
         readonly float[] probeY = new float[ProbeN + 3];
 
@@ -454,6 +455,14 @@ namespace TurboTribe
             pos = ResolveRoad(pos, before);
             if (Respawning) return;
             transform.position = pos;
+            // left the road through an opening (open shoulder) and the road ahead is walled on that side: the kart can
+            // never get back in through the wall, so it is picked up and put back on the track (like CTR's out-of-bounds)
+            if (outsideSide != 0 && Road.HasWall(TrackIndex, outsideSide) && !(outsideSide < 0 ? Road.LowL[TrackIndex] : Road.LowR[TrackIndex]) && !Road.Gap[TrackIndex])
+            {
+                outsideWalledTimer += dt;
+                if (outsideWalledTimer > 0.9f) { outsideWalledTimer = 0f; ForceRespawn(); return; }
+            }
+            else outsideWalledTimer = 0f;
 
             // wrong way detection (player HUD)
             var s = Road.S;
@@ -533,7 +542,10 @@ namespace TurboTribe
 
             // ---- neighbouring roads' walls and scenery solids
             Vector3 n; float pn;
-            if ((absLat > limit - 1.2f || outsideSide != 0 || !road.IsMain) && Track.FindForeignWall(road, pos, prev, KartRadius, out n, out pn))
+            // (a kart well inside its own road's corridor is never blocked by a neighbour's wall: where two roads part,
+            // e.g. a shortcut leaving the main road over its wall line, the neighbour's wall must not eat the run-up)
+            bool inCorridor = outsideSide == 0 && absLat < hw - 0.5f && height > -1.5f && height < 4f;
+            if (!inCorridor && (absLat > limit - 1.2f || outsideSide != 0 || !road.IsMain) && Track.FindForeignWall(road, pos, prev, KartRadius, out n, out pn))
             {
                 pos += n * pn;
                 WallBounce(n);
@@ -573,6 +585,9 @@ namespace TurboTribe
         {
             float vn = Vector3.Dot(Velocity, wn);
             if (vn >= 0f) return;
+#if TT_DEBUG
+            System.Console.WriteLine($"DBG wallbounce n {wn} v {Velocity} pos {transform.position} road {Road.Name} idx {TrackIndex}");
+#endif
             float sp = Velocity.magnitude;
             float impact = -vn / Mathf.Max(sp, 0.1f);
             Velocity -= wn * vn * 1.2f;
@@ -637,7 +652,10 @@ namespace TurboTribe
             Vector3 n = Vector3.Cross((pFL + pFR) * 0.5f - (pBL + pBR) * 0.5f, (pFR + pBR) * 0.5f - (pFL + pBL) * 0.5f);
             n = -n.normalized;
             if (Vector3.Dot(n, fallback) < 0f) n = -n;
-            if (Vector3.Dot(n, fallback) < 0.6f) return fallback; // straddling an edge (e.g. kicker lip)
+            // straddling an edge (kicker lip, ledge, hump crest): the corners hit different surfaces and the fitted plane
+            // pitches the kart down the drop, which would bend the velocity downwards right at the takeoff - use the
+            // surface under the kart instead (the plane fit only smooths faceting, a few degrees at most)
+            if (Vector3.Dot(n, fallback) < 0.94f) return fallback;
             return n;
         }
 
@@ -680,6 +698,9 @@ namespace TurboTribe
         /// <summary>Fires a loaded lip jump. q = 1 - (time between the press and the takeoff) / LipWindow.</summary>
         void LipLaunch(float q)
         {
+#if TT_DEBUG
+            System.Console.WriteLine($"DBG liplaunch q {q} v {Velocity} up {Up} pos {transform.position} road {Road.Name} idx {TrackIndex}");
+#endif
             LipLoaded = false;
             float up = HopSpeed + LipBonusMax * q * q;
             Velocity += Vector3.up * up;        // straight up: a launch never costs forward speed
@@ -826,6 +847,7 @@ namespace TurboTribe
             Progress += dp;
             respawnMain = -1;
             outsideSide = 0;
+            outsideWalledTimer = 0f;
             Respawning = false;
             Grounded = false;
             AirTime = 0f;               // the fall never pays an air turbo

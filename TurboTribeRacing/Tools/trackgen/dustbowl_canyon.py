@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DUSTBOWL CANYON (v0.3)  -  desert -> slot canyon -> mine -> open-pit -> mesa -> cliff loop -> river -> desert.
+"""DUSTBOWL CANYON (v0.4)  -  desert -> slot canyon -> mine -> open-pit -> mesa -> cliff loop -> river -> desert.
 Clockwise. West: desert flats, sharp drop into a narrow walled canyon that loops round a rock fin. North: the mine
 (indoor) with an open-air ore pit between two tunnels. East: switchbacks up the mesa, open cliff-edge mesa top, then a
 descending loop down the mesa face. South: river bank, timber bridge, wide desert sweepers.
@@ -17,35 +17,35 @@ sys.path.insert(0, os.path.dirname(__file__))
 from trackgen import Track
 import trackgen
 
-t = Track('dustbowl_canyon', 'DUSTBOWL CANYON', 'canyon', subtitle='DESERT - CANYON - MINE - MESA - RIVER', difficulty=2, water=-1.0)
+t = Track('dustbowl_canyon', 'DUSTBOWL CANYON', 'canyon', subtitle='DESERT - CANYON - MINE - MESA - RIVER', difficulty=2, water=-3.5)
 t.start(0, 0, h=0, y=6, w=28)
 
 # ---------------------------------------------------------------- DESERT (north-bound, wide, open)
 t.M('start')
-t.S(70)
-t.T(+22, 170, w=26)                 # fast right kink
+t.S(90)
+t.T(+30, 90, w=26)                  # fast right kink ...
 t.M('washboard')
-t.S(40)
-t.T(-44, 80)                        # obtuse left sweeper
+t.S(24)
+t.T(-72, 42, bank=3)                # ... into a left you can slide for 2 turbos ...
 t.M('crest')
-t.S(20, w=24)
-t.T(+22, 120)
+t.S(32, w=24)                       # ... over a HIGH crest (lip jump = air turbo, but you land in the next right)
+t.T(+42, 60)
 t.M('canyon')
 # ---------------------------------------------------------------- SLOT CANYON (narrow, walled) with the fin loop
 t.S(36, y=1.5, prof='steep', w=17)  # SHARP DROP into the canyon
 t.M('canyon_floor')
-t.S(30)
+t.S(58)
 t.M('fin')
-t.T(+90, 22, bank=6, w=18)          # right round the rock fin ...
+t.T(+90, 22, bank=2, w=18)          # right round the rock fin ...
 t.S(8)
 t.M('fin_u')
-t.T(-180, 18, bank=6)               # ... tight left U ...
+t.T(-180, 19, bank=3)               # ... tight left U ...
 t.S(8)
-t.T(+90, 22, bank=6)                # ... right, north again
+t.T(+90, 22, bank=2)                # ... right, north again
 t.M('fin_out')
-t.S(24, w=17)
+t.S(44, w=17)
 t.M('arch')
-t.S(24)                             # natural rock arch
+t.S(40)                             # natural rock arch
 t.T(+90, 34, bank=6)                # right into the mine
 t.M('mine')
 # ---------------------------------------------------------------- MINE (east-bound: tunnel - open ore pit - tunnel)
@@ -54,12 +54,12 @@ t.M('mine_tunnel')
 t.S(46, y=0.5)                      # INDOOR: mine tunnel (swinging ore buckets)
 t.M('pit')
 t.S(10, w=22)
-t.T(-90, 22, y=0.0, bank=5)         # the road skirts the open ore pit: left ...
+t.T(-90, 24, y=0.0, bank=2, w=19)   # the road skirts the open ore pit: left ...
 t.S(10)
 t.M('pit_u')
-t.T(+180, 20, y=-0.5, bank=6)       # ... right U round the far side ...
+t.T(+180, 24, y=-0.3, bank=3)       # ... right U round the far side ...
 t.S(10)
-t.T(-90, 22, y=0.0, bank=5)         # ... left, east-bound again
+t.T(-90, 24, y=0.0, bank=2)         # ... left, east-bound again
 t.M('pit_out')
 t.S(12, w=18)
 t.M('mine_exit')
@@ -81,12 +81,12 @@ t.T(+30, 100)                       # south-bound to the lip
 t.S(6)
 t.M('dive')
 # ---------------------------------------------------------------- CLIFF LOOP (descending loop down the mesa face)
-t.T(-90, 18, y=20.5, bank=5, w=18)  # left off the lip ...
+t.T(-90, 18, y=20.5, bank=2, w=18)  # left off the lip ...
 t.S(20, y=18)
 t.M('loop_u')
-t.T(+180, 16, y=14, bank=6)         # ... right U down the face ...
+t.T(+180, 17, y=14, bank=3)         # ... right U down the face ...
 t.S(20, y=11.5)
-t.T(-90, 18, y=10, bank=5)          # ... left, south-bound below the lip
+t.T(-90, 18, y=10, bank=2)          # ... left, south-bound below the lip
 t.M('dive_out')
 t.S(16, y=5, prof='smooth', w=22)   # gradual drop to the river
 t.M('river')
@@ -104,15 +104,16 @@ t.M('bridge_out')
 t.T(+75, 60, y=3, bank=5)           # right onto the delta
 t.M('delta')
 # ---------------------------------------------------------------- back across the desert (west-bound)
-t.S(36, y=4, w=26)
-t.T(-30, 120)
-t.T(+30, 120, y=5)
+t.S(56, y=4, w=26)
+t.T(-40, 70)                        # delta esses: left ...
+t.S(6)
+t.T(+40, 70, y=5)                   # ... right
+t.S(16)
+t.T(+90, 50, y=6, w=26, bank=4)     # final turn onto the start straight
 t.S(30)
-t.T(+90, 55, y=6, w=28, bank=4)     # final turn onto the start straight
-t.S(60)
 
 if len(sys.argv) > 1 and sys.argv[1] == "sketch":
-    trackgen.sketch(t, "/tmp/claude-0/-home-claude/d88b25c4-563d-5247-a90f-bac6329343eb/scratchpad/sketch.png"); sys.exit()
+    trackgen.sketch(t, sys.argv[2] if len(sys.argv) > 2 else "/tmp/sketch.png"); sys.exit()
 t.build()
 print('free', [round(x, 1) for x in t.free_lengths], 'total', round(t.total))
 
@@ -124,7 +125,7 @@ t.zone(('mesa', -40), 'dive_out', 'mesa')
 t.zone('dive_out', ('delta', 20), 'river')
 
 # ---------------------------------------------------------------- sides
-t.rng('open', ('start', -75), 'canyon')                 # open desert flats
+t.rng('open', ('start', -75), ('canyon', -40))           # open desert flats (walls close in before the canyon drop)
 t.rng('lowL', ('fin', -2), ('fin', 26))                 # knee-high ledge on the OUTSIDE of the fin bend
 t.rng('tunnel', ('arch', 2), ('arch', 22))              # natural rock arch
 t.rng('tunnel', ('mine', 4), 'pit')                     # INDOOR: mine tunnel
@@ -132,7 +133,7 @@ t.rng('cliffR', ('pit_u', 4), ('pit_u', 58))            # the ore pit inside the
 t.rng('tunnel', ('pit_out', 6), 'incline_out')          # INDOOR: haulage incline
 t.rng('cliffR', ('mesa_climb', 50), 'mesa')             # 2nd switchback: drop on the outside
 t.rng('cliffL', 'mesa', 'mesa_edge')                    # mesa top: sheer drop on the outside of the sweepers
-t.rng('openR', 'mesa', 'mesa_edge')
+t.rng('openR', ('mesa', 70), 'mesa_edge')               # caprock wall on the right out of the switchback, then open
 t.rng('cliffR', 'mesa_edge', 'dive')
 t.rng('cliffR', ('dive', 2), ('loop_u', 4))             # the loop down the face: drop on the right ...
 t.rng('cliffL', ('loop_u', 50), 'dive_out')             # ... and on the left coming back
@@ -148,7 +149,7 @@ t.ev('bump', ('fin_out', 12), h=0.6, len=7)
 t.ev('dip', ('mine_tunnel', 30), h=0.9, len=12)                     # rail dip in the tunnel
 t.ev('hump', ('pit_out', 4), lane=+1, h=1.1, len=10)                # spoil heap: right half out of the pit
 t.ev('rumble', ('hoodoos', 70), h=0.14, len=3.0, count=6)
-t.ev('hump', ('mesa', 14), lane=+1, h=1.25, len=12)                 # mesa top: right-half hump (cliff on the left!)
+t.ev('hump', ('mesa', 30), lane=+1, h=1.15, len=12)                 # mesa top: right-half hump (cliff on the left!)
 t.ev('bump', ('river', 4), h=0.9, len=12)
 t.ev('hump', ('delta', 70), lane=-1, h=1.2, len=11)
 t.ev('bump', ('delta', 120), h=0.7, len=10)
@@ -205,11 +206,15 @@ t.ev('crates', 'f0.55', road=fin, count=2)
 
 # ---------------------------------------------------------------- SECRET 2: BROKEN TRESTLE (gap across the ore pit)
 tre = 'broken_trestle'
-TRE = dict(lip=0.40, g0=0.415, g1=0.655)
+import json as _json
+TRE = dict(lip=0.40, g0=0.415, g1=0.65)
+TRE.update(_json.loads(os.environ.get('TT_TRE', '{}')))
 t.branch(tre, 'shortcut', ('pit', 2), ('pit_out', 6),
          via=[dict(rel=('pit', 24, 2), y=1.4, w=11), dict(rel=('pit', 48, 1), y=1.6, w=10), dict(rel=('pit', 72, 0), y=0.6, w=11)],
          w=11, sp=4, flat=10, hidden=True)
-t.ev('curtain', 'f0.3', road=tre, width=11, h=6)                     # rope curtain hides the trestle
+cf = t.curtain_spot(tre, 11.6, lo=0.12, hi=0.38)
+print('trestle curtain at', cf)
+if cf: t.ev('curtain', 'f%.3f' % cf, road=tre, width=11.6, h=6)   # rope curtain hides the trestle
 t.ev('ramp', 'f%.3f' % TRE['lip'], road=tre, lane=0.0, h=1.1, len=6, width=8)
 t.rng('gap', 'f%.3f' % TRE['g0'], 'f%.3f' % TRE['g1'], road=tre)    # the missing span
 t.rng('cliff', 'f0.18', 'f0.85', road=tre)
@@ -217,9 +222,12 @@ t.rng('trail', 'f0.1', 'f0.9', road=tre)
 
 # ---------------------------------------------------------------- SECRET 3: MESA DIVE (drop off the lip onto the road below)
 dv = 'mesa_dive'
-DV = dict(lip=0.20, g0=0.215, g1=0.62, y_land=11.4)
-t.branch(dv, 'shortcut', ('dive', 0), ('dive_out', 10),
-         via=[dict(rel=('dive', 16, 0), y=22.0, w=12), dict(rel=('dive', 50, 0), y=15.0, w=12), dict(rel=('dive', 60, 0), y=DV['y_land'], w=13)],
+DV = dict(lip=0.20, g0=0.215, g1=0.56, y_land=12.6, lat=-14.0)
+DV.update(_json.loads(os.environ.get('TT_DV', '{}')))
+# the dive line runs WEST of the loop's last bend: a short jump drops to the canyon floor, not onto the road below
+t.branch(dv, 'shortcut', ('dive', 0), ('dive_out', 14),
+         via=[dict(rel=('dive', 16, DV['lat'] * 0.5), y=22.0, w=12), dict(rel=('dive', 46, DV['lat']), y=16.0, w=12),
+              dict(rel=('dive', 60, DV['lat']), y=DV['y_land'], w=13)],
          w=12, sp=4, flat=8, hidden=True)
 t.ev('hump', 'f%.3f' % DV['lip'], road=dv, lane=0.0, h=1.0, len=8, width=10)     # the lip: a lump of caprock
 t.rng('gap', 'f%.3f' % DV['g0'], 'f%.3f' % DV['g1'], road=dv)
@@ -227,4 +235,4 @@ t.rng('cliff', 'f0.08', 'f0.9', road=dv)
 t.rng('trail', 'f0.05', 'f0.9', road=dv)
 
 out = os.path.join(os.path.dirname(__file__), '../../Assets/Resources/TurboTribe/Tracks/dustbowl_canyon.json')
-t.export(out)
+t.export(sys.argv[1] if len(sys.argv) > 1 else out)

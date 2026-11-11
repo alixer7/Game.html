@@ -243,7 +243,7 @@ if cf: t.ev('curtain', 'f%.3f' % cf, road=ter, width=TER['hw'] * 2 + 0.6, h=6.5)
 lav = 'lava_steps'
 import json as _json
 LAV = dict(lip1=0.24, g1a=0.255, g1b=0.45, lip2=0.58, g2a=0.595, g2b=0.80, y_lip1=26.6, y_isl=25.0, y_land=23.0, h=0.7)
-LAV.update(g1b=0.47, g2b=0.82)
+LAV.update(g1b=0.42, g2b=0.76)
 LAV.update(_json.loads(os.environ.get('TT_LAV', '{}')))
 t.branch(lav, 'shortcut', ('flank', 2), ('flank_out', 10),
          via=[dict(rel=('flank', 20, 0), y=LAV['y_lip1'], w=11), dict(rel=('flank', 50, 0), y=LAV['y_isl'], w=10), dict(rel=('flank', 58, 0), y=LAV['y_isl'], w=10),

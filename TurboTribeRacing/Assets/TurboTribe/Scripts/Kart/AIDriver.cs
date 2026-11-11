@@ -137,8 +137,18 @@ namespace TurboTribe
             // keep off open edges (cliffs / shoulders) unless the line demands it
             if (follow.CliffL[ahead] || follow.ShoulderL[ahead]) line = Mathf.Max(line, -0.45f);
             if (follow.CliffR[ahead] || follow.ShoulderR[ahead]) line = Mathf.Min(line, 0.45f);
+            // a drop on the INSIDE of a tight bend: never cut the apex over it (slides drift inwards)
+            int mid = fs.Wrap(fi + Mathf.RoundToInt(look * 0.5f / fs.Step));
+            if (Mathf.Abs(c) > 0.02f)
+            {
+                if (follow.CliffL[mid] && c < 0f) line = Mathf.Max(line, -0.15f);
+                if (follow.CliffR[mid] && c > 0f) line = Mathf.Min(line, 0.15f);
+            }
             UpdateAvoidance(k, follow, fi, lookSamples, line * (hw - 1.2f), dt);
-            Vector3 target = fs.PointAt(ahead, Mathf.Clamp(line * (hw - 1.2f) + avoid, -(hw - 1.2f), hw - 1.2f));
+            float latMin = -(hw - 1.2f), latMax = hw - 1.2f;
+            if (follow.CliffL[ahead]) latMin = -(hw - 3.0f);       // dodging a hazard never pushes us over a drop
+            if (follow.CliffR[ahead]) latMax = hw - 3.0f;
+            Vector3 target = fs.PointAt(ahead, Mathf.Clamp(line * (hw - 1.2f) + avoid, latMin, latMax));
             Vector3 to = target - k.transform.position;
             float ang = Mathx.SignedAngleOnPlane(k.Fwd, to, k.Up);
 

@@ -2999,13 +2999,13 @@
    "road": "lava_steps",
    "type": "gap",
    "a": 7.38,
-   "b": 12.75
+   "b": 11.5
   },
   {
    "road": "lava_steps",
    "type": "gap",
    "a": 15.87,
-   "b": 21.5
+   "b": 20.0
   },
   {
    "road": "lava_steps",
