@@ -1,0 +1,9 @@
+# Godot
+.godot/
+*.translation
+export/
+*.apk
+*.aab
+*.keystore
+# Test output
+tests/shots/
