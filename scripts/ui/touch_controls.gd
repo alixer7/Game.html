@@ -78,7 +78,9 @@ func _layout() -> void:
 	if left:
 		_centers[Btn.PAUSE].x = right_edge - 56
 	_radii[Btn.PAUSE] = 30.0
-	_centers[Btn.RESET] = Vector2(r.position.x + r.size.x * 0.5, r.position.y + 128)
+	_centers[Btn.RESET] = Vector2(right_edge - 60, r.position.y + 50)
+	if left:
+		_centers[Btn.RESET].x = r.position.x + 60
 	_radii[Btn.RESET] = 34.0
 	queue_redraw()
 

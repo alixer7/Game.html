@@ -30,8 +30,8 @@ func setup(car: CarSim, paint: Color, accent: Color, trail_color: Color, tag: St
 	var ex: Vector3 = model.get_meta("exhaust")
 
 	flame = CPUParticles3D.new()
-	flame.amount = 36
-	flame.lifetime = 0.28
+	flame.amount = 26
+	flame.lifetime = 0.2
 	flame.local_coords = false
 	flame.emitting = false
 	flame.direction = Vector3(0, 0, 1)
@@ -39,16 +39,16 @@ func setup(car: CarSim, paint: Color, accent: Color, trail_color: Color, tag: St
 	flame.initial_velocity_min = 7.0
 	flame.initial_velocity_max = 11.0
 	flame.gravity = Vector3.ZERO
-	flame.scale_amount_min = 0.22
-	flame.scale_amount_max = 0.34
+	flame.scale_amount_min = 0.13
+	flame.scale_amount_max = 0.21
 	var sc := Curve.new()
 	sc.add_point(Vector2(0, 1.0))
 	sc.add_point(Vector2(1, 0.15))
 	flame.scale_amount_curve = sc
 	var grad := Gradient.new()
-	grad.set_color(0, Color(1, 1, 0.9, 1))
+	grad.set_color(0, Color(1, 1, 0.9, 0.75))
 	grad.set_color(1, Color(trail_color.r, trail_color.g, trail_color.b, 0.0))
-	grad.add_point(0.25, Color(trail_color.r * 1.2, trail_color.g * 1.1, trail_color.b, 0.9))
+	grad.add_point(0.25, Color(trail_color.r, trail_color.g, trail_color.b, 0.55))
 	flame.color_ramp = grad
 	var qm := QuadMesh.new()
 	qm.size = Vector2(1, 1)

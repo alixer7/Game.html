@@ -14,17 +14,11 @@ func _ready() -> void:
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
 	plan = [
-		[2.5, "menu", func(): pass],
-		[1.0, "settings_ctrl", func(): main.menus._settings_tab = 1; main.menus.rebuild(); main.menus.show_page("settings")],
+		[2.0, "menu", func(): pass],
+		[1.0, "garage", func(): main.menus.show_page("garage")],
 		[1.2, "countdown", func(): main.menus.hide_all(); main._start_match({"size": 3, "difficulty": 1, "minutes": 5, "team": 0})],
-		[3.5, "kickoff_go", func(): _hold_input(true)],
-		[0.6, "shot_setup", func(): _hold_input(false); _setup_goal()],
-		[0.9, "goal", func(): pass],
-		[0.5, "goal2", func(): pass],
-		[2.6, "replay", func(): pass],
-		[1.5, "replay2", func(): pass],
-		[1.5, "freeplay", func(): main._start_freeplay()],
-		[1.2, "freeplay_air", func(): _air()],
+		[3.5, "kickoff_go", func(): main.touch.stick = Vector2(0.0, 1.0); main.touch.boost_held = true],
+		[0.45, "goal", func(): main.touch.boost_held = false; _setup_goal()],
 	]
 
 func _setup_goal() -> void:

@@ -99,7 +99,10 @@ func _decide(kickoff: bool) -> void:
 		return
 	match role:
 		BotCoordinator.Role.ATTACK:
-			_plan_attack(false)
+			if _should_retreat():
+				_plan_retreat()
+			else:
+				_plan_attack(false)
 		BotCoordinator.Role.SUPPORT:
 			_plan_support()
 		_:
@@ -160,7 +163,24 @@ func _shot_direction(b: Vector3, clear: bool) -> Vector3:
 		if blend.dot(away_own) < 0.2:
 			blend = (blend + away_own).normalized()
 		sd = blend
+	# Never aim back toward our own goal from our defensive third.
+	var out_dir := -signf(own_z)
+	if absf(b.z - own_z) < 32.0 and sd.z * out_dir < 0.25:
+		var side := signf(b.x) if absf(b.x) > 1.0 else (1.0 if car.pos.x < b.x else -1.0)
+		sd = Vector3(side * 0.75, 0, out_dir * 0.66).normalized()
 	return sd
+
+
+## True when the ball sits between us and our own goal in our half: get goal-side first.
+func _should_retreat() -> bool:
+	var own_z := Phys.own_goal_z(car.team)
+	var b := world.ball.pos
+	var s := signf(own_z)
+	if b.z * s < -8.0:
+		return false
+	var car_depth := car.pos.z * s
+	var ball_depth := b.z * s
+	return car_depth < ball_depth - 2.5 and Vector2(b.x - car.pos.x, b.z - car.pos.z).length() > 4.0
 
 
 func _plan_attack(clear: bool) -> void:
@@ -239,6 +259,18 @@ func _aerial_ok(b: Vector3, t: float) -> bool:
 	var a := 2.0 * delta.length() / (tt * tt)
 	var fuel := car.boost / Phys.BOOST_USE
 	return a < Phys.BOOST_ACCEL_AIR * 0.85 and fuel > tt * 0.6
+
+
+func _plan_retreat() -> void:
+	# Drive back toward the far post, staying wide of the ball.
+	var own_z := Phys.own_goal_z(car.team)
+	var b := world.ball.pos
+	var side := -signf(b.x) if absf(b.x) > 2.0 else (signf(car.pos.x) if absf(car.pos.x) > 0.5 else 1.0)
+	target = Vector3(side * (Phys.GOAL_HALF_W - 1.0), 0, own_z - signf(own_z) * 4.0)
+	target_time = -1.0
+	hit_time = -1.0
+	arrive_stop = false
+	allow_boost = true
 
 
 func _plan_support() -> void:

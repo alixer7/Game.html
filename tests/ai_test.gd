@@ -13,6 +13,7 @@ var level := 2
 var team_size := 2
 var elapsed_us := 0
 var solo := false
+var own_goals := 0
 var goal_times: Array = []
 var last_goal_t := 0.0
 var rng := RandomNumberGenerator.new()
@@ -40,7 +41,9 @@ func _ready() -> void:
 		goals[team] += 1
 		goal_times.append(world.tick * Phys.DT - last_goal_t)
 		last_goal_t = world.tick * Phys.DT
-		print("GOAL team %d at %.1fs by car %d  score %d-%d" % [team, world.tick * Phys.DT, scorer, goals[0], goals[1]])
+		var own: bool = scorer >= 0 and world.cars[scorer].team != team
+		if own: own_goals += 1
+		print("GOAL team %d at %.1fs by car %d  score %d-%d %s" % [team, world.tick * Phys.DT, scorer, goals[0], goals[1], "(OWN GOAL)" if own else ""])
 		_kickoff())
 	world.ball_touched.connect(func(id, s):
 		touches[id] = touches.get(id, 0) + 1
@@ -92,5 +95,6 @@ func _physics_process(_d: float) -> void:
 		print("t=%.0f ball=%s %s" % [world.tick * Phys.DT, world.ball.pos.snapped(Vector3.ONE * 0.1), s])
 	if world.tick * Phys.DT >= sim_seconds:
 		print("goal times: ", goal_times)
+		print("OWN GOALS: ", own_goals)
 		print("RESULT goals=%s touches=%s aerials=%d max_ball=%.1f avg_step=%.3fms" % [goals, touches, aerials, max_ball_speed, elapsed_us / 1000.0 / world.tick])
 		get_tree().quit()

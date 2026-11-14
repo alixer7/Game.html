@@ -193,6 +193,10 @@ func kickoff() -> void:
 	touch_log.clear()
 	_pending_check.clear()
 	_set_state(State.COUNTDOWN)
+	if is_freeplay():
+		world.cars_frozen = false
+		world.ball_frozen = false
+		_set_state(State.PLAYING)
 	if player_car:
 		main.camera.snap_behind(player_car.pos, player_car.basis)
 	if main.touch:

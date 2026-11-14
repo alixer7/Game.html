@@ -65,6 +65,9 @@ func set_value(key: String, value: Variant, save_now: bool = true) -> void:
 func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:
+		# first launch: phones start on balanced graphics
+		if OS.has_feature("mobile"):
+			data["quality"] = 1
 		return
 	for k in data.keys():
 		if cfg.has_section_key("settings", k):
