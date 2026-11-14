@@ -15,17 +15,33 @@ func _ready() -> void:
 	add_child(main)
 	plan = [
 		[2.5, "menu", func(): pass],
-		[0.6, "play_setup", func(): main.menus.show_page("play")],
-		[1.0, "garage", func(): main.menus.show_page("garage")],
-		[0.8, "settings", func(): main.menus.show_page("settings")],
-		[1.2, "countdown", func(): main.menus.hide_all(); main._start_match({"size": 2, "difficulty": 1, "minutes": 5, "team": 0})],
-		[4.0, "gameplay", func(): _hold_input(true)],
-		[2.0, "gameplay2", func(): pass],
-		[0.5, "pause", func(): _hold_input(false); main._pause()],
-		[0.5, "end", func(): main._resume(); main.match_ctrl.score = [3, 1]; main.match_ctrl._end_match()],
-		[3.0, "end2", func(): pass],
+		[1.0, "settings_ctrl", func(): main.menus._settings_tab = 1; main.menus.rebuild(); main.menus.show_page("settings")],
+		[1.2, "countdown", func(): main.menus.hide_all(); main._start_match({"size": 3, "difficulty": 1, "minutes": 5, "team": 0})],
+		[3.5, "kickoff_go", func(): _hold_input(true)],
+		[0.6, "shot_setup", func(): _hold_input(false); _setup_goal()],
+		[0.9, "goal", func(): pass],
+		[0.5, "goal2", func(): pass],
+		[2.6, "replay", func(): pass],
+		[1.5, "replay2", func(): pass],
 		[1.5, "freeplay", func(): main._start_freeplay()],
+		[1.2, "freeplay_air", func(): _air()],
 	]
+
+func _setup_goal() -> void:
+	var w: SimWorld = main.world
+	w.ball.pos = Vector3(2, 2.5, -40)
+	w.ball.vel = Vector3(0, 2, -22)
+	w.ball_frozen = false
+	w.ball.touched = true
+	w.ball.last_touch_car = 0
+	main.match_ctrl.touch_log.append([0, 0, w.tick])
+
+func _air() -> void:
+	var c: CarSim = main.match_ctrl.player_car
+	c.pos = Vector3(0, 6, 10)
+	c.vel = Vector3(0, 3, -10)
+	c.basis = Basis(Vector3.RIGHT, 0.5)
+	main.touch.boost_held = true
 
 func _hold_input(on: bool) -> void:
 	main.touch.stick = Vector2(0.3, 1.0) if on else Vector2.ZERO

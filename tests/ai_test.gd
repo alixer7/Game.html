@@ -81,7 +81,7 @@ func _physics_process(_d: float) -> void:
 		var bot: BotController = world.controllers[c.id]
 		if bot.man == BotController.Man.AERIAL and bot.m_time < Phys.DT * 1.5:
 			aerials += 1
-	if solo and (t - 3) % 240 == 0 and world.tick * Phys.DT > 68.0 and world.tick * Phys.DT < 150.0:
+	if false:
 		var c0 := world.cars[0]
 		var b0: BotController = world.controllers[0]
 		print("%.2f car=%s v=%.1f ball=%s bv=%.1f tgt=%s ht=%.2f man=%d ground=%s thr=%.1f st=%.1f boost=%s" % [world.tick * Phys.DT, c0.pos.snapped(Vector3.ONE*0.1), c0.vel.length(), world.ball.pos.snapped(Vector3.ONE*0.1), world.ball.vel.length(), b0.target.snapped(Vector3.ONE*0.1), b0.hit_time - b0.now, b0.man, c0.on_ground, c0.controls.throttle, c0.controls.steer, c0.controls.boost])

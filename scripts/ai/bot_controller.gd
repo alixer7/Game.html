@@ -8,9 +8,9 @@ enum Man { NONE, DODGE, JUMP_SHOT, AERIAL, UNSTUCK, WAIT }
 const SKILLS := [
 	{"react": 0.30, "boost": 0.3, "dodge": 0.2, "jump_shot": false, "aerial": 0.0, "aim": 0.30,
 		"speed": 0.8, "max_air_h": 0.0, "kick_flip": false, "kick_delay": 0.45},
-	{"react": 0.14, "boost": 0.9, "dodge": 0.8, "jump_shot": true, "aerial": 0.35, "aim": 0.12,
+	{"react": 0.14, "boost": 0.9, "dodge": 0.8, "jump_shot": true, "aerial": 0.25, "aim": 0.12,
 		"speed": 1.0, "max_air_h": 8.0, "kick_flip": true, "kick_delay": 0.12},
-	{"react": 0.06, "boost": 1.0, "dodge": 1.0, "jump_shot": true, "aerial": 0.9, "aim": 0.05,
+	{"react": 0.06, "boost": 1.0, "dodge": 1.0, "jump_shot": true, "aerial": 0.7, "aim": 0.05,
 		"speed": 1.0, "max_air_h": 16.0, "kick_flip": true, "kick_delay": 0.0},
 ]
 
@@ -167,7 +167,8 @@ func _plan_attack(clear: bool) -> void:
 	var reach_h := 1.75
 	if skill["jump_shot"]:
 		reach_h = 3.5
-	var try_aerial := float(skill["aerial"]) > 0.0 and car.boost > 30.0 and _rng.randf() < float(skill["aerial"])
+	var try_aerial := float(skill["aerial"]) > 0.0 and car.boost > 35.0 and car.on_ground \
+		and _rng.randf() < float(skill["aerial"]) * 0.5
 	var found := -1
 	var n := pred.count()
 	for i in range(1, n, 2):
@@ -179,7 +180,8 @@ func _plan_attack(clear: bool) -> void:
 			if _eta(b) <= t:
 				found = i
 				break
-		elif try_aerial and b.y <= float(skill["max_air_h"]) and t > 0.9 and car.on_ground:
+		elif try_aerial and b.y <= float(skill["max_air_h"]) and b.y > 3.2 and t > 0.9 and t < 2.8 \
+				and Vector2(b.x - car.pos.x, b.z - car.pos.z).length() < 24.0:
 			if _aerial_ok(b, t):
 				found = i
 				aerial_plan = true
@@ -287,7 +289,7 @@ func _plan_kickoff() -> void:
 	elif coord.kick_support[team] == car.id and world.cars.size() > 2:
 		var own_z := Phys.own_goal_z(team)
 		var sx := signf(car.pos.x) if absf(car.pos.x) > 1.0 else 1.0
-		target = Vector3(sx * 33.5, 0, own_z * 0.79)
+		target = Vector3(sx * 30.5, 0, own_z * 0.74)
 		arrive_stop = true
 		face_ball = true
 	else:

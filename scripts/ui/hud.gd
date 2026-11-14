@@ -117,7 +117,7 @@ func _ready() -> void:
 	replay_banner = PanelContainer.new()
 	replay_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	replay_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	replay_banner.offset_top = 104
+	replay_banner.offset_top = 128
 	replay_banner.offset_left = -160
 	replay_banner.offset_right = 160
 	replay_banner.add_theme_stylebox_override("panel", UiTheme.box(Color(0.85, 0.12, 0.2, 0.9), 10))

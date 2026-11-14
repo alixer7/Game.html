@@ -46,6 +46,7 @@ var wheel_spin := 0.0
 var num_contacts := 0
 var on_ground := false
 var contact_normal := Vector3.UP
+var align_normal := Vector3.UP
 var ground_time := 0.0
 var air_time := 0.0
 var body_touching := false
@@ -314,6 +315,7 @@ func _auto_roll(up_v: Vector3) -> void:
 func _update_wheels(w: SimWorld, up_v: Vector3) -> void:
 	num_contacts = 0
 	var nsum := Vector3.ZERO
+	var nfront := Vector3.ZERO
 	var far := ArenaGeo.sdf(pos) > 1.6
 	for i in range(4):
 		wheel_contact[i] = false
@@ -325,9 +327,11 @@ func _update_wheels(w: SimWorld, up_v: Vector3) -> void:
 			wheel_contact[i] = true
 			wheel_dist[i] = conn.distance_to(w.hit_pos)
 			nsum += w.hit_normal
+			nfront += w.hit_normal * (2.0 if i < 2 else 1.0)
 			num_contacts += 1
 	if num_contacts > 0:
 		contact_normal = nsum.normalized()
+		align_normal = nfront.normalized()
 
 
 func _suspension(dt: float, up_v: Vector3) -> void:
@@ -389,10 +393,30 @@ func _drive(dt: float, c: CarControls, fwd: Vector3, rgt: Vector3, up_v: Vector3
 	var cur := ang_vel.dot(up_v)
 	ang_vel += up_v * (target - cur) * minf(1.0, resp * dt) * fac
 
+	# Keep the chassis aligned with the driving surface (helps it flow into
+	# quarter-pipes instead of nosing into them).
+	if num_contacts >= 2 and not is_jumping:
+		var axis := up_v.cross(align_normal)
+		var w_perp := ang_vel - up_v * ang_vel.dot(up_v)
+		var target_w := axis * 22.0
+		ang_vel += (target_w - w_perp) * minf(1.0, 14.0 * dt) * fac
+
 	# Sticky force keeps the car glued to walls
 	if num_contacts >= 3:
 		var sticky := 0.5 + (1.0 - absf(contact_normal.y))
 		vel -= contact_normal * Phys.GRAVITY * sticky * dt
+		if not is_jumping and ground_time > 0.05:
+			var n := contact_normal
+			var vn := vel.dot(n)
+			if vn > 1.2 and ground_time > 0.25 and up_v.dot(n) > 0.96:
+				# suspension rebound must not launch the car off the surface
+				vel -= n * (vn - 1.2)
+			elif vn < 0.0 and ground_time > 0.1 and up_v.dot(n) > 0.97:
+				# follow curved surfaces without bleeding speed
+				var sp := vel.length()
+				var vt := vel - n * vn
+				if vt.length() > 0.5 and -vn < sp * 0.35:
+					vel = vt.normalized() * sp
 
 
 func _air_control(dt: float, c: CarControls, fwd: Vector3) -> void:

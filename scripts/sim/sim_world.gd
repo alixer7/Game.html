@@ -17,9 +17,9 @@ class Pad:
 	var active := true
 	var timer := 0.0
 
-const BIG_PADS := [Vector2(35.0, 0.0), Vector2(-35.0, 0.0), Vector2(33.5, 41.0),
-	Vector2(-33.5, 41.0), Vector2(33.5, -41.0), Vector2(-33.5, -41.0)]
-const SMALL_PADS_Q := [Vector2(0, 13), Vector2(0, 31), Vector2(0, 44), Vector2(12, 7),
+const BIG_PADS := [Vector2(32.0, 0.0), Vector2(-32.0, 0.0), Vector2(30.5, 38.5),
+	Vector2(-30.5, 38.5), Vector2(30.5, -38.5), Vector2(-30.5, -38.5)]
+const SMALL_PADS_Q := [Vector2(0, 13), Vector2(0, 30), Vector2(0, 43), Vector2(12, 7),
 	Vector2(12, 24), Vector2(24, 15), Vector2(22, 36), Vector2(8, 40), Vector2(18, 0)]
 
 var cars: Array[CarSim] = []
@@ -344,6 +344,18 @@ func car_arena_collide(car: CarSim) -> void:
 	if nsum.length_squared() > 1e-10:
 		car.body_touching = true
 		car.body_normal = nsum.normalized()
+	if car.num_contacts >= 2 and nsum.length_squared() > 1e-10:
+		# Driving: the chassis grazed the surface (e.g. entering a quarter-pipe).
+		# Remove only the into-surface velocity and pitch toward the surface.
+		var bn := car.body_normal
+		var vn0 := car.vel.dot(bn)
+		if vn0 < 0.0:
+			var sp := car.vel.length()
+			car.vel -= bn * vn0
+			if -vn0 < sp * 0.6:
+				car.vel = car.vel.normalized() * sp * 0.97
+		car.ang_vel += car.basis.y.cross(bn) * 4.0
+		return
 	# velocity impulses (two passes of sequential impulses)
 	for it in range(2):
 		for k in range(count):
@@ -367,7 +379,8 @@ func car_arena_collide(car: CarSim) -> void:
 			if vtl > 1e-4:
 				var t := vt / vtl
 				var kt := 1.0 + t.dot(car.inv_inertia(r.cross(t)).cross(r))
-				J -= t * minf(vtl / kt, 0.4 * j)
+				var mu := 0.4 if car.num_contacts < 2 else 0.03
+				J -= t * minf(vtl / kt, mu * j)
 			car.vel += J
 			car.ang_vel += car.inv_inertia(r.cross(J))
 			if it == 0 and vn < -3.0:
