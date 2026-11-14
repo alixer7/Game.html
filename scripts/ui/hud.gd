@@ -14,6 +14,7 @@ var feed: VBoxContainer
 var popup_lbl: Label
 var replay_banner: PanelContainer
 var replay_hint: Label
+var replay_title: Label
 var fps_lbl: Label
 var camera: Camera3D
 var ball_pos := Vector3.ZERO
@@ -123,7 +124,8 @@ func _ready() -> void:
 	replay_banner.add_theme_stylebox_override("panel", UiTheme.box(Color(0.85, 0.12, 0.2, 0.9), 10))
 	var rv := VBoxContainer.new()
 	replay_banner.add_child(rv)
-	var rl := UiTheme.label(Loc.t("replay"), 32, Color.WHITE, true)
+	replay_title = UiTheme.label(Loc.t("replay"), 32, Color.WHITE, true)
+	var rl := replay_title
 	rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rv.add_child(rl)
 	replay_hint = UiTheme.label(Loc.t("tap_skip"), 18, Color(1, 1, 1, 0.8))
@@ -242,6 +244,8 @@ func add_feed(text: String, color: Color = Color.WHITE) -> void:
 
 
 func set_replay(on: bool) -> void:
+	replay_title.text = Loc.t("replay")
+	replay_hint.text = Loc.t("tap_skip")
 	replay_banner.visible = on
 
 

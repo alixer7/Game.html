@@ -197,6 +197,14 @@ func _notification(what: int) -> void:
 			_pause()
 
 
+func _input(event: InputEvent) -> void:
+	# any tap or key skips a goal replay
+	if match_ctrl and match_ctrl.state == MatchController.State.REPLAY and not get_tree().paused:
+		if (event is InputEventScreenTouch and event.pressed) or (event is InputEventKey and event.pressed):
+			match_ctrl.skip_replay()
+			get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("p_pause"):
 		if get_tree().paused and menus.current == "pause":
@@ -206,9 +214,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("p_ballcam") and not in_menu:
 		touch.ball_cam = not touch.ball_cam
 		camera.ball_cam = touch.ball_cam
-	if match_ctrl and match_ctrl.state == MatchController.State.REPLAY:
-		if (event is InputEventScreenTouch and event.pressed) or (event is InputEventKey and event.pressed):
-			match_ctrl.skip_replay()
+
 
 
 # ------------------------------------------------------------------ frame
