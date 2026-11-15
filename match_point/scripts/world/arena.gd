@@ -63,20 +63,22 @@ func _build_environment() -> void:
 	e.sky = sky
 	# إضاءة محيطة ثابتة اللون (ضوء السماء المنتشر) لنتيجة متطابقة على كل الأجهزة
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.60, 0.70, 0.86)
-	e.ambient_light_energy = 0.58
+	# نسبة ضوء الشمس إلى ضوء السماء أقرب للواقع (ظلال أوضح وتجسيم أقوى)، وتحويل لوني AgX
+	# يحفظ ألوان البشرة والملابس تحت الشمس القوية بلا تشبّع زائف
+	e.ambient_light_color = Color(0.58, 0.68, 0.86)
+	e.ambient_light_energy = 0.50
 	e.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	e.tonemap_white = 5.0
-	e.tonemap_exposure = 0.95
+	e.tonemap_mode = Environment.TONE_MAPPER_AGX
+	e.tonemap_white = 6.0
+	e.tonemap_exposure = 1.08
 	# ضباب مسافة خفيف يعطي عمقاً جوياً للمدرجات البعيدة + تدرّج لوني تلفزيوني
 	e.fog_enabled = true
 	e.fog_light_color = Color(0.66, 0.76, 0.90)
 	e.fog_density = 0.0022
 	e.fog_sky_affect = 0.0
 	e.adjustment_enabled = true
-	e.adjustment_contrast = 1.07
-	e.adjustment_saturation = 1.06
+	e.adjustment_contrast = 1.13
+	e.adjustment_saturation = 1.2
 	if quality >= 1:
 		e.glow_enabled = true
 		e.glow_intensity = 0.25
@@ -86,8 +88,8 @@ func _build_environment() -> void:
 	add_child(env)
 
 	sun = DirectionalLight3D.new()
-	sun.light_color = Color(1.0, 0.95, 0.86)
-	sun.light_energy = 1.25
+	sun.light_color = Color(1.0, 0.94, 0.84)
+	sun.light_energy = 1.55
 	sun.shadow_enabled = quality >= 0
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if quality >= 1 else DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 62.0
@@ -167,6 +169,25 @@ func add_mark(pos: Vector3, speed: float) -> void:
 func clear_marks() -> void:
 	_marks.clear()
 	court_mat.set_shader_parameter("mark_count", 0)
+	_slides.clear()
+	court_mat.set_shader_parameter("slide_count", 0)
+
+
+## أثر انزلاق لاعب على التراب (من a إلى b)
+var _slides: Array = []
+
+
+func add_slide(a: Vector3, b: Vector3) -> void:
+	if surface != Court.Surface.CLAY:
+		return
+	_slides.append(Vector4(a.x, a.z, b.x, b.z))
+	if _slides.size() > 16:
+		_slides.pop_front()
+	var arr: Array = _slides.duplicate()
+	while arr.size() < 16:
+		arr.append(Vector4(0, 0, 0, 0))
+	court_mat.set_shader_parameter("slides", arr)
+	court_mat.set_shader_parameter("slide_count", _slides.size())
 
 
 # ---------------------------------------------------------------------

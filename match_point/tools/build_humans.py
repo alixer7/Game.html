@@ -526,8 +526,11 @@ def build_player(pid, height_m, hair_style, sleeve=0.55, short_len=0.30, **mkw):
     eye_y = (eyes_c["L"][1] + eyes_c["R"][1]) * 0.5
     hair = set()
     hair_lvl = {"short": 0.0, "buzz": 0.005, "medium": -0.012, "curly": -0.008}[hair_style]
+    # المسافة الموقّعة عن خط الشعر التحليلي (موجبة = داخل الشعر): تُخزَّن في ألوان الرؤوس فيتبع
+    # قناع فروة الرأس وحافة قشرة الشعر منحنى ناعماً بدل حواف المضلعات المسننة
+    hair_sd = np.full(len(V), -1.0)
     for v in body_v:
-        if w_headonly[v] < 0.85:
+        if w_headonly[v] < 0.5:
             continue
         d = V[v] - hc
         dl = np.linalg.norm(d[[0, 2]])
@@ -541,7 +544,11 @@ def build_player(pid, height_m, hair_style, sleeve=0.55, short_len=0.30, **mkw):
         thr += hair_lvl
         # استبعاد الأذنين
         ear = side > 0.88 and eye_y - 0.045 < V[v, 1] < eye_y + 0.028 and f > -0.45
-        if V[v, 1] > thr and not ear:
+        sd = V[v, 1] - thr
+        if ear:
+            sd = min(sd, -0.012)
+        hair_sd[v] = sd
+        if sd > -0.009 and not ear and w_headonly[v] >= 0.85:
             hair.add(v)
 
     # ---------- قشرة الملابس ----------
@@ -788,8 +795,9 @@ def build_player(pid, height_m, hair_style, sleeve=0.55, short_len=0.30, **mkw):
     cav = cavity(V, N, nb, body_v)
     col = np.zeros((len(V), 4))
     col[:, 3] = cav
-    for v in hair:
-        col[v, 1] = 1.0
+    for v in body_v:
+        if hair_sd[v] > -0.5:
+            col[v, 1] = float(np.clip(0.5 + hair_sd[v] / 0.024, 0.0, 1.0))
     for v in body_v:
         if w_leg[v] > 0.5 and ank_y - 0.01 < Y[v] < ank_y + 0.075:
             col[v, 2] = 1.0
@@ -862,7 +870,20 @@ def build_player(pid, height_m, hair_style, sleeve=0.55, short_len=0.30, **mkw):
         t = quads_to_tris(quads)
         UVs = np.stack([P[:, 0] + P[:, 2], P[:, 1]], axis=1) * 4.0
         parts.append((f"Shoe.{'LR'[k]}", "shoes", P, vertex_normals(P, t), UVs, C, Js, Ws, t))
-    parts.append(shell_part("Hair", "hair", ha))
+    # الشعر: تلاشٍ تدريجي نحو خط الشعر (COLOR.r) يكسره شيدر الشعر إلى خصلات بدل حافة مسننة
+    hP, hJ, hW, hquads, hrv, hbnd = ha
+    hpart = shell_part("Hair", "hair", ha)
+    hidx = {v: i for i, v in enumerate(hrv)}
+    hdist = {v: 0 for v in hbnd}
+    ring = set(hbnd)
+    for r_ in range(1, 5):
+        ring = set(u for v in ring for u in nb[v] if u in hair and u not in hdist)
+        for u in ring:
+            hdist[u] = r_
+    hC = hpart[5].copy()
+    for v, i in hidx.items():
+        hC[i, 0] = float(np.clip((hair_sd[v] + 0.001) / 0.016, 0.0, 1.0)) * min(hdist.get(v, 5) / 1.0, 1.0)
+    parts.append(hpart[:5] + (hC,) + hpart[6:])
 
     # ---------- العينان: كرتان ملساء ----------
     head_id = names.index("Head")
@@ -891,7 +912,10 @@ def build_player(pid, height_m, hair_style, sleeve=0.55, short_len=0.30, **mkw):
         Je[:, 0] = head_id
         We = np.zeros((len(P), 4), np.float32)
         We[:, 0] = 1
-        parts.append((f"Eye.{s}", "eye", P, np.array(Nn), None, np.array(C), Je, We, t))
+        # UV = اتجاه الكرة في وضع الراحة (x, y) ← القزحية والبؤبؤ يُرسمان دائماً نحو الأمام بدقة
+        Nn_a = np.array(Nn)
+        UVe = np.stack([Nn_a[:, 0] * 0.5 + 0.5, Nn_a[:, 1] * 0.5 + 0.5], axis=1)
+        parts.append((f"Eye.{s}", "eye", P, Nn_a, UVe, np.array(C), Je, We, t))
 
     # رفع كل شيء بحيث يلامس النعل y=0
     lift = -floor_y
@@ -1111,11 +1135,11 @@ def bake_skin_detail(size=1024):
 
 
 MUSCLE = {"eyes/l-eye-height2-incr": 0.55, "eyes/r-eye-height2-incr": 0.55,
-          "armslegs/l-upperarm-muscle-incr": 0.55, "armslegs/r-upperarm-muscle-incr": 0.55,
-          "armslegs/l-lowerarm-muscle-incr": 0.6, "armslegs/r-lowerarm-muscle-incr": 0.6,
-          "armslegs/l-upperleg-muscle-incr": 0.5, "armslegs/r-upperleg-muscle-incr": 0.5,
-          "armslegs/l-lowerleg-muscle-incr": 0.7, "armslegs/r-lowerleg-muscle-incr": 0.7,
-          "torso/torso-vshape-incr": 0.35, "torso/torso-muscle-pectoral-incr": 0.3, "torso/torso-muscle-dorsi-incr": 0.3}
+          "armslegs/l-upperarm-muscle-incr": 0.68, "armslegs/r-upperarm-muscle-incr": 0.68,
+          "armslegs/l-lowerarm-muscle-incr": 0.72, "armslegs/r-lowerarm-muscle-incr": 0.72,
+          "armslegs/l-upperleg-muscle-incr": 0.62, "armslegs/r-upperleg-muscle-incr": 0.62,
+          "armslegs/l-lowerleg-muscle-incr": 0.78, "armslegs/r-lowerleg-muscle-incr": 0.78,
+          "torso/torso-vshape-incr": 0.4, "torso/torso-muscle-pectoral-incr": 0.38, "torso/torso-muscle-dorsi-incr": 0.36}
 
 
 def D(**face):
@@ -1125,7 +1149,7 @@ def D(**face):
 
 
 if __name__ == "__main__":
-    bake_skin_detail(1024)
+    bake_skin_detail(2048)
     build_player("athlete", 1.88, "short", muscle=0.9, weight=0.42, height=0.72, prop=0.85, race=(0.75, 0.05, 0.20),
                  details=D(head__head_oval=0.5, chin__chin_prominent_incr=0.3, nose__nose_hump_incr=0.25))
     build_player("power", 1.86, "buzz", muscle=0.97, weight=0.58, height=0.62, prop=0.8, race=(0.10, 0.85, 0.05),
@@ -1134,6 +1158,8 @@ if __name__ == "__main__":
                  details=D(head__head_triangular=0.35, chin__chin_height_incr=0.3))
     build_player("classic", 1.83, "curly", muscle=0.86, weight=0.48, height=0.55, prop=0.8, race=(0.62, 0.28, 0.10),
                  details=D(head__head_rectangular=0.5, nose__nose_greek_incr=0.4, chin__chin_cleft_incr=0.6))
+    if "--crowd" not in sys.argv:
+        sys.exit(0)   # الجمهور لا يُعاد بناؤه افتراضياً (يبقى بشكله الحالي الخفيف)
     build_crowd("m", 700, gender=1.0, muscle=0.5, weight=0.55)
     build_crowd("f", 700, gender=0.0, muscle=0.45, weight=0.5)
     build_crowd("m_lo", 240, gender=1.0, muscle=0.5, weight=0.55)

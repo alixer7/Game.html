@@ -30,7 +30,9 @@ void fragment() {
 	float lip = smoothstep(0.25, 0.8, d.r);
 	vec3 lipc = mix(lips, lips * 0.78, smoothstep(0.75, 1.0, d.r));
 	vec3 col = mix(base, lipc, lip * 0.7);
-	float scalp = smoothstep(0.55, 0.95, clamp(c.g, 0.0, 1.0));
+	// قناع فروة الرأس من المسافة الموقّعة عن خط الشعر (0.5 = الخط) مع تكسّر ناعم بخصلات قصيرة
+	float hl = texture(mottle, UV * 140.0).r;
+	float scalp = smoothstep(0.44, 0.60, clamp(c.g, 0.0, 1.0) + (hl - 0.5) * 0.10);
 	float brow = max(scalp, smoothstep(0.12, 0.8, d.g));
 	float stub = (1.0 - brow) * d.b * stubble;
 	col = mix(col, mix(col, hair, 0.75) * 0.8, stub * 0.62);

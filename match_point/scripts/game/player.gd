@@ -7,6 +7,7 @@ extends Node3D
 signal ball_struck(info: Dictionary)
 signal swing_feedback(kind: String, q: float)
 signal serve_reset
+signal slid(from: Vector3, to: Vector3)
 
 enum St { LOCKED, FREE, PREP, SWING, RECOVER, SERVE_READY, SERVE_TOSS, SERVE_SWING }
 
@@ -1260,6 +1261,8 @@ func time_to_cover(dist: float, vmax: float = -1.0) -> float:
 
 
 var _split_boost_t := 0.0
+var _slide_on := false
+var _slide_from := Vector3.ZERO
 var sliding := 0.0                # شدة الانزلاق الحالية على التراب (للأنيميشن والآثار)
 
 
@@ -1302,6 +1305,14 @@ func _move(dt: float, k: float) -> void:
 	vel += dv
 	sliding = move_toward(sliding, slide_now, dt * (6.0 if slide_now > sliding else 2.5))
 	position += vel * dt
+	# تسجيل أثر الانزلاق على التراب
+	if sliding > 0.35 and not _slide_on:
+		_slide_on = true
+		_slide_from = position
+	elif sliding < 0.15 and _slide_on:
+		_slide_on = false
+		if (position - _slide_from).length() > 0.35:
+			slid.emit(_slide_from, position)
 	var zs := position.z * side
 	if zs < 0.75:
 		position.z = 0.75 * side

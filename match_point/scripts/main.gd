@@ -202,6 +202,8 @@ func _wire_feedback() -> void:
 	game.serve_speed.connect(arena.show_serve_speed)
 	game.call_made.connect(_on_call_fx)
 	game.bounce_mark.connect(func(pos: Vector3, _good: bool) -> void: arena.add_mark(pos, ball.st.bounce_speed))
+	for pl in players:
+		pl.slid.connect(arena.add_slide)
 
 
 func _apply_settings() -> void:
