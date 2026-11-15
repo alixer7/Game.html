@@ -12,6 +12,7 @@ var data := {
 	"surface": 0,             # Court.Surface
 	"assist": 2,              # 0 بدون، 1 محاذاة خفيفة، 2 جري تلقائي (الافتراضي)
 	"aim_marker": true,
+	"ball_marker": 1,         # مؤشر الكرة على الأرض: 0 إيقاف، 1 يتبع الكرة، 2 يتبعها + مكان السقوط
 	"player_id": "samer",
 	"opponent_id": "karim",
 	"wind": 0,

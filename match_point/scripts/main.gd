@@ -240,7 +240,7 @@ func _on_call_fx(kind: String, data: Dictionary) -> void:
 			Sfx.play(key, clampf(0.25 + sp / 45.0, 0.2, 1.0), randf_range(0.94, 1.06))
 		"net_touch":
 			Sfx.play("net", 0.9)
-		"ace", "winner":
+		"ace", "winner", "body":
 			Sfx.play_crowd("applause_big", 1.0)
 			arena.cheer(1.0)
 		"out", "net", "double_fault":
@@ -501,6 +501,7 @@ func _run_shots(args: PackedStringArray) -> void:
 		if a.begins_with("--cam="): cam_mode = int(a.split("=")[1])
 		if a.begins_with("--quality="): quality = int(a.split("=")[1])
 		if a.begins_with("--menu="): menu = a.split("=")[1]
+		if a.begins_with("--ballmarker="): Settings.data["ball_marker"] = int(a.split("=")[1])
 		if a == "--human": human = true
 		if a == "--ui": _shot_ui = true
 		if a.begins_with("--fbskill="):

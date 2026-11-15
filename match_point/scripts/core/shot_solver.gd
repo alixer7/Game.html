@@ -15,12 +15,11 @@ static func fly(p0: Vector3, v0: Vector3, spin0: Vector3, max_t: float = 7.0, wk
 	var n := int(max_t / DT)
 	var clearance := 99.0
 	var apex := p0.y
-	var decay := 1.0 - BallPhysics.SPIN_DECAY * DT
 	for i in n:
 		var prev := p
 		v += BallPhysics.accel(v, sp, wk) * DT
 		p += v * DT
-		sp *= decay
+		sp *= BallPhysics.spin_keep(v.length())
 		if p.y > apex:
 			apex = p.y
 		if (prev.z > 0.0) != (p.z > 0.0):

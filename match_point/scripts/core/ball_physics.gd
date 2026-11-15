@@ -15,7 +15,9 @@ const KD := 0.5 * RHO * PI * R * R / MASS   # ≈ 0.03697 (يُضرب في Cd·v
 const CD0 := 0.55
 const ALPHA := 0.55          # عزم القصور I = ALPHA·m·R²
 const DT := 1.0 / 120.0
-const SPIN_DECAY := 0.045    # 1/s اضمحلال الدوران في الهواء
+const SPIN_DECAY := 0.045    # 1/s اضمحلال الدوران في الهواء (مرجعي عند ~20 م/ث)
+const SPIN_DECAY_V := 0.0011 # اضمحلال إضافي يتناسب مع السرعة: عزم الاحتكاك الهوائي أكبر للكرة الأسرع
+const GRIP_EX := 0.12        # مرونة مماسية: الكرة «الممسكة» بالأرض تنطلق بدوران أمامي زائد قليلاً (Cross 2005)
 
 const EV_NONE := 0
 const EV_BOUNCE := 1
@@ -42,6 +44,11 @@ class State:
 		s.spin = spin
 		s.rolling = rolling
 		return s
+
+
+## نسبة الدوران المتبقية بعد خطوة زمنية واحدة
+static func spin_keep(v: float) -> float:
+	return 1.0 - (SPIN_DECAY * 0.55 + SPIN_DECAY_V * v) * DT
 
 
 static func accel(vel_g: Vector3, spin: Vector3, wk: float = 1.0) -> Vector3:
@@ -74,7 +81,7 @@ static func step(s: State, surf: Dictionary, rng: RandomNumberGenerator = null) 
 	var prev := s.pos
 	s.vel += a * DT
 	s.pos += s.vel * DT
-	s.spin *= (1.0 - SPIN_DECAY * DT)
+	s.spin *= spin_keep(s.vel.length())
 
 	# ---- الشبكة (المستوى z = 0) ----
 	if true:
@@ -154,7 +161,8 @@ static func _bounce(s: State, surf: Dictionary, rng: RandomNumberGenerator) -> v
 		# الدفع اللازم لإيقاف الانزلاق (تدحرج) مقابل أقصى دفع احتكاكي
 		var j_roll := slip_len * ALPHA / (1.0 + ALPHA)
 		var j_max := mu * (1.0 + e_eff) * vy
-		var j := minf(j_roll, j_max)
+		# في حالة الإمساك (تدحرج) تنعكس المرونة المماسية جزئياً فتخرج الكرة بدوران أمامي زائد
+		var j := minf(j_roll * (1.0 + GRIP_EX), j_max) if j_roll <= j_max else j_max
 		var jv := slip / slip_len * j
 		if rng != null and float(surf["noise"]) > 0.0:
 			jv = jv.rotated(rng.randf_range(-1.0, 1.0) * float(surf["noise"]) * 0.6)

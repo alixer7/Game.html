@@ -252,6 +252,7 @@ func _on_call(kind: String, data: Dictionary) -> void:
 		"net": main_txt = "في الشبكة"
 		"ace": main_txt = "إرسال ساحق!"
 		"winner": main_txt = "ضربة فائزة!"
+		"body": main_txt = "لمست اللاعب!"
 		_: return
 	if data.has("ev"):
 		var ev: Dictionary = data["ev"]

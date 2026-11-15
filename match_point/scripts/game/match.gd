@@ -196,6 +196,9 @@ func _physics_process(dt: float) -> void:
 				_start_serve_phase()
 		Phase.IN_PLAY:
 			_live_t += dt
+			_check_body_hit()
+			if phase != Phase.IN_PLAY:
+				return
 			if ball.st.rolling and bounces >= 1:
 				_end_point(last_hitter, "ace" if serve_in_flight else "winner")
 			elif _live_t > 14.0:
@@ -212,6 +215,27 @@ func _physics_process(dt: float) -> void:
 					match_finished.emit(rules.winner)
 				else:
 					_begin_point()
+
+
+## قانون التنس: إن لمست الكرة جسم اللاعب (قبل الارتداد أو بعده) وهي ما زالت في اللعب يخسر النقطة
+func _check_body_hit() -> void:
+	if last_hitter < 0 or not ball.in_play:
+		return
+	var rcv := players[1 - last_hitter]
+	if rcv.state == TennisPlayer.St.SWING or rcv.state == TennisPlayer.St.SERVE_SWING:
+		return
+	var b := ball.st.pos
+	if b.y > 1.88 or b.y < 0.05:
+		return
+	var dx := b.x - rcv.position.x
+	var dz := b.z - rcv.position.z
+	var rad := 0.21 if b.y > 0.95 else (0.17 if b.y > 0.45 else 0.14)
+	if dx * dx + dz * dz < rad * rad:
+		var n := Vector3(dx, 0.0, dz)
+		n = n.normalized() if n.length() > 0.01 else Vector3(0, 0, -rcv.side)
+		ball.st.vel = (n + Vector3(0, 0.25, 0)).normalized() * ball.st.vel.length() * 0.22
+		ball.st.spin *= 0.2
+		_end_point(last_hitter, "body")
 
 
 func _on_struck(info: Dictionary) -> void:
@@ -337,7 +361,7 @@ func _end_point(winner: int, reason: String) -> void:
 			if rally_hits == 0:
 				st["aces"] += 1
 			st["winners"] += 1
-		"winner":
+		"winner", "body":
 			st["winners"] += 1
 		"double_fault":
 			stats[loser]["double_faults"] += 1

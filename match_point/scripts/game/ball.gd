@@ -43,6 +43,13 @@ var _shadow: MeshInstance3D
 var _streak: MeshInstance3D
 var _spin_basis := Basis.IDENTITY
 var _visual_scale := 1.25
+# مؤشر الكرة على الأرض (يتبعها عمودياً وهي في الهواء) + مكان السقوط المتوقع (اختياري)
+var _marker: MeshInstance3D
+var _bounce_mk: MeshInstance3D
+var _marker_mode := 1
+var _marker_a := 0.0
+var _bounce_a := 0.0
+var _mk_t := 0.0
 
 
 func _ready() -> void:
@@ -90,6 +97,26 @@ func _ready() -> void:
 	_streak.top_level = true
 	_streak.visible = false
 	add_child(_streak)
+	_marker = _make_ground_quad("res://shaders/ball_marker.gdshader", 0.56)
+	_bounce_mk = _make_ground_quad("res://shaders/bounce_marker.gdshader", 0.34)
+	_marker_mode = int(Settings.get_v("ball_marker"))
+	Settings.changed.connect(func() -> void: _marker_mode = int(Settings.get_v("ball_marker")))
+
+
+func _make_ground_quad(shader_path: String, size: float) -> MeshInstance3D:
+	var q := QuadMesh.new()
+	q.size = Vector2(size, size)
+	q.orientation = PlaneMesh.FACE_Y
+	var mi := MeshInstance3D.new()
+	mi.mesh = q
+	var m := ShaderMaterial.new()
+	m.shader = load(shader_path)
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.top_level = true
+	mi.visible = false
+	add_child(mi)
+	return mi
 
 
 func set_visual_scale(s: float) -> void:
@@ -267,6 +294,7 @@ func _process(dt: float) -> void:
 	var sm: ShaderMaterial = _shadow.material_override
 	sm.set_shader_parameter("strength", clampf(0.62 - h * 0.05, 0.12, 0.62))
 	_shadow.visible = mode != Mode.HELD
+	_update_markers(dt, h)
 	# أثر السرعة
 	var sp := st.vel.length()
 	if mode == Mode.FREE and sp > 14.0:
@@ -282,3 +310,27 @@ func _process(dt: float) -> void:
 		_streak.visible = true
 	else:
 		_streak.visible = false
+
+
+## مؤشر الأرض: يظهر ما دامت الكرة في الهواء أثناء اللعب، ويقع تحتها مباشرة (إسقاط عمودي لا ظل)،
+## وحلقته الداخلية تنكمش مع اقتراب الكرة من الأرض. يختفي بنعومة عند تدحرج الكرة أو انتهاء النقطة.
+func _update_markers(dt: float, h: float) -> void:
+	_mk_t += dt
+	var air := mode == Mode.FREE and in_play and not st.rolling and h > 0.05
+	var want := 1.0 if (_marker_mode >= 1 and air) else 0.0
+	_marker_a = move_toward(_marker_a, want, dt * (8.0 if want > _marker_a else 4.0))
+	_marker.visible = _marker_a > 0.01
+	if _marker.visible:
+		var k := clampf(0.85 + h * 0.12, 0.85, 1.35) * clampf(_visual_scale / 1.25, 0.8, 1.3)
+		_marker.global_transform = Transform3D(Basis.IDENTITY.scaled(Vector3(k, 1, k)), Vector3(st.pos.x, 0.016, st.pos.z))
+		var m: ShaderMaterial = _marker.material_override
+		m.set_shader_parameter("alpha", _marker_a * clampf(0.55 + h * 0.6, 0.55, 1.0))
+		m.set_shader_parameter("height_k", clampf(h / 2.6, 0.0, 1.0))
+		m.set_shader_parameter("pulse", _mk_t * 7.0)
+	# مكان السقوط المتوقع: قبل الارتداد الأول فقط
+	var want_b := 1.0 if (_marker_mode >= 2 and air and bounces_since_hit == 0 and pred_has_bounce and pred_first_bounce_t > clock) else 0.0
+	_bounce_a = move_toward(_bounce_a, want_b, dt * (6.0 if want_b > _bounce_a else 5.0))
+	_bounce_mk.visible = _bounce_a > 0.01
+	if _bounce_mk.visible:
+		_bounce_mk.global_position = Vector3(pred_first_bounce.x, 0.015, pred_first_bounce.z)
+		(_bounce_mk.material_override as ShaderMaterial).set_shader_parameter("alpha", _bounce_a)
