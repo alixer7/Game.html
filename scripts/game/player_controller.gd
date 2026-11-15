@@ -64,9 +64,13 @@ func update_controls(_dt: float) -> void:
 		jump = touch.jump_held
 		boost = touch.boost_held
 		drift = touch.drift_held
-		thr = sy
+		# stick forward accelerates; pulling it back does not reverse on the ground
+		# (it still pitches the car in the air) - reverse is the brake button.
+		thr = maxf(0.0, sy)
 		if Settings.get_value("auto_throttle", false):
-			thr = 1.0 if sy > -0.35 else sy
+			thr = 1.0
+		if touch.brake_held:
+			thr = -1.0
 	# keyboard / gamepad
 	var kx := Input.get_action_strength("p_right") - Input.get_action_strength("p_left")
 	var kf := Input.get_action_strength("p_throttle") - Input.get_action_strength("p_reverse")

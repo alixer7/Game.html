@@ -17,6 +17,8 @@ var _dir := Vector3(0, 0, -1)
 var _up := Vector3.UP
 var _pos := Vector3(0, 12, 40)
 var _look := Vector3.ZERO
+var _look_dir := Vector3(0, 0, -1)
+var _offset := Vector3(0, 1, 3)
 var _fov_kick := 0.0
 var _trauma := 0.0
 var _orbit_t := 0.0
@@ -51,6 +53,8 @@ func snap_behind(car_pos: Vector3, car_basis: Basis) -> void:
 	_up = Vector3.UP
 	_pos = car_pos - _dir * distance + Vector3.UP * height
 	_look = car_pos + _dir * 4.0
+	_look_dir = (_look - _pos).normalized()
+	_offset = _pos - car_pos
 	_initialized = true
 
 
@@ -59,16 +63,22 @@ func set_goal_point(p: Vector3) -> void:
 
 
 ## Follow a car (position/basis already interpolated).
+## Ball cam looks toward the ball first, but the car is always kept inside a
+## view cone so it never leaves the bottom of the screen - also on walls.
 func follow(car_pos: Vector3, car_basis: Basis, car_vel: Vector3, grounded: bool, ball_pos: Vector3,
 		boosting: bool, supersonic: bool, delta: float) -> void:
 	if not _initialized:
 		snap_behind(car_pos, car_basis)
-	var target_up := car_basis.y if grounded else Vector3.UP
-	if grounded and car_basis.y.y < -0.2:
-		target_up = Vector3.UP.lerp(car_basis.y, 0.5).normalized()
-	_up = _slerp_dir(_up, target_up, 1.0 - exp(-delta * (6.0 if grounded else 2.5)))
+	# Camera "up" follows the driving surface smoothly (walls), world-up in the air.
+	var target_up := Vector3.UP
+	if grounded:
+		target_up = car_basis.y
+		if target_up.y < -0.2:
+			# on the ceiling keep the view mostly upright
+			target_up = (Vector3.UP * 0.7 + target_up * 0.3).normalized()
+	_up = _slerp_dir(_up, target_up, 1.0 - exp(-delta * (3.2 if grounded else 1.8)))
 
-	_ball_cam_blend = move_toward(_ball_cam_blend, 1.0 if ball_cam else 0.0, delta * 3.0)
+	_ball_cam_blend = move_toward(_ball_cam_blend, 1.0 if ball_cam else 0.0, delta * 2.5)
 	var f := -car_basis.z
 	var car_dir := f - _up * f.dot(_up)
 	if car_dir.length_squared() < 0.04:
@@ -77,37 +87,42 @@ func follow(car_pos: Vector3, car_basis: Basis, car_vel: Vector3, grounded: bool
 	car_dir = car_dir.normalized()
 	var to_ball := ball_pos - car_pos
 	var ball_dir := to_ball - _up * to_ball.dot(_up)
-	if ball_dir.length_squared() < 0.25:
-		ball_dir = car_dir
+	if ball_dir.length_squared() < 1.0:
+		ball_dir = _dir
 	ball_dir = ball_dir.normalized()
 	var target_dir := _slerp_dir(car_dir, ball_dir, _ball_cam_blend)
 	var rate := swivel * (0.6 + stiffness)
-	if ball_cam and to_ball.length() < 4.0:
-		rate *= 0.5
+	if _ball_cam_blend > 0.5:
+		rate = lerpf(rate, 4.5, _ball_cam_blend)
+		if to_ball.length() < 5.0:
+			rate *= 0.5
 	_dir = _slerp_dir(_dir, target_dir, 1.0 - exp(-delta * rate))
-	_dir = (_dir - _up * _dir.dot(_up)).normalized()
+	_dir = _dir - _up * _dir.dot(_up)
+	if _dir.length_squared() < 1e-4:
+		_dir = car_dir
+	_dir = _dir.normalized()
 
-	var dist := distance
-	var hgt := height
-	var want := car_pos - _dir * dist + _up * hgt
-	# positional lag scaled by stiffness (0 = loose, 1 = rigid)
+	# Smooth the offset relative to the car (not the absolute position) so the
+	# follow distance never shrinks at speed.
+	var want_off := -_dir * distance + _up * height
 	var follow_rate := lerpf(10.0, 40.0, stiffness)
-	_pos = _pos.lerp(want, 1.0 - exp(-delta * follow_rate))
-	_pos = _keep_inside(car_pos + _up * 0.6, _pos)
+	_offset = _offset.lerp(want_off, 1.0 - exp(-delta * follow_rate))
+	if _offset.length() > 0.01:
+		_offset = _offset.normalized() * want_off.length()
+	_pos = _keep_inside(car_pos + _up * 0.6, car_pos + _offset)
 
-	var look_car := car_pos + _up * 0.55 + _dir * 3.0
-	var look_target := look_car
+	# --- where to look
+	var focus := car_pos + _up * 0.35
+	var look := (focus + _dir * 4.0 + _up * 0.25 - _pos).normalized()
 	if _ball_cam_blend > 0.0:
-		var lb := ball_pos
-		var to_lb := (lb - _pos)
-		# limit how far the camera pitches up so the car stays in shot
-		var flat := to_lb - _up * to_lb.dot(_up)
-		var up_amt := to_lb.dot(_up)
-		var max_up := flat.length() * 0.75
-		up_amt = clampf(up_amt, -flat.length() * 0.35, max_up)
-		var look_ball := _pos + flat + _up * up_amt
-		look_target = look_car.lerp(look_ball, _ball_cam_blend * 0.85)
-	_look = _look.lerp(look_target, 1.0 - exp(-delta * 18.0))
+		look = _slerp_dir(look, (ball_pos - _pos).normalized(), _ball_cam_blend)
+	var right := look.cross(_up)
+	if right.length_squared() > 1e-4:
+		look = look.rotated(right.normalized(), deg_to_rad(angle_deg))
+	look = _constrain_to_car(look, focus)
+	_look_dir = _slerp_dir(_look_dir, look, 1.0 - exp(-delta * 14.0))
+	_look_dir = _constrain_to_car(_look_dir, focus)
+	_look = _pos + _look_dir * 10.0
 
 	var kick := 0.0
 	if boosting:
@@ -115,7 +130,28 @@ func follow(car_pos: Vector3, car_basis: Basis, car_vel: Vector3, grounded: bool
 	if supersonic:
 		kick += 4.0
 	_fov_kick = lerpf(_fov_kick, kick, 1.0 - exp(-delta * 4.0))
-	_apply(delta, angle_deg)
+	_apply(delta, 0.0)
+
+
+## Rotates `look` toward the car so the car stays inside the vertical field of view.
+func _constrain_to_car(look: Vector3, focus: Vector3) -> Vector3:
+	var to_car := focus - _pos
+	if to_car.length_squared() < 0.01:
+		return look
+	var c := to_car.normalized()
+	# the closer the car, the bigger it appears: keep all of it inside the frame
+	var car_ang := rad_to_deg(atan(0.5 / maxf(to_car.length(), 0.5)))
+	var max_ang := deg_to_rad(maxf(2.0, _vfov() * 0.5 - car_ang - 3.0))
+	var a := look.angle_to(c)
+	if a > max_ang:
+		return _slerp_dir(c, look, max_ang / a)
+	return look
+
+
+func _vfov() -> float:
+	var vp := get_viewport().get_visible_rect().size
+	var aspect := vp.x / maxf(vp.y, 1.0)
+	return rad_to_deg(2.0 * atan(tan(deg_to_rad(fov) * 0.5) / aspect))
 
 
 func orbit(center: Vector3, radius: float, h: float, speed: float, delta: float) -> void:
@@ -152,20 +188,29 @@ func goal_view(goal_z: float, target: Vector3, delta: float) -> void:
 
 
 func _keep_inside(anchor: Vector3, p: Vector3) -> Vector3:
-	var margin := 0.45
+	# Push the camera back inside the arena along the shell normal so it keeps
+	# its distance from the car instead of collapsing onto it.
+	var margin := 0.6
 	if ArenaGeo.sdf(anchor) < margin:
 		return p
-	if ArenaGeo.sdf(p) >= margin:
-		return p
-	var lo := 0.0
-	var hi := 1.0
-	for i in range(10):
-		var mid := (lo + hi) * 0.5
-		if ArenaGeo.sdf(anchor.lerp(p, mid)) >= margin:
-			lo = mid
-		else:
-			hi = mid
-	return anchor.lerp(p, lo)
+	var s := ArenaGeo.sdf(p)
+	var i := 0
+	while s < margin and i < 4:
+		p += ArenaGeo.sdf_normal(p) * (margin - s + 0.02)
+		s = ArenaGeo.sdf(p)
+		i += 1
+	if s < margin * 0.5:
+		# fall back to sliding toward the car
+		var lo := 0.0
+		var hi := 1.0
+		for k in range(10):
+			var mid := (lo + hi) * 0.5
+			if ArenaGeo.sdf(anchor.lerp(p, mid)) >= margin:
+				lo = mid
+			else:
+				hi = mid
+		p = anchor.lerp(p, lo)
+	return p
 
 
 func _apply(delta: float, pitch_offset_deg: float, fov_override: float = -1.0) -> void:

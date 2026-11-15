@@ -3,7 +3,7 @@ extends Node
 
 const SOUNDS := ["hit_soft", "hit_hard", "bounce", "jump", "flip", "land", "boost_loop",
 	"engine_loop", "pad_small", "pad_big", "goal", "demo", "bump", "beep", "beep_go",
-	"crowd_loop", "cheer", "horn", "click", "whoosh", "supersonic", "music_loop"]
+	"crowd_loop", "cheer", "horn", "click", "whoosh", "supersonic", "music_loop", "boost_small", "boost_big"]
 
 var streams := {}
 var _pool: Array[AudioStreamPlayer] = []

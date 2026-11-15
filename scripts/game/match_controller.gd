@@ -472,13 +472,17 @@ func _on_bounce(strength: float, pos: Vector3) -> void:
 		Sfx.play_at("bounce", pos, clampf(-12.0 + strength * 0.6, -14.0, 2.0), _rng.randf_range(0.9, 1.1))
 
 
-func _on_pad(idx: int, car_id: int) -> void:
+func _on_pad(idx: int, car_id: int, gained: float) -> void:
 	var car := world.get_car(car_id)
 	var pad := world.pads[idx]
+	main.fx.pad_pickup(pad.pos, pad.big)
 	if car and car.is_player:
-		Sfx.play("pad_big" if pad.big else "pad_small", -8.0 if pad.big else -12.0)
-	if pad.big:
-		main.fx.pad_pickup(pad.pos, true)
+		Sfx.play("boost_big" if pad.big else "boost_small", -3.0 if pad.big else -7.0)
+		Settings.vibrate(45 if pad.big else 18, 0.7 if pad.big else 0.35)
+		if main.touch:
+			main.touch.notify_pickup(pad.big, gained)
+	elif car:
+		Sfx.play_at("boost_big" if pad.big else "boost_small", pad.pos, -10.0 if pad.big else -16.0)
 
 
 func _on_bump(a_id: int, b_id: int, strength: float) -> void:

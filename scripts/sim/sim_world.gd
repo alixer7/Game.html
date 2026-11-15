@@ -9,7 +9,7 @@ signal ball_touched(car_id: int, strength: float)
 signal ball_bounced(strength: float, pos: Vector3)
 signal car_demolished(attacker_id: int, victim_id: int)
 signal car_bumped(a_id: int, b_id: int, strength: float)
-signal pad_collected(pad_index: int, car_id: int)
+signal pad_collected(pad_index: int, car_id: int, gained: float)
 
 class Pad:
 	var pos := Vector3.ZERO
@@ -34,6 +34,9 @@ var goal_enabled := true
 var demolitions_enabled := true
 var unlimited_boost := false
 
+var ball_marker_ok := false
+var ball_marker_pos := Vector3.ZERO
+var ball_marker_normal := Vector3.UP
 var hit_pos := Vector3.ZERO
 var hit_normal := Vector3.UP
 
@@ -181,6 +184,7 @@ func step(dt: float) -> void:
 			if not cars[i].demolished and not cars[j].demolished:
 				_car_car(cars[i], cars[j])
 	_update_pads(dt)
+	_update_ball_marker()
 
 	if goal_enabled and absf(ball.pos.z) > Phys.HALF_L + Phys.BALL_R:
 		var scoring_team := 1 if ball.pos.z > 0.0 else 0
@@ -519,11 +523,23 @@ func _update_pads(dt: float) -> void:
 			var dx := car.pos.x - pad.pos.x
 			var dz := car.pos.z - pad.pos.z
 			if dx * dx + dz * dz < r2 and car.pos.y < hmax:
+				var before := car.boost
 				car.boost = minf(100.0, car.boost + (Phys.BIG_PAD_AMOUNT if pad.big else Phys.SMALL_PAD_AMOUNT))
 				pad.active = false
 				pad.timer = Phys.BIG_PAD_RESPAWN if pad.big else Phys.SMALL_PAD_RESPAWN
-				pad_collected.emit(i, car.id)
+				pad_collected.emit(i, car.id, car.boost - before)
 				break
+
+
+## Finds the surface below an airborne ball (for the ground marker).
+func _update_ball_marker() -> void:
+	ball_marker_ok = false
+	if ArenaGeo.sdf(ball.pos) < Phys.BALL_R + 0.6:
+		return
+	if raycast(ball.pos, ball.pos + Vector3.DOWN * 40.0):
+		ball_marker_ok = true
+		ball_marker_pos = hit_pos
+		ball_marker_normal = hit_normal
 
 
 func reset_pads() -> void:

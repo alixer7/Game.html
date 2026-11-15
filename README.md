@@ -12,6 +12,7 @@
 |---|---|
 | ![تسديدة](docs/screenshots/shot_on_goal_ar.png) | ![المرآب](docs/screenshots/garage_ar.png) |
 | ![إعداد المباراة](docs/screenshots/match_setup_en.png) | ![الانطلاق](docs/screenshots/kickoff_en.png) |
+| ![تخصيص أزرار التحكم](docs/screenshots/controls_editor_ar.png) | |
 
 ---
 
@@ -47,14 +48,21 @@
 
 | العنصر | الوظيفة |
 |---|---|
-| عصا التحكم (الجهة اليسرى، تظهر حيث تلمس وتتبع إصبعك) | أعلى/أسفل = تسارع/رجوع، يمين/يسار = توجيه. في الهواء: إمالة السيارة (أعلى = الأنف للأسفل) |
+| عصا التحكم (الجهة اليسرى) | للأمام = تسارع، يمين/يسار = توجيه وانعطاف. السحب للأسفل لا يُرجع السيارة على الأرض. في الهواء: إمالة السيارة (أعلى = الأنف للأسفل، أسفل = الأنف للأعلى) |
+| زر الفرامل / الرجوع (الأحمر) | اضغط باستمرار للفرملة ثم الرجوع للخلف |
 | زر القفز (الكبير) | قفز — اضغط مرة أخرى في الهواء لقفزة مزدوجة، ومع اتجاه العصا للشقلبة |
-| زر النيترو (حوله عدّاد النيترو) | تسارع وطيران |
+| زر النيترو (حوله عدّاد النيترو) | تسارع وطيران. يمتلئ العدّاد بحركة متدرجة مع رقم "+" واهتزاز وصوت مميز عند التقاط النيترو |
 | زر الانزلاق | انزلاق على الأرض، ودوران جوي (Air Roll) في الهواء |
 | زر الكاميرا | تبديل كاميرا الكرة / كاميرا السيارة |
 | زر الإيقاف | قائمة الإيقاف المؤقت |
 
-يمكن من الإعدادات: تكبير/تصغير العصا والأزرار، تغيير الشفافية والحساسية، عكس الجهتين لليد اليسرى، وتفعيل التسارع التلقائي. الاهتزاز (haptics) مفعّل عند الضربات والأهداف.
+**نوعان لعصا التحكم** (الإعدادات ← التحكم): **متحركة** تظهر حيث تلمس وتتبع إصبعك، أو **ثابتة** تبقى في مكانها ويمكن تحريكها بلمس المنطقة المحيطة بها دون أن تتحرك لدقة توجيه أعلى.
+
+**تخصيص الأزرار** (الإعدادات ← التحكم ← تخصيص أزرار التحكم): اسحب أي زر لتغيير مكانه، واضبط حجم وشفافية كل زر على حدة، مع زر لاستعادة التوزيع الافتراضي. تُحفظ المواضع نسبةً لحجم الشاشة، وتبقى جميع الأزرار داخل حدود الشاشة (والمنطقة الآمنة للنتوءات) مهما كان حجم الجهاز.
+
+يمكن أيضًا تغيير حجم العصا والأزرار عمومًا، الشفافية، الحساسية، عكس الجهتين، والتسارع التلقائي. الاهتزاز (haptics) مفعّل عند الضربات والأهداف والتقاط النيترو.
+
+**الكاميرا:** في وضع كاميرا الكرة تتجه الكاميرا نحو الكرة أولًا مع إبقاء السيارة ظاهرة دائمًا أسفل الشاشة، بما في ذلك أثناء القيادة على الجدران. **مؤشر الكرة:** حلقة مضيئة على الأرض أسفل الكرة مع خط إرشادي عندما تكون في الهواء (يمكن إيقافه من إعدادات الكاميرا). **وسائد النيترو** تختفي عند التقاطها وتعود بحركة ظهور: الكبيرة بعد 10 ثوانٍ والصغيرة بعد 4 ثوانٍ.
 
 **لوحة المفاتيح / يد التحكم (للتجربة على الحاسوب):** `W/S` أو الأسهم للقيادة، `A/D` للتوجيه، `Space` قفز، `Shift` نيترو، `Ctrl` انزلاق، `Q/E` دوران جوي، `C` الكاميرا، `Esc` إيقاف. يد التحكم مدعومة بتوزيع الأزرار المعتاد (A قفز، B نيترو، X انزلاق، Y الكاميرا، RT/LT تسارع/رجوع).
 
@@ -97,6 +105,9 @@ godot --headless --path . --fixed-fps 120 res://tests/physics_test.tscn     # ق
 godot --headless --path . --fixed-fps 120 res://tests/drive_test.tscn       # الجدران والزوايا والمرمى بسرعة قصوى
 godot --headless --path . --fixed-fps 120 res://tests/ai_test.tscn -- level=2 size=2 secs=120
 godot --headless --path . --fixed-fps 60  res://tests/match_flow_test.tscn  # مباراة كاملة حتى شاشة النتيجة
+# تحتاج شاشة (مثل xvfb-run): التحكم اللمسي، وبقاء السيارة ظاهرة في الكاميرا
+godot --path . res://tests/touch_test.tscn
+godot --path . res://tests/camera_test.tscn
 ```
 
 ## الحقوق
@@ -114,6 +125,7 @@ godot --headless --path . --fixed-fps 60  res://tests/match_flow_test.tscn  # م
 - Full-size arena (104 × 82 × 20.5 m) with chamfered corners and 17.8 × 6.45 × 8.8 m goals; 6 big + 28 small boost pads. One procedural mesh is used for both rendering and collision.
 - 1v1 / 2v2 / 3v3 against bots (Rookie / Pro / All-Star) that use ball prediction, roles and rotation, shots, dodges, jump shots and aerials.
 - Kickoff countdown, clock, golden-goal overtime, stats/MVP, slow-motion goal replays, free play, garage, settings, Arabic/English UI.
-- Touch controls: floating joystick (drive/steer, air pitch/yaw), jump, boost (with ring meter), drift/air-roll, ball-cam and pause; size/opacity/sensitivity/left-handed options and haptics.
+- Touch controls: joystick (forward = throttle, left/right = steer; floating or fixed with a touch-around zone), separate brake/reverse button, jump, boost (animated ring meter with pickup feedback), drift/air-roll, ball-cam and pause. A layout editor lets you drag every control and set its size and opacity; all controls are kept inside the screen's safe area.
+- Ball cam always keeps the car in frame (walls included); a glowing ground marker shows where an airborne ball is; boost pads vanish when collected and pop back (big 10 s, small 4 s).
 
 Open `project.godot` in Godot 4.4+ and press F5. To build an APK, install export templates plus the Android SDK/JDK, then use the included "Android" export preset.

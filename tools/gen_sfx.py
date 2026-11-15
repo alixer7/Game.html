@@ -318,6 +318,32 @@ def music_loop():
     return np.tanh(out * 0.9)
 
 
+def boost_small():
+    """Quick rising zip with a sparkle - small boost pad pickup."""
+    t = t_axis(0.26)
+    zip_ = sweep(t, 700, 2100, 0.7) * env_exp(t, 0.09) * attack(t, 0.004)
+    zip_ += 0.35 * sweep(t, 1400, 4200, 0.7) * env_exp(t, 0.06)
+    sparkle = np.zeros_like(t)
+    for k, st in enumerate([0.04, 0.09, 0.14]):
+        tt = np.clip(t - st, 0, None)
+        sparkle += np.sin(2 * np.pi * (2600 + 500 * k) * tt) * env_exp(tt, 0.035) * (t >= st)
+    return zip_ + sparkle * 0.45
+
+
+def boost_big():
+    """Power-up charge: rising tremolo sweep, bright chord and a whoosh."""
+    dur = 0.85
+    t = t_axis(dur)
+    rise = sweep(t, 260, 1250, 0.6)
+    rise *= (0.65 + 0.35 * np.sin(2 * np.pi * 28 * t)) * np.clip(t / 0.05, 0, 1) * np.clip((0.55 - t) / 0.2, 0, 1)
+    chord = np.zeros_like(t)
+    for f in (783.99, 987.77, 1174.66, 1567.98):
+        tt = np.clip(t - 0.32, 0, None)
+        chord += np.sin(2 * np.pi * f * tt) * env_exp(tt, 0.22) * (t >= 0.32)
+    body = sweep(t, 90, 140) * env_exp(t, 0.18) * 0.6
+    return rise * 0.7 + chord * 0.45 + body + whoosh(dur, 600, 5000, 0.35) * 0.35
+
+
 def main():
     write("hit_soft", hit(False))
     write("hit_hard", hit(True))
@@ -341,6 +367,8 @@ def main():
     write("whoosh", whoosh(0.5, 500, 3000), peak=0.6)
     write("supersonic", whoosh(0.6, 1500, 6000, 0.4), peak=0.5)
     write("music_loop", music_loop(), sr=SR, peak=0.75)
+    write("boost_small", boost_small(), peak=0.6)
+    write("boost_big", boost_big(), peak=0.75)
 
 
 if __name__ == "__main__":

@@ -151,4 +151,7 @@ func hit_spark(pos: Vector3, strength: float, color: Color = Color(0.6, 0.9, 1.0
 
 
 func pad_pickup(pos: Vector3, big: bool) -> void:
-	_burst(pos + Vector3(0, 0.6, 0), Color(1.0, 0.6, 0.1), 24 if big else 8, 3.0, 7.0, 0.5, 0.35 if big else 0.2, 4.0, 3.0)
+	_burst(pos + Vector3(0, 1.0 if big else 0.5, 0), Color(1.0, 0.6, 0.1), 26 if big else 10, 3.0, 8.0, 0.5,
+		0.35 if big else 0.2, 4.0, 3.0)
+	if big:
+		_flash_sphere(pos + Vector3(0, 1.1, 0), Color(1.0, 0.7, 0.2, 0.7), 0.5, 2.6, 0.3)

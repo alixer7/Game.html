@@ -39,6 +39,9 @@ var data := {
 	"team": 0,
 	"show_fps": false,
 	"replays": true,
+	"joystick_fixed": false,
+	"ball_marker": true,
+	"touch_layout": {},
 	"tutorial_seen": false,
 }
 

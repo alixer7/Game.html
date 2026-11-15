@@ -230,6 +230,7 @@ func _process(delta: float) -> void:
 	var ball_pos := world.ball.prev_pos.lerp(world.ball.pos, alpha)
 	if m.state == MatchController.State.REPLAY:
 		ball_pos = m.apply_replay(camera, delta, now)
+		ball_view.set_marker(false, Vector3.ZERO, Vector3.UP, ball_pos, now)
 		var bv := m.replay_ball_vel()
 		var remaining := m._replay_len - m._replay_t
 		if remaining < 1.5:
@@ -240,6 +241,7 @@ func _process(delta: float) -> void:
 		for v in m.views:
 			v.update_visual(alpha, camera, delta, now)
 		ball_view.update_visual(alpha, camera, delta, now)
+		ball_view.set_marker(world.ball_marker_ok, world.ball_marker_pos, world.ball_marker_normal, ball_pos, now)
 		_update_camera(delta, ball_pos)
 	m.update_audio()
 	# HUD

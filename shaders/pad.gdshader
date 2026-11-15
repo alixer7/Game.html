@@ -13,7 +13,7 @@ void fragment() {
 	float disc = (1.0 - smoothstep(0.0, 0.8, r)) * 0.9;
 	float spokes = step(0.85, fract(atan(p.y, p.x) / 6.2831 * 6.0 + TIME * 0.3)) * step(r, 0.75) * step(0.35, r);
 	float pulse = 0.75 + 0.25 * sin(TIME * 4.0);
-	float a = (ring * 1.2 + disc * pulse + spokes * 0.5 * big) * mix(0.15, 1.0, active);
+	float a = (ring * 1.2 + disc * pulse + spokes * 0.5 * big) * active;
 	if (r > 1.0) { a = 0.0; }
 	ALBEDO = color * a * 2.4;
 	ALPHA = clamp(a, 0.0, 1.0);

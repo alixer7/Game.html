@@ -67,7 +67,7 @@ func _physics_process(_d: float) -> void:
 				var seq := [0]
 				_next(func(c, d):
 					seq[0] += 1
-					c.controls.jump = seq[0] < 10 or (seq[0] > 30 and seq[0] < 40))
+					c.controls.jump = (seq[0] > 5 and seq[0] < 30) or (seq[0] > 45 and seq[0] < 55))
 		5:
 			max_h = maxf(max_h, car.pos.y - data["y0"])
 			if s == 1800 + 300:

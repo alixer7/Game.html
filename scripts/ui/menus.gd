@@ -428,6 +428,11 @@ func _fill_settings(content: VBoxContainer, tab: int) -> void:
 			_slider_row(content, Loc.t("sfx_volume"), "sfx_volume", 0.0, 1.0, 0.05)
 			_slider_row(content, Loc.t("music_volume"), "music_volume", 0.0, 1.0, 0.05)
 		1:
+			var cust := _btn(Loc.t("customize_controls"), func(): _open_controls_editor(), 24, 380, true)
+			cust.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			content.add_child(cust)
+			_toggle_row(content, Loc.t("joystick"), [[Loc.t("floating"), false], [Loc.t("fixed"), true]],
+				bool(Settings.get_value("joystick_fixed", false)), func(x): Settings.set_value("joystick_fixed", x))
 			_slider_row(content, Loc.t("joystick_size"), "joystick_size", 0.7, 1.5, 0.05)
 			_slider_row(content, Loc.t("button_size"), "button_size", 0.7, 1.4, 0.05)
 			_slider_row(content, Loc.t("opacity"), "controls_opacity", 0.3, 1.0, 0.05)
@@ -441,11 +446,23 @@ func _fill_settings(content: VBoxContainer, tab: int) -> void:
 			_slider_row(content, Loc.t("cam_angle"), "cam_angle", -12.0, 2.0, 0.5, "%.1f")
 			_slider_row(content, Loc.t("cam_stiffness"), "cam_stiffness", 0.0, 1.0, 0.05)
 			_check_row(content, Loc.t("ball_cam_default"), "ball_cam")
+			_check_row(content, Loc.t("ball_marker"), "ball_marker")
 		3:
 			_toggle_row(content, Loc.t("quality"), [[Loc.t("low"), 0], [Loc.t("medium"), 1], [Loc.t("high"), 2]],
 				int(Settings.get_value("quality", 2)), func(x): Settings.set_value("quality", x))
 			_toggle_row(content, Loc.t("fps"), [["30", 30], ["60", 60], ["120", 120]], int(Settings.get_value("max_fps", 60)),
 				func(x): Settings.set_value("max_fps", x))
+
+
+func _open_controls_editor() -> void:
+	if pages.has("controls_editor"):
+		(pages["controls_editor"] as Control).queue_free()
+		pages.erase("controls_editor")
+	var p := _page("controls_editor")
+	var ed := ControlsEditor.new()
+	p.add_child(ed)
+	ed.closed.connect(func(): show_page("settings"))
+	show_page("controls_editor")
 
 
 func open_settings_from_pause() -> void:
@@ -555,7 +572,7 @@ func _build_tutorial() -> void:
 	_dim(p, 0.65)
 	var v := _panel(p, Vector2(820, 0))
 	_title(v, Loc.t("hint_title"), 40)
-	for k in ["hint_joystick", "hint_jump", "hint_boost", "hint_drift", "hint_cam"]:
+	for k in ["hint_joystick", "hint_jump", "hint_boost", "hint_brake", "hint_drift", "hint_cam"]:
 		var l := UiTheme.label("•  " + Loc.t(k), 22, UiTheme.TEXT)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size = Vector2(740, 0)

@@ -14,11 +14,10 @@ func _ready() -> void:
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
 	plan = [
-		[2.0, "menu", func(): pass],
-		[1.0, "garage", func(): main.menus.show_page("garage")],
-		[1.2, "countdown", func(): main.menus.hide_all(); main._start_match({"size": 3, "difficulty": 1, "minutes": 5, "team": 0})],
-		[3.5, "kickoff_go", func(): main.touch.stick = Vector2(0.0, 1.0); main.touch.boost_held = true],
-		[0.45, "goal", func(): main.touch.boost_held = false; _setup_goal()],
+		[1.5, "menu", func(): pass],
+		[1.2, "marker", func(): main._start_freeplay(); _marker()],
+		[0.8, "settings_controls", func(): main._pause(); main.menus._settings_tab = 1; main.menus.rebuild(); main.menus.show_page("settings")],
+		[0.8, "layout_editor", func(): main.menus._open_controls_editor()],
 	]
 
 func _setup_goal() -> void:
@@ -29,6 +28,22 @@ func _setup_goal() -> void:
 	w.ball.touched = true
 	w.ball.last_touch_car = 0
 	main.match_ctrl.touch_log.append([0, 0, w.tick])
+
+func _marker() -> void:
+	var w: SimWorld = main.world
+	var c: CarSim = main.match_ctrl.player_car
+	c.place(Vector3(0, 0.17, 20), 0.0)
+	w.ball.reset(Vector3(-3, 9, 6))
+	w.ball.vel = Vector3(0, 0, 0)
+	w.ball_frozen = true
+
+func _pickup() -> void:
+	var w: SimWorld = main.world
+	var c: CarSim = main.match_ctrl.player_car
+	c.boost = 20.0
+	w.unlimited_boost = false
+	c.place(Vector3(32.0, 0.17, 4.0), 0.0)
+	c.vel = Vector3(0, 0, -6)
 
 func _air() -> void:
 	var c: CarSim = main.match_ctrl.player_car

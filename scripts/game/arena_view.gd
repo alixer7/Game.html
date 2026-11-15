@@ -134,6 +134,16 @@ func _build_pads() -> void:
 	orb_mat.emission_enabled = true
 	orb_mat.emission = Color(1.0, 0.55, 0.08)
 	orb_mat.emission_energy_multiplier = 3.0
+	var gem_mesh := SphereMesh.new()
+	gem_mesh.radius = 0.2
+	gem_mesh.height = 0.4
+	gem_mesh.radial_segments = 8
+	gem_mesh.rings = 4
+	var orb_mesh := SphereMesh.new()
+	orb_mesh.radius = 0.5
+	orb_mesh.height = 1.0
+	orb_mesh.radial_segments = 16
+	orb_mesh.rings = 8
 	for pad in world.pads:
 		var root := Node3D.new()
 		root.position = pad.pos
@@ -160,20 +170,14 @@ func _build_pads() -> void:
 		glow.position.y = 0.07
 		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(glow)
-		var orb: MeshInstance3D = null
-		if pad.big:
-			orb = MeshInstance3D.new()
-			var sm := SphereMesh.new()
-			sm.radius = 0.5
-			sm.height = 1.0
-			sm.radial_segments = 16
-			sm.rings = 8
-			orb.mesh = sm
-			orb.material_override = orb_mat
-			orb.position.y = 1.1
-			orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			root.add_child(orb)
-		pad_nodes.append({"root": root, "mat": gm, "orb": orb, "on": 1.0})
+		# floating pickup: big glowing orb or a small gem
+		var orb := MeshInstance3D.new()
+		orb.mesh = orb_mesh if pad.big else gem_mesh
+		orb.material_override = orb_mat
+		orb.position.y = 1.1 if pad.big else 0.5
+		orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(orb)
+		pad_nodes.append({"root": root, "mat": gm, "orb": orb, "on": 1.0, "big": pad.big})
 
 
 func _offset_poly(pts: PackedVector2Array, d: float) -> PackedVector2Array:
@@ -364,6 +368,13 @@ func set_quality(level: int) -> void:
 		env.glow_enabled = level >= 1
 
 
+static func _ease_out_back(x: float) -> float:
+	var c1 := 1.70158
+	var c3 := c1 + 1.0
+	var y := x - 1.0
+	return 1.0 + c3 * y * y * y + c1 * y * y
+
+
 func excite(amount: float) -> void:
 	_excite = maxf(_excite, amount)
 
@@ -378,17 +389,21 @@ func _process(delta: float) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
 	for i in range(pad_nodes.size()):
 		var pn: Dictionary = pad_nodes[i]
-		var target := 1.0 if world.pads[i].active else 0.0
-		pn["on"] = move_toward(pn["on"], target, delta * 4.0)
+		var active: bool = world.pads[i].active
+		var on: float = pn["on"]
+		# vanish quickly when collected, pop back in when respawned
+		on = move_toward(on, 1.0 if active else 0.0, delta * (2.8 if active else 9.0))
+		pn["on"] = on
 		var mat: ShaderMaterial = pn["mat"]
-		mat.set_shader_parameter("active", pn["on"])
+		mat.set_shader_parameter("active", on)
 		var orb: MeshInstance3D = pn["orb"]
-		if orb:
-			orb.visible = pn["on"] > 0.05
-			var s: float = maxf(0.01, pn["on"])
-			orb.scale = Vector3.ONE * s
-			orb.position.y = 1.1 + sin(t * 2.0 + i) * 0.12
-			orb.rotation.y = t * 1.5
+		orb.visible = on > 0.02
+		var pop := _ease_out_back(on) if active else on
+		orb.scale = Vector3.ONE * maxf(0.01, pop)
+		var big: bool = pn["big"]
+		var h := 1.1 if big else 0.5
+		orb.position.y = h + sin(t * 2.0 + i) * (0.12 if big else 0.06)
+		orb.rotation.y = t * (1.5 if big else 2.5)
 	_excite = move_toward(_excite, 0.0, delta * 0.12)
 	if crowd_mat:
 		crowd_mat.set_shader_parameter("excitement", _excite)
