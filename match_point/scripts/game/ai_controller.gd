@@ -5,10 +5,10 @@ extends Node
 
 ## مستوى الصعوبة = ذكاء الخصم (قراءة الكرة، التوقيت، التكتيك) + تعديل خفيف على تقييماته
 const LEVELS := [
-	{"name": "مبتدئ", "offset": -14.0, "react": 0.10, "pg": 0.20, "py": 0.40, "margin": 1.5, "aggr": 0.25, "judge": 0.55},
-	{"name": "هاوٍ", "offset": -6.0, "react": 0.05, "pg": 0.34, "py": 0.40, "margin": 1.15, "aggr": 0.45, "judge": 0.75},
-	{"name": "محترف", "offset": 0.0, "react": 0.02, "pg": 0.47, "py": 0.37, "margin": 0.85, "aggr": 0.65, "judge": 0.9},
-	{"name": "أسطورة", "offset": 4.0, "react": 0.0, "pg": 0.60, "py": 0.30, "margin": 0.6, "aggr": 0.8, "judge": 0.97},
+	{"name": "مبتدئ", "offset": -14.0, "react": 0.10, "pg": 0.18, "py": 0.40, "margin": 1.5, "aggr": 0.25, "judge": 0.55},
+	{"name": "هاوٍ", "offset": -6.0, "react": 0.05, "pg": 0.30, "py": 0.41, "margin": 1.15, "aggr": 0.45, "judge": 0.75},
+	{"name": "محترف", "offset": 0.0, "react": 0.02, "pg": 0.42, "py": 0.39, "margin": 0.85, "aggr": 0.65, "judge": 0.9},
+	{"name": "أسطورة", "offset": 4.0, "react": 0.0, "pg": 0.55, "py": 0.32, "margin": 0.6, "aggr": 0.8, "judge": 0.97},
 ]
 
 var player: TennisPlayer
@@ -90,7 +90,7 @@ func _physics_process(dt: float) -> void:
 					player.cancel_prep()
 				# العودة للتمركز: خطوات جانبية قرب المركز، وخطوات متقاطعة أسرع بعد كرة واسعة
 				var far := (_recover_pos - player.position).length()
-				_go_to(_recover_pos, lerpf(0.5, 0.78, smoothstep(1.5, 4.0, far)))
+				_go_to(_recover_pos, lerpf(0.5, 0.95, smoothstep(1.2, 3.5, far)))
 
 
 func _go_to(p: Vector3, max_w: float) -> void:
@@ -190,7 +190,7 @@ func _choose_shot() -> void:
 	var my_depth := cp.z * s
 	var opp_depth := -o.z * s
 	# بناء النقطة: كلما طال التبادل يضغط اللاعب أكثر (هوامش أضيق، قوة وزوايا أكبر) — والأقوى ضرباً أقل صبراً
-	var press := smoothstep(3.0, 11.0, float(game.rally_hits)) * lerpf(0.75, 1.25, PlayerProfile.t(player.r, "power"))
+	var press := smoothstep(2.0, 8.0, float(game.rally_hits)) * lerpf(0.8, 1.25, PlayerProfile.t(player.r, "power"))
 	var margin: float = float(cfg["margin"]) * (1.0 - 0.35 * press)
 	var aggr: float = clampf(float(cfg["aggr"]) + 0.3 * press, 0.0, 1.0)
 	var hw := Court.SINGLES_HALF_W
@@ -210,18 +210,23 @@ func _choose_shot() -> void:
 		power = rng.randf_range(0.5, 0.75) if second else rng.randf_range(0.35, 0.6)
 		tx = cross * rng.randf_range(0.3, hw - margin - 0.6) if rng.randf() < 0.6 else away * rng.randf_range(0.5, hw - margin - 0.4)
 		depth = rng.randf_range(8.0, 10.2)
-	elif slack < 0.03:
-		# تحت الضغط: دفاع
+	elif slack < 0.12 or (absf(player.position.x) > 3.4 and slack < 0.25):
+		# تحت الضغط (متأخر أو مسحوب خارج الملعب): كرة دفاعية عالية وعميقة تكسب وقتاً للعودة للمنتصف
 		if opp_depth < 5.0 and rng.randf() < 0.55:
 			type = Shot.Type.LOB
 			power = 0.25
 			tx = cross * rng.randf_range(0.5, 2.0)
 			depth = 10.2
+		elif rng.randf() < 0.3 and opp_depth > 9.0:
+			type = Shot.Type.LOB      # كرة «قمرية» عالية تعطي وقتاً كافياً للتعافي
+			power = 0.55
+			tx = rng.randf_range(-1.2, 1.2)
+			depth = rng.randf_range(9.6, 10.6)
 		else:
-			type = Shot.Type.SLICE if (int(_plan["side"]) < 0 or rng.randf() < 0.4) else Shot.Type.TOPSPIN
+			type = Shot.Type.SLICE if (int(_plan["side"]) < 0 or rng.randf() < 0.45) else Shot.Type.TOPSPIN
 			power = rng.randf_range(0.3, 0.5)
-			tx = cross * rng.randf_range(0.3, 2.2)
-			depth = rng.randf_range(8.0, 10.0)
+			tx = cross * rng.randf_range(0.0, 1.6)
+			depth = rng.randf_range(8.8, 10.4)
 	elif opp_depth < 5.0:
 		# الخصم عند الشبكة: تمريرة أو لوب
 		if rng.randf() < 0.3 and opp_depth < 3.9:
@@ -283,8 +288,11 @@ func _choose_shot() -> void:
 	if type != Shot.Type.LOB and not drop:
 		var pi: int = clampi(int(_plan.get("i", 0)), 0, maxi(player.ball.pred_vel.size() - 1, 0))
 		var v_in := player.ball.pred_vel[pi].length() if player.ball.pred_vel.size() > 0 else 20.0
-		var risk := 0.06 + 0.14 * aggr * (0.5 + 0.5 * press) - 0.05 * (1.0 - player.fit())
+		var risk := 0.05 + 0.12 * aggr * (0.5 + 0.5 * press) - 0.05 * (1.0 - player.fit())
 		power = minf(power, player.comfort_power(type, v_in, risk))
+		# الضرب فوق الحد المريح يطيل الكرة: اللاعب الذكي يصوّب أقصر بقدر ذلك
+		var over_e := maxf(player.estimate_effort(type, power, v_in) - player.comfort_level(type, false), 0.0)
+		depth -= over_e * 7.0 * (0.7 + 0.3 * float(player.d["pow_ctrl"])) * float(player.d["acc_fh"]) * 0.9
 	var lim := hw - margin * 0.5
 	_shot = {"type": type, "power": power, "drop": drop,
 		"target": Vector3(clampf(tx, -lim, lim), 0.0, -s * depth)}
@@ -328,7 +336,7 @@ func _serve() -> void:
 ## diff: صعوبة الكرة 0..1 — الكرات الأسرع والأضيق وقتاً والأبعد أصعب في التوقيت (كما للاعب البشري حيث يمتلئ الشريط أسرع)
 func _sample_quality(stroke_key: String, diff: float = 0.0) -> Array:
 	var tk := PlayerProfile.t(player.r, stroke_key)
-	var pg := clampf((float(cfg["pg"]) + 0.30 * (tk - 0.6)) * lerpf(0.65, 1.0, player.fit()) * (1.0 - 0.55 * diff), 0.04, 0.92)
+	var pg := clampf((float(cfg["pg"]) + 0.15 * (tk - 0.6)) * lerpf(0.65, 1.0, player.fit()) * (1.0 - 0.55 * diff), 0.04, 0.92)
 	var py := float(cfg["py"]) * (1.0 - 0.25 * diff)
 	var x := rng.randf()
 	if x < pg:
@@ -336,6 +344,6 @@ func _sample_quality(stroke_key: String, diff: float = 0.0) -> Array:
 		return [1.0 - 0.05 * absf(o), o * 0.12]
 	if x < pg + py:
 		return [rng.randf_range(0.62, 0.9), -rng.randf_range(0.2, 0.5) if rng.randf() < 0.75 - 0.4 * diff else rng.randf_range(0.2, 0.5)]
-	if rng.randf() < 0.12 + 0.4 * diff:
+	if rng.randf() < 0.10 + 0.25 * diff:
 		return [-0.2, 1.0]
 	return [rng.randf_range(0.1, 0.5), -rng.randf_range(0.5, 1.0)]

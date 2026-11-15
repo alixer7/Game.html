@@ -101,8 +101,16 @@ func setup(p_idx: int, p_side: int, p_profile: Dictionary, rating_offset: float,
 	is_human = human
 	profile = p_profile
 	r = PlayerProfile.adjusted(profile["r"], rating_offset)
+	if OS.has_environment("MP_R%d" % p_idx):
+		# اختبار: تعديل تقييمات بعينها، مثل MP_R1="speed=89,agility=92"
+		for kv in OS.get_environment("MP_R%d" % p_idx).split(","):
+			var kvs := kv.split("=")
+			if kvs.size() == 2:
+				r[kvs[0]] = float(kvs[1])
 	d = PlayerProfile.derive(r)
 	hand = int(profile["hand"])
+	if OS.has_environment("MP_LEFTY") and p_idx == int(OS.get_environment("MP_LEFTY")):
+		hand = -hand      # اختبار: عكس يد اللعب لمقارنة الأعسر بالأيمن بنفس التقييمات
 	display_name = profile["name"]
 	set_side(p_side)
 	rng.randomize()
@@ -748,7 +756,7 @@ func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
 	# ---- فيزياء الاصطدام: قدرة الضرب ----
 	var prm := Shot.params(eff, power, hand)
 	var pow_t := PlayerProfile.t(r, "power")
-	var v_target: float = float(prm["speed"]) * lerpf(0.84, 1.06, pow_t)
+	var v_target: float = float(prm["speed"]) * lerpf(0.87, 1.04, pow_t)
 	var pos_f := (1.0 - 0.35 * stretch) * (1.0 - 0.25 * jam) * (1.0 - 0.2 * behind) * (0.84 + 0.16 * f) * (1.0 - 0.25 * hpen) * (1.0 - 0.12 * hurried)
 	var v_rmax: float = float(d["racket"]) * float(STROKE_FACTOR.get(eff, 0.9)) * pos_f
 	var v_in_n := v_in * 0.85
@@ -777,7 +785,9 @@ func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
 	var over := maxf(effort - comfort, 0.0)
 	var depth_off := over * 7.0 * (0.7 + 0.3 * float(d["pow_ctrl"]))   # الضرب فوق حدود القدرة = كرة طويلة
 	depth_off += 0.9 * tq * maxf(-tdir, 0.0) - 1.6 * tq * maxf(tdir, 0.0)   # مبكر = أطول، متأخر = أقصر/للشبكة
-	depth_off += -2.1 * stretch * bal - 1.3 * jam - 1.0 * behind - 0.6 * hurried
+	# وضع الجسم السيئ يقصّر الكرة — أقل في الكرات الدفاعية العالية والمقطوعة لأن اللاعب يعوّض برفعها
+	var pos_k := 0.35 if eff == Shot.Type.LOB else (0.6 if eff == Shot.Type.SLICE else 1.0)
+	depth_off += (-2.1 * stretch * bal - 1.3 * jam - 1.0 * behind - 0.6 * hurried) * pos_k
 	depth_off += clampf(vel.dot(fwd), -5.0, 5.0) * 0.28           # الزخم للأمام يضيف عمقاً، للخلف ينقصه
 	var high := clampf((h - 1.45) / 0.6, 0.0, 1.0) if (eff != Shot.Type.SMASH and eff != Shot.Type.LOB) else 0.0
 	var low := clampf((0.45 - h) / 0.35, 0.0, 1.0)
@@ -837,7 +847,7 @@ func estimate_effort(type: int, power: float, v_in: float, pos_f: float = 1.0) -
 	if type == Shot.Type.LOB or type == Shot.Type.DROP:
 		return 0.35 + 0.3 * power
 	var prm := Shot.params(type, power, hand)
-	var v_target: float = float(prm["speed"]) * lerpf(0.84, 1.06, PlayerProfile.t(r, "power"))
+	var v_target: float = float(prm["speed"]) * lerpf(0.87, 1.04, PlayerProfile.t(r, "power"))
 	var v_rmax: float = float(d["racket"]) * float(STROKE_FACTOR.get(type, 0.9)) * pos_f * (0.84 + 0.16 * fit())
 	var v_in_n := v_in * 0.85
 	var v_cap := SWEET_EA * v_in_n + (1.0 + SWEET_EA) * v_rmax
@@ -911,8 +921,13 @@ func plan_intercept(pref_h: float = 0.95, allow_volley: bool = false) -> Diction
 			valid = false
 		if valid:
 			var t_i := ball.pred_time(i) - t_now
-			for s in [1, -1]:
+			# مرشحات الوقوف: المسافة المثالية من الكرة، أو «ممدوداً» (اندفاع جانبي) حين لا يتسع الوقت
+			for cand in 4:
+				var s := 1 if cand % 2 == 0 else -1
 				var ideal: Vector2 = FH_IDEAL if s > 0 else BH_IDEAL
+				var stretched := cand >= 2
+				if stretched:
+					ideal = Vector2(reach_lat() * 0.86 * signf(ideal.x), ideal.y * 0.6)
 				var stand := Vector3(bp.x - ideal.x * hand * side, 0.0, bp.z - ideal.y * side)
 				if stand.z * side < 0.9:
 					continue
@@ -927,8 +942,10 @@ func plan_intercept(pref_h: float = 0.95, allow_volley: bool = false) -> Diction
 						score -= 0.6 if bp.y < 0.9 else 0.0
 					if s < 0:
 						score -= 0.18
+					if stretched:
+						score -= 3.0      # الضربة الممدودة خيار أخير: أضعف وأقل دقة
 				else:
-					score = slack * 6.0 - absf(bp.y - pref_h) * 0.5
+					score = slack * 6.0 - absf(bp.y - pref_h) * 0.5 - (0.3 if stretched else 0.0)
 				if score > best_score:
 					best_score = score
 					best = i
@@ -1060,12 +1077,12 @@ func _physics_process(dt: float) -> void:
 ##  الاستعادة لا تبدأ فوراً: تنتظر نحو ثانية بعد آخر جهد، ثم تتسارع تدريجياً، وتتباطأ كلما اقتربت من السقف.
 ##  كل المعدلات مضروبة بمعاملات تقييم «التحمّل» (drain / recover / endure).
 ## =====================================================================
-const RUN_COST := 0.027           # لكل ثانية عند العدو الكامل (قبل مضاعف التحمّل)
+const RUN_COST := 0.023           # لكل ثانية عند العدو الكامل (قبل مضاعف التحمّل)
 const BURST_COST := 0.0005        # لكل (م/ث²) فوق 4 — الانطلاق المفاجئ والكبح وتغيير الاتجاه
-const POINT_COST := 0.0008        # لكل ثانية من النقطة الجارية، يتصاعد مع طولها
+const POINT_COST := 0.0007        # لكل ثانية من النقطة الجارية، يتصاعد مع طولها
 const SHOT_BASE := 0.0020
 const SHOT_EFFORT := 0.009        # × الجهد² — الضربات القوية أغلى بكثير
-const REST_RATE := 0.022          # أقصى معدل استعادة لكل ثانية بين النقاط
+const REST_RATE := 0.025          # أقصى معدل استعادة لكل ثانية بين النقاط
 const REST_DELAY := 0.9           # ثوانٍ قبل أن تبدأ الاستعادة
 const CAP_LOSS := 0.028           # نسبة ما يتحول من الجهد المبذول إلى إرهاق دائم
 

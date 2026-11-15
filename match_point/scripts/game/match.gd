@@ -448,7 +448,7 @@ func _end_point(winner: int, reason: String) -> void:
 		for k in keys:
 			var v = le.get(k, "-")
 			out += k + "=" + (str(snappedf(float(v), 0.01)) if (v is float) else str(v)) + " "
-		print("ERR ", players[loser].display_name, " ", reason, " rally=", rally_hits + 1, " land=", ball.st.bounce_pos.snapped(Vector3(0.1, 0.1, 0.1)), " ", out)
+		print("ERR p", loser, " h", players[loser].hand, " ", reason, " rally=", rally_hits + 1, " land=", ball.st.bounce_pos.snapped(Vector3(0.1, 0.1, 0.1)), " ", out)
 	if OS.has_environment("MP_WIN") and (reason == "winner" or reason == "ace"):
 		var li: Dictionary = _last_info[winner]
 		var rcv := players[loser]
