@@ -177,7 +177,7 @@ func _update_bar(dt: float) -> void:
 		if sp >= 0.0:
 			if not _bar_on:
 				_bar_on = true
-				bar.start(PlayerProfile.green_width(player.r, "serve_acc") * lerpf(0.65, 1.0, player.stamina))
+				bar.start(PlayerProfile.green_width(player.r, "serve_acc") * lerpf(0.6, 1.0, player.fit()))
 			_bar_p = sp
 			bar.progress = sp
 			if sp >= 1.0 and not bar.stopped:
@@ -205,7 +205,7 @@ func _update_bar(dt: float) -> void:
 			_bar_p = 0.0
 			_bar_key = _stroke_key(c)
 			# التعب يضيّق المنطقة الخضراء
-			bar.start(PlayerProfile.green_width(player.r, _bar_key) * lerpf(0.65, 1.0, player.stamina))
+			bar.start(PlayerProfile.green_width(player.r, _bar_key) * lerpf(0.6, 1.0, player.fit()))
 			if OS.has_environment("MP_QTE"):
 				print("QTE start dist=", snappedf(dist, 0.1), " dur=", snappedf(end_t - t_now, 0.01), " state=", player.state)
 		return

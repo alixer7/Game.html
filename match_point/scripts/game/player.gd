@@ -69,6 +69,7 @@ var _volley := false
 var _overhead := false
 var _assist_plan := {}
 var _assist_plan_t := -1.0
+var _prep_start := 0.0
 
 # --- الإرسال ---
 var serve_type: int = Shot.Type.SERVE_FLAT
@@ -132,7 +133,7 @@ func now() -> float:
 
 
 func reach_lat() -> float:
-	return float(d["reach"])
+	return float(d["reach"]) * lerpf(0.9, 1.0, fit())
 
 
 # =====================================================================
@@ -207,6 +208,7 @@ func serve_ready_to_toss() -> bool:
 func on_opponent_hit() -> void:
 	if state == St.FREE and vel.length() < 3.2:
 		rig.split_step()
+		_split_boost_t = 0.55       # قفزة الانقسام في وقتها = انطلاقة أسرع
 
 
 # =====================================================================
@@ -221,6 +223,7 @@ func begin_prep(type: int) -> bool:
 		return false
 	state = St.PREP
 	_state_t = now()
+	_prep_start = _state_t
 	prep_type = type
 	charge = 0.15
 	use_ai_target = false
@@ -428,29 +431,32 @@ func _do_serve() -> void:
 	var b := ball.st.pos
 	b.y = clampf(b.y, 2.15, 2.95)
 	var q := timing_q
+	var qc := clampf(q, 0.0, 1.0)
+	var tq := 1.0 - qc
+	var f := fit()
 	var power := ai_power if use_ai_target else charge
 	var factor: float = {Shot.Type.SERVE_FLAT: 1.0, Shot.Type.SERVE_SLICE: 0.88, Shot.Type.SERVE_KICK: 0.76}[serve_type]
 	var prm := Shot.params(serve_type, power, hand)
 	var vmax: float = float(d["serve_max"]) * factor
-	var speed := vmax * lerpf(0.76, 1.0, power) * lerpf(0.86, 1.0, clampf(q, 0.0, 1.0))
+	var speed := vmax * lerpf(0.76, 1.0, power) * lerpf(0.86, 1.0, qc) * lerpf(0.88, 1.0, f)
 	var target := ai_target if use_ai_target else _serve_aim_target()
 	var plan := ShotSolver.plan(b, target, speed, float(prm["top"]) * float(d["spin"]), prm["side"], prm["gyro"], prm["clear"], -1.0, 0.5)
 	if not plan.get("ok", false):
 		plan = ShotSolver.solve_arc(b, target, deg_to_rad(8.0), prm["top"], prm["side"], prm["gyro"])
 	var effort := lerpf(0.55, 1.0, power)
-	var m_q := 1.0 + 1.1 * pow(1.0 - clampf(q, -0.3, 1.0), 1.3)
-	var sig: float = float(d["acc_sv"]) * (1.0 + 0.7 * float(d["pow_ctrl"]) * effort * effort) * m_q
-	sig *= (1.0 + 1.5 * pow(1.0 - stamina, 2.0)) * pressure * 0.5
-	var tq := 1.0 - clampf(q, 0.0, 1.0)
-	var over := maxf(effort - (0.72 + 0.2 * PlayerProfile.t(r, "serve_pow")), 0.0)
-	var az := deg_to_rad(rng.randfn(0.0, float(prm["sig_az"]) * sig)) - deg_to_rad(2.0) * tq * timing_dir * hand
+	# حد القوة المريحة في الإرسال: يرتفع مع قوة الإرسال ودقته، وينخفض مع التعب
+	var comfort := 0.70 + 0.22 * PlayerProfile.t(r, "serve_pow") + 0.06 * (PlayerProfile.t(r, "serve_acc") - 0.6) - 0.15 * (1.0 - f)
+	var over := maxf(effort - comfort, 0.0)
+	var acc: float = d["acc_sv"]
+	var sig := acc * pressure * (0.24 + 0.55 * pow(tq, 1.2) + 1.4 * over * float(d["pow_ctrl"]) + 0.45 * pow(1.0 - f, 1.5))
 	# منهجي: التأخر = منخفضة للشبكة، التبكير والقوة الزائدة = طويلة، التعب = منخفضة
-	var el := deg_to_rad(rng.randfn(0.0, float(prm["sig_el"]) * sig)) - deg_to_rad(1.9) * timing_dir * tq
-	el += deg_to_rad(2.4) * over * float(d["acc_sv"]) - deg_to_rad(1.3) * maxf(0.5 - stamina, 0.0)
+	var az := deg_to_rad(rng.randfn(0.0, float(prm["sig_az"]) * sig)) - deg_to_rad(2.0) * tq * timing_dir * hand * sqrt(acc)
+	var el := deg_to_rad(rng.randfn(0.0, float(prm["sig_el"]) * sig)) - deg_to_rad(1.9) * timing_dir * tq * sqrt(acc)
+	el += deg_to_rad(2.6) * over * acc - deg_to_rad(1.2) * pow(1.0 - f, 1.3)
 	var sv := 1.0 + rng.randfn(0.0, float(prm["sig_v"]) * sig)
 	var v := ShotSolver.perturb(plan["vel"], az, el, sv)
 	ball.launch(b, v, plan["spin"])
-	shot_cost(effort * 0.9)
+	shot_cost(effort * 0.95)
 	state = St.RECOVER
 	_recover_until = now() + 0.42
 	vel = Vector3(0, 0, -side) * 2.3      # الهبوط داخل الملعب بعد الإرسال
@@ -539,8 +545,9 @@ func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
 	var eff := effective_type(prep_type, h, volley, wants_drop)
 	var power := ai_power if use_ai_target else charge
 	var q := timing_q
+	var f := fit()
 
-	# ---- صعوبة الموقف ----
+	# ---- وضع الجسم وصعوبة الموقف ----
 	var alat := absf(lat)
 	var reach := reach_lat()
 	var stretch := smoothstep(reach * 0.55, reach, alat)
@@ -548,7 +555,7 @@ func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
 	if eff == Shot.Type.SMASH:
 		stretch = smoothstep(0.9, 1.8, alat)
 		jam = 0.0
-	var run := clampf(vel.length() / 7.0, 0.0, 1.0)
+	var run := clampf(Vector2(vel.x, vel.z).length() / 7.0, 0.0, 1.0)
 	var hpen := 0.0
 	if eff != Shot.Type.SMASH and eff != Shot.Type.LOB:
 		if h < 0.45:
@@ -562,17 +569,35 @@ func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
 	var rush := clampf((0.95 - flight) / 0.5, 0.0, 1.0)
 	if volley:
 		rush *= 0.35
+	# التحضير المبكر (لفّ الكتفين قبل وصول الكرة): أقل من ~0.4 ث يعني تأرجحاً مستعجلاً
+	var prep_time := now() - _prep_start
+	var hurried := clampf((0.42 - prep_time) / 0.32, 0.0, 1.0)
+	# الدوران القادم الثقيل (توب سبين عالٍ أو قطع منخفض) أصعب في السيطرة
+	var h_in := Vector3(ball.st.vel.x, 0.0, ball.st.vel.z)
+	var top_in := 0.0
+	if h_in.length() > 0.5:
+		h_in = h_in.normalized()
+		top_in = ball.st.spin.dot(Vector3(h_in.z, 0.0, -h_in.x))
+	var heavy := clampf(absf(top_in) / 320.0, 0.0, 1.0)
 	var ret_k: float = float(d["ret"]) if game.returning_serve(idx) else 1.0
-	var bal: float = d["bal"]
+	# التوازن: التقييم + التعب + ما تبقى من اختلال الضربة السابقة
+	var bal: float = float(d["bal"]) * (1.0 + 0.45 * (1.0 - f)) * (1.0 + 0.6 * off_balance)
 	var rushk: float = float(d["rush"]) * 0.5 * ret_k
-	var D := 1.0 + bal * (1.5 * stretch + 0.7 * run) + 0.8 * jam + 0.7 * hpen + rushk * (0.45 * pace + 0.9 * rush) + 0.9 * behind + 1.2 * (1.0 - stamina)
-	var forced := D >= 1.65 or stretch > 0.3 or run > 0.6 or hpen > 0.6 or rush > 0.4
+	var target := ai_target if use_ai_target else aim_target(eff)
+	# تغيير اتجاه الكرة (مثلاً موازية لخط الجانب من كرة قطرية) أصعب من إعادتها في نفس الاتجاه
+	var redirect := 0.0
+	if h_in.length() > 0.5:
+		var out_d := Vector3(target.x - b.x, 0.0, target.z - b.z).normalized()
+		redirect = clampf((rad_to_deg((-h_in).angle_to(out_d)) - 18.0) / 30.0, 0.0, 1.0)
+	var D := 1.0 + bal * (1.5 * stretch + 0.7 * run) + 0.8 * jam + 0.7 * hpen + rushk * (0.45 * pace + 0.9 * rush) + 0.9 * behind
+	D += 0.7 * hurried + 0.35 * heavy + 0.9 * off_balance + 0.25 * redirect * (0.5 + pace) + 1.1 * (1.0 - f)
+	var forced := D >= 1.75 or stretch > 0.3 or run > 0.6 or hpen > 0.6 or rush > 0.4
 
 	# ---- فيزياء الاصطدام: قدرة الضرب ----
 	var prm := Shot.params(eff, power, hand)
 	var pow_t := PlayerProfile.t(r, "power")
-	var v_target: float = float(prm["speed"]) * lerpf(0.86, 1.04, pow_t)
-	var pos_f := (1.0 - 0.35 * stretch) * (1.0 - 0.25 * jam) * (1.0 - 0.2 * behind) * (0.85 + 0.15 * stamina) * (1.0 - 0.25 * hpen)
+	var v_target: float = float(prm["speed"]) * lerpf(0.84, 1.06, pow_t)
+	var pos_f := (1.0 - 0.35 * stretch) * (1.0 - 0.25 * jam) * (1.0 - 0.2 * behind) * (0.84 + 0.16 * f) * (1.0 - 0.25 * hpen) * (1.0 - 0.12 * hurried)
 	var v_rmax: float = float(d["racket"]) * float(STROKE_FACTOR.get(eff, 0.9)) * pos_f
 	var v_in_n := v_in * 0.85
 	var v_cap := SWEET_EA * v_in_n + (1.0 + SWEET_EA) * v_rmax
@@ -583,28 +608,34 @@ func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
 	if eff == Shot.Type.LOB or eff == Shot.Type.DROP:
 		effort = 0.35 + 0.3 * power
 
-	var target := ai_target if use_ai_target else aim_target(eff)
-	var top: float = float(prm["top"]) * float(d["spin"]) * (0.75 + 0.25 * clampf(q, 0.0, 1.0))
-	# ---- الخطأ المنهجي: يُحسب من العوامل (توقيت، قوة، وضع الجسم، زخم، لياقة) فيمكن فهمه وتعلّمه ----
+	# الدوران: يعتمد على التقييم وجودة التوقيت، وجزء من دوران الكرة القادمة ينعكس على الأوتار
+	# (من الأسهل ردّ التوب سبين بتوب سبين، ومن الأصعب رفع كرة مقطوعة منخفضة)
+	var top: float = float(prm["top"]) * float(d["spin"]) * (0.72 + 0.28 * clampf(q, 0.0, 1.0))
+	if eff != Shot.Type.LOB and eff != Shot.Type.DROP and eff != Shot.Type.SMASH:
+		top += 0.18 * top_in
+
+	# ---- الخطأ المنهجي: مقادير محسوبة من العوامل (يمكن فهمها وتعلّمها، لا نرد) ----
 	var m_skill: float = d[_acc_key(eff, volley)]
 	var qc := clampf(q, 0.0, 1.0)
 	var tq := 1.0 - qc
 	var tdir := timing_dir + 0.35 * rush * tq
 	var fwd := Vector3(0, 0, -side)
 	var rgt := Vector3(side, 0, 0)
-	var over := maxf(effort - (0.6 + 0.25 * pow_t), 0.0)
-	var depth_off := over * 7.5                                   # الضرب فوق حدود القدرة = كرة طويلة
+	var comfort := comfort_level(eff, volley)
+	var over := maxf(effort - comfort, 0.0)
+	var depth_off := over * 7.0 * (0.7 + 0.3 * float(d["pow_ctrl"]))   # الضرب فوق حدود القدرة = كرة طويلة
 	depth_off += 0.9 * tq * maxf(-tdir, 0.0) - 1.6 * tq * maxf(tdir, 0.0)   # مبكر = أطول، متأخر = أقصر/للشبكة
-	depth_off += -1.7 * stretch * bal - 1.3 * jam - 1.0 * behind
+	depth_off += -2.1 * stretch * bal - 1.3 * jam - 1.0 * behind - 0.6 * hurried
 	depth_off += clampf(vel.dot(fwd), -5.0, 5.0) * 0.28           # الزخم للأمام يضيف عمقاً، للخلف ينقصه
 	var high := clampf((h - 1.45) / 0.6, 0.0, 1.0) if (eff != Shot.Type.SMASH and eff != Shot.Type.LOB) else 0.0
 	var low := clampf((0.45 - h) / 0.35, 0.0, 1.0)
 	depth_off += high * (0.4 if eff == Shot.Type.TOPSPIN else 1.0) - 1.1 * low * (0.4 if eff == Shot.Type.SLICE else 1.0)
-	depth_off -= maxf(0.55 - stamina, 0.0) * 3.2                  # التعب: الكرة تقصر وتلامس الشبكة
+	depth_off += 0.5 * heavy * tq * signf(top_in)                  # التوب سبين القادم يطير عن الأوتار إن لم يُضبط
+	depth_off -= 2.4 * pow(1.0 - f, 1.3) + 0.8 * off_balance       # التعب واختلال التوازن: الكرة تقصر وتلامس الشبكة
 	depth_off *= m_skill * (0.35 if eff == Shot.Type.DROP else 1.0)
 	var bias := deg_to_rad(7.0) * -tdir * tq * hand * (-1.0 if stroke_side > 0 else 1.0)   # المبكر يسحب، المتأخر يدفع
 	bias += deg_to_rad(0.7) * clampf(vel.dot(rgt), -6.0, 6.0)     # الجري الجانبي يجرّ الكرة باتجاهه
-	bias *= m_skill
+	bias *= sqrt(m_skill)
 	var plan := ShotSolver.plan(b, target + fwd * depth_off, v_plan, top, prm["side"], prm["gyro"], prm["clear"], prm["arc"], 0.5)
 	if not plan.get("ok", false):
 		plan = ShotSolver.solve_arc(b, Vector3(0, 0, -side * 8.5), deg_to_rad(34.0), 60.0, 0.0, 0.0)
@@ -614,16 +645,14 @@ func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
 		_recover_until = now() + 0.3
 		return
 
-	# ---- العشوائية المتبقية: صغيرة في الظروف الجيدة وتكبر مع الصعوبة والتعب والضغط ----
-	var m_power := 1.0 + 0.9 * float(d["pow_ctrl"]) * effort * effort
-	var m_q := 1.0 + 1.2 * pow(1.0 - clampf(q, -0.3, 1.0), 1.3)
-	var tired := 1.0 + 1.8 * pow(1.0 - stamina, 2.0)
-	var sig := m_skill * m_power * m_q * (0.55 + 0.45 * D * D) * pressure * tired * 0.42
+	# ---- العشوائية المتبقية: صغيرة جداً لضربة متقنة من وضع جيد، وتكبر مع الصعوبة والقوة الزائدة والتعب والضغط ----
+	var settled := 0.85 if (run < 0.2 and off_balance < 0.1 and hurried < 0.1) else 1.0
+	var sig := m_skill * pressure * settled * (0.23 + 0.42 * (D - 1.0) + 0.55 * pow(tq, 1.2) + 0.9 * over * float(d["pow_ctrl"]) + 0.45 * pow(1.0 - f, 1.5))
 	var az := deg_to_rad(rng.randfn(0.0, float(prm["sig_az"]) * sig)) + bias
 	var el := deg_to_rad(rng.randfn(0.0, float(prm["sig_el"]) * sig))
 	var sv := 1.0 + rng.randfn(0.0, float(prm["sig_v"]) * sig)
 	# نقطة الاصطدام على الأوتار: البعد عن المنطقة المثالية يُفقد السرعة وقد يصيب الإطار
-	var off := 0.05 * pow(1.0 - clampf(q, -0.3, 1.0), 1.4) + 0.012 * (D - 1.0) + absf(rng.randfn(0.0, 0.008 * m_skill))
+	var off := 0.05 * pow(1.0 - clampf(q, -0.3, 1.0), 1.4) + 0.012 * (D - 1.0) + absf(rng.randfn(0.0, 0.005 * m_skill))
 	var ea := SWEET_EA * clampf(1.0 - pow(off / 0.13, 2.0), 0.3, 1.0)
 	sv *= lerpf(1.0, (ea * v_in_n + (1.0 + ea) * v_rmax) / maxf(v_cap, 1.0), clampf(effort, 0.3, 1.0))
 	var frame := off > 0.105
@@ -639,12 +668,66 @@ func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
 
 	# ---- التوازن والتعافي ----
 	shot_cost(effort)
+	var unb := clampf(stretch * 0.9 + run * 0.5 + jam * 0.3 + hpen * 0.3, 0.0, 1.0) * clampf(bal / 1.2, 0.5, 1.5)
+	off_balance = clampf(maxf(off_balance, unb), 0.0, 1.0)
 	rig.balance = Vector2(signf(lat) * stretch * 0.9 + vel.x * side * 0.05, run * 0.6) * bal
 	state = St.RECOVER
-	_recover_until = now() + 0.24 + 0.22 * stretch * bal + 0.1 * run * bal
+	_recover_until = now() + 0.24 + 0.22 * stretch * bal + 0.1 * run * bal + 0.15 * (1.0 - f)
 	last_shot_info = {"player": idx, "type": eff, "serve": false, "speed": v.length(), "D": D, "forced": forced,
-		"q": q, "frame": frame, "target": target, "volley": volley, "side": stroke_side, "effort": effort}
+		"q": q, "frame": frame, "target": target, "volley": volley, "side": stroke_side, "effort": effort,
+		"stretch": stretch, "run": run, "lat": lat, "height": h, "hurried": hurried,
+		"over": over, "depth_off": depth_off, "bias": rad_to_deg(bias), "sig": sig, "fit": f, "power": power}
 	ball_struck.emit(last_shot_info)
+
+
+## تقدير الجهد اللازم لضربة بقوة معينة (يستخدمه الآلي لاختيار القوة، وتُرسم منه علامة الحد المريح في دائرة الشحن)
+func estimate_effort(type: int, power: float, v_in: float, pos_f: float = 1.0) -> float:
+	if type == Shot.Type.LOB or type == Shot.Type.DROP:
+		return 0.35 + 0.3 * power
+	var prm := Shot.params(type, power, hand)
+	var v_target: float = float(prm["speed"]) * lerpf(0.84, 1.06, PlayerProfile.t(r, "power"))
+	var v_rmax: float = float(d["racket"]) * float(STROKE_FACTOR.get(type, 0.9)) * pos_f * (0.84 + 0.16 * fit())
+	var v_in_n := v_in * 0.85
+	var v_cap := SWEET_EA * v_in_n + (1.0 + SWEET_EA) * v_rmax
+	var v_plan := minf(v_target, v_cap)
+	return clampf((v_plan - SWEET_EA * v_in_n) / maxf((1.0 + SWEET_EA) * v_rmax, 1.0), 0.0, 1.1)
+
+
+## حد الجهد المريح: يرتفع مع تقييم القوة ومهارة الضربة وينخفض مع التعب
+func comfort_level(type: int, volley: bool) -> float:
+	var stroke_t := PlayerProfile.t(r, _rating_key(type, volley))
+	return float(d["comfort"]) + 0.10 * (stroke_t - 0.6) - 0.16 * (1.0 - fit())
+
+
+## أعلى قوة (0..1) تبقى ضمن الجهد المريح + هامش مخاطرة
+func comfort_power(type: int, v_in: float, risk: float = 0.0, volley: bool = false) -> float:
+	var lim := comfort_level(type, volley) + risk
+	if estimate_effort(type, 1.0, v_in) <= lim:
+		return 1.0
+	if estimate_effort(type, 0.0, v_in) > lim:
+		return 0.0
+	var lo := 0.0
+	var hi := 1.0
+	for i in 8:
+		var m := (lo + hi) * 0.5
+		if estimate_effort(type, m, v_in) <= lim:
+			lo = m
+		else:
+			hi = m
+	return lo
+
+
+func _rating_key(eff: int, volley: bool) -> String:
+	match eff:
+		Shot.Type.SMASH:
+			return "smash"
+		Shot.Type.DROP, Shot.Type.LOB:
+			return "touch"
+		Shot.Type.VOLLEY:
+			return "volley"
+	if volley:
+		return "volley"
+	return "forehand" if stroke_side > 0 else "backhand"
 
 
 # =====================================================================
@@ -659,8 +742,7 @@ func plan_intercept(pref_h: float = 0.95, allow_volley: bool = false) -> Diction
 	var t_now := now()
 	var i0 := maxi(int((t_now + 0.05 - ball.pred_t0) / TennisBall.DT) - 1, 0)
 	var need_bounce: bool = game.must_bounce(idx)
-	var vmax: float = float(d["speed"]) * lerpf(0.84, 1.0, stamina) * 0.94
-	var t_acc: float = vmax / float(d["accel"]) * 0.5
+	var vmax: float = top_speed() * 0.94
 	var best := -1
 	var best_score := -1e9
 	var best_stand := Vector3.ZERO
@@ -683,7 +765,7 @@ func plan_intercept(pref_h: float = 0.95, allow_volley: bool = false) -> Diction
 				if stand.z * side < 0.9:
 					continue
 				var dist := Vector2(stand.x - position.x, stand.z - position.z).length()
-				var t_need := dist / vmax + (t_acc if dist > 0.6 else 0.0) + 0.06
+				var t_need := time_to_cover(dist, vmax) + 0.06
 				var slack := t_i - t_need
 				var score := 0.0
 				if slack >= 0.0:
@@ -813,32 +895,126 @@ func _physics_process(dt: float) -> void:
 	_update_catch()
 
 
-## اللياقة: الجري المتواصل يستنزفها أكثر، ثم الضربات القوية بدرجة أقل قليلاً، والخفيفة قليلاً؛
-## وتعود تدريجياً عندما يخف النشاط (أسرع عند الوقوف، أبطأ عند المشي)
-var exertion := 0.0
+## =====================================================================
+##  اللياقة (v0.5): نموذج من طبقتين
+##   - stamina: الطاقة الآنية (الشريط) — تُستنزف بالجري المتواصل وتغيير الاتجاه والضربات القوية وطول التبادل.
+##   - stamina_cap: سقف الطاقة — إرهاق المباراة المتراكم؛ كل جهد يُنقص جزءاً صغيراً منه بشكل شبه دائم،
+##     ولا يُستعاد منه إلا القليل عند تبديل الملعب وبين المجموعات.
+##  الاستعادة لا تبدأ فوراً: تنتظر نحو ثانية بعد آخر جهد، ثم تتسارع تدريجياً، وتتباطأ كلما اقتربت من السقف.
+##  كل المعدلات مضروبة بمعاملات تقييم «التحمّل» (drain / recover / endure).
+## =====================================================================
+const RUN_COST := 0.027           # لكل ثانية عند العدو الكامل (قبل مضاعف التحمّل)
+const BURST_COST := 0.0005        # لكل (م/ث²) فوق 4 — الانطلاق المفاجئ والكبح وتغيير الاتجاه
+const POINT_COST := 0.0008        # لكل ثانية من النقطة الجارية، يتصاعد مع طولها
+const SHOT_BASE := 0.0020
+const SHOT_EFFORT := 0.009        # × الجهد² — الضربات القوية أغلى بكثير
+const REST_RATE := 0.022          # أقصى معدل استعادة لكل ثانية بين النقاط
+const REST_DELAY := 0.9           # ثوانٍ قبل أن تبدأ الاستعادة
+const CAP_LOSS := 0.028           # نسبة ما يتحول من الجهد المبذول إلى إرهاق دائم
+
+var stamina_cap := 1.0
+var run_load := 0.0               # حِمل الجري المتواصل (ثوانٍ مكافئة من العدو الكامل)
+var rally_shots := 0              # ضربات هذا اللاعب في التبادل الحالي
+var point_time := 0.0
+var rest_t := 0.0
+var rest_boost := 1.0             # مضاعف الاستعادة (أكبر عند تبديل الملعب وبين المجموعات)
+var breath := 0.0                 # شدة اللهاث الآنية (للأنيميشن) 0..1
+var off_balance := 0.0            # اختلال التوازن المتبقي من الضربة السابقة 0..1
+var spent_total := 0.0            # مجموع الطاقة المبذولة في المباراة (للإحصاءات)
+var _prev_vel := Vector3.ZERO
+var _acc_mag := 0.0
+var dbg_cost := {}
+
+
+## مستوى الأداء البدني 0..1 حسب الطاقة: كامل فوق ~78%، ويتراجع تدريجياً تحتها، وبشدة تحت 35%
+func fit() -> float:
+	return smoothstep(0.10, 0.78, stamina)
+
+
+func _spend(x: float) -> void:
+	if x <= 0.0:
+		return
+	stamina = maxf(stamina - x, 0.0)
+	spent_total += x
+	stamina_cap = maxf(stamina_cap - x * CAP_LOSS * float(d["endure"]), 0.45)
 
 
 func _update_stamina(dt: float) -> void:
-	var ratio := vel.length() / maxf(float(d["speed"]), 1.0)
-	exertion = move_toward(exertion, ratio, dt * 2.0)
-	if ratio > 0.2:
-		stamina -= 0.062 * pow(ratio, 1.7) * float(d["drain"]) * dt
-	var rec := 0.0
-	if ratio < 0.12:
-		rec = 0.040
-	elif ratio < 0.35:
-		rec = 0.020
-	elif ratio < 0.55:
-		rec = 0.006
-	if state == St.LOCKED:
-		rec *= 1.35
-	elif state == St.SWING or state == St.SERVE_SWING or state == St.PREP:
-		rec *= 0.3
-	stamina = clampf(stamina + rec * lerpf(0.75, 1.3, PlayerProfile.t(r, "stamina")) * dt, 0.0, 1.0)
+	if dt <= 0.0:
+		return
+	var spd := Vector2(vel.x, vel.z).length()
+	var ratio := spd / maxf(float(d["speed"]), 1.0)
+	_acc_mag = lerpf(_acc_mag, Vector2(vel.x - _prev_vel.x, vel.z - _prev_vel.z).length() / dt, clampf(dt * 12.0, 0.0, 1.0))
+	_prev_vel = vel
+	var live: bool = ball.in_play and game != null and game.phase == TennisMatch.Phase.IN_PLAY
+	# --- الاستنزاف ---
+	if ratio > 0.45:
+		run_load = minf(run_load + dt * ratio * ratio, 8.0)
+	else:
+		run_load = maxf(run_load - dt * (0.6 if ratio < 0.2 else 0.3), 0.0)
+	var c_run := RUN_COST * ratio * ratio * (1.0 + 1.0 * smoothstep(0.6, 4.5, run_load)) * dt
+	var c_burst := BURST_COST * maxf(_acc_mag - 4.0, 0.0) * dt
+	var c_pt := 0.0
+	if live:
+		point_time += dt
+		c_pt = POINT_COST * (1.0 + point_time / 8.0) * dt
+	dbg_cost["run"] = float(dbg_cost.get("run", 0.0)) + c_run
+	dbg_cost["burst"] = float(dbg_cost.get("burst", 0.0)) + c_burst
+	dbg_cost["point"] = float(dbg_cost.get("point", 0.0)) + c_pt
+	_spend((c_run + c_burst + c_pt) * float(d["drain"]))
+	# --- الاستعادة: متأخرة وتدريجية ---
+	var exert := ratio > 0.32 or _acc_mag > 4.5 or state == St.SWING or state == St.SERVE_SWING
+	rest_t = 0.0 if exert else rest_t + dt
+	var rate := 0.0
+	if not live:
+		rate = REST_RATE * smoothstep(REST_DELAY, REST_DELAY + 2.2, rest_t) * (0.5 if ratio > 0.12 else 1.0)
+	elif ratio < 0.12:
+		rate = 0.004 * smoothstep(1.2, 2.5, rest_t)     # لحظات الوقوف داخل تبادل طويل
+	if game != null and game.phase == TennisMatch.Phase.SERVE_WAIT and game._phase_t > 8.0:
+		rate *= 0.3                                      # ساعة الإرسال: لا يمكن الانتظار بلا حدود
+	var gap := maxf(stamina_cap - stamina, 0.0)
+	rate *= clampf(0.3 + gap * 2.0, 0.3, 1.0)           # أبطأ كلما اقتربت من السقف
+	rate *= float(d["recover"]) * rest_boost
+	dbg_cost["rec"] = float(dbg_cost.get("rec", 0.0)) + minf(rate * dt, maxf(stamina_cap - stamina, 0.0))
+	stamina = clampf(stamina + rate * dt, 0.0, maxf(stamina_cap, stamina))
+	# --- مؤشرات للأنيميشن ---
+	var want_breath := clampf((1.0 - stamina) * 0.8 + smoothstep(0.5, 3.5, run_load) * 0.5, 0.0, 1.0)
+	breath = move_toward(breath, want_breath, dt * (0.6 if want_breath > breath else 0.12))
+	off_balance = move_toward(off_balance, 0.0, dt / (0.45 * float(d["steady"]) * lerpf(1.6, 1.0, fit())))
 
 
 func shot_cost(effort: float) -> void:
-	stamina = maxf(stamina - (0.004 + 0.024 * effort * effort) * float(d["drain"]), 0.0)
+	rally_shots += 1
+	var long_rally := 1.0 + minf(0.06 * rally_shots, 1.0)
+	dbg_cost["shot"] = float(dbg_cost.get("shot", 0.0)) + (SHOT_BASE + SHOT_EFFORT * effort * effort) * long_rally
+	_spend((SHOT_BASE + SHOT_EFFORT * effort * effort) * long_rally * float(d["drain"]))
+
+
+## بداية نقطة جديدة
+func begin_point_fatigue() -> void:
+	rally_shots = 0
+	point_time = 0.0
+	rest_boost = 1.0
+
+
+## نهاية نقطة: تحدد سرعة الاستعادة القادمة (boost) وما يُستعاد من الإرهاق الدائم
+func begin_rest(boost: float, cap_gain: float) -> void:
+	rest_boost = boost
+	stamina_cap = minf(stamina_cap + cap_gain, 1.0)
+
+
+## محاكاة زمن راحة دفعة واحدة (وضع الاختبار السريع بلا انتظار بين النقاط)
+func simulate_rest(seconds: float) -> void:
+	var saved_vel := vel
+	vel = Vector3.ZERO
+	_prev_vel = Vector3.ZERO
+	_acc_mag = 0.0
+	var t := 0.0
+	while t < seconds:
+		_update_stamina(0.1)
+		t += 0.1
+	vel = saved_vel
+	_prev_vel = saved_vel
 
 
 ## التقاط الكرة من جامع الكرات بين النقاط: اليد الحرة تمتد نحو الكرة
@@ -888,22 +1064,78 @@ func _apply_assist(preparing: bool) -> void:
 				want = (dd / 0.7).limit_length(0.75)
 
 
+## أقصى سرعة جري حالية (تتأثر باللياقة)
+func top_speed() -> float:
+	return float(d["speed"]) * lerpf(0.76, 1.0, fit())
+
+
+## تسارع الانطلاقة الأولى الحالي (يتأثر باللياقة وبقفزة الانقسام الموقوتة جيداً)
+func start_accel() -> float:
+	var a: float = float(d["accel"]) * lerpf(0.62, 1.0, fit())
+	if _split_boost_t > 0.0:
+		a *= 1.18
+	return a
+
+
+## الزمن اللازم لقطع مسافة من الوقوف بنموذج تسارع يتناقص مع السرعة: x(t) = v·(t − τ(1 − e^(−t/τ)))
+func time_to_cover(dist: float, vmax: float = -1.0) -> float:
+	if dist <= 0.01:
+		return 0.0
+	var v := top_speed() if vmax <= 0.0 else vmax
+	var tau := v / maxf(start_accel(), 0.1)
+	var t := maxf(dist / v + tau, sqrt(2.0 * tau * dist / v))
+	for i in 4:
+		var e := exp(-t / tau)
+		var f := v * (t - tau * (1.0 - e)) - dist
+		var fp := v * (1.0 - e)
+		if fp < 0.0001:
+			break
+		t = maxf(t - f / fp, 0.01)
+	return t
+
+
+var _split_boost_t := 0.0
+var sliding := 0.0                # شدة الانزلاق الحالية على التراب (للأنيميشن والآثار)
+
+
+## الحركة: تسارع يتناقص كلما اقتربت السرعة من أقصاها، كبح أقوى من التسارع، وتغيير الاتجاه أثناء العدو محدود
+## (يجب الإبطاء أولاً)، والتراب يطيل مسافة التوقف (انزلاق). اللياقة تخفض السرعة والتسارع.
 func _move(dt: float, k: float) -> void:
-	var vmax: float = float(d["speed"]) * k * lerpf(0.76, 1.0, smoothstep(0.0, 0.6, stamina))
+	_split_boost_t = maxf(_split_boost_t - dt, 0.0)
+	var vtop := top_speed()
+	var vmax := vtop * k
 	var tv := want.limit_length(1.0) * vmax
 	tv.y = 0.0
 	if tv.z * side > 0.0:
 		tv.z *= 0.82          # الرجوع للخلف أبطأ
+	var a0 := start_accel()
+	var clay: bool = game != null and game.surface_id == Court.Surface.CLAY
+	var spd := Vector2(vel.x, vel.z).length()
 	var dv := tv - vel
-	var a: float = float(d["accel"])
-	if vel.dot(tv) < 0.0 or tv.length() < vel.length():
-		a *= float(d["brake"])
-		if game.surface_id == Court.Surface.CLAY:
-			a *= 0.8          # الانزلاق على التراب
-	var step := a * dt
-	if dv.length() > step:
-		dv = dv.normalized() * step
+	dv.y = 0.0
+	var slide_now := 0.0
+	if spd > 0.4:
+		var u := vel / spd
+		var along := dv.dot(u)
+		var perp := dv - u * along
+		var a_al: float
+		if along < 0.0:
+			# كبح: قوي، لكنه على التراب ينزلق اللاعب عند السرعات العالية
+			a_al = a0 * float(d["brake"])
+			if clay and spd > 2.6:
+				a_al *= 0.58
+				slide_now = smoothstep(2.6, 5.0, spd) * clampf(-along / maxf(spd, 0.1), 0.0, 1.0)
+		else:
+			a_al = a0 * maxf(1.0 - spd / maxf(vtop * 1.04, 0.5), 0.12)
+		# تغيير الاتجاه: قدرة الالتفاف تقل مع السرعة (القدم تحتاج احتكاكاً لتغيير المسار)
+		var a_pp := a0 * float(d["turn"]) * lerpf(1.25, 0.55, clampf(spd / vtop, 0.0, 1.0))
+		along = clampf(along, -a_al * dt, a_al * dt)
+		perp = perp.limit_length(a_pp * dt)
+		dv = u * along + perp
+	else:
+		dv = dv.limit_length(a0 * dt)
 	vel += dv
+	sliding = move_toward(sliding, slide_now, dt * (6.0 if slide_now > sliding else 2.5))
 	position += vel * dt
 	var zs := position.z * side
 	if zs < 0.75:

@@ -55,7 +55,9 @@ func quality_at(p: float) -> Array:
 	if p >= 1.0:
 		return [-0.2, 1.0]
 	if p >= 1.0 - green_w:
-		return [1.0, 0.0]
+		# داخل الأخضر: المركز هو الإتقان التام، والأطراف أقل قليلاً (مبكر/متأخر خفيف)
+		var off := clampf((p - (1.0 - green_w * 0.5)) / (green_w * 0.5), -1.0, 1.0)
+		return [1.0 - 0.05 * absf(off), off * 0.12]
 	if p >= re:
 		var f := (p - re) / yellow_w
 		return [0.62 + 0.28 * f, -(1.0 - f) * 0.5]

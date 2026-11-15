@@ -65,6 +65,10 @@ func start_match(sets_to_win: int, games_per_set: int, first_server: int = 0) ->
 			"rally_sum": 0, "net_points": 0, "net_won": 0, "bp_total": 0, "bp_won": 0, "games_won": 0}
 		players[i].stamina = 1.0
 		players[i].set_side(1 if i == 0 else -1)
+	for p in players:
+		p.stamina_cap = 1.0
+		p.spent_total = 0.0
+		p.begin_point_fatigue()
 	fault_count = 0
 	_first_point = true
 	_change_pending = false
@@ -172,6 +176,8 @@ func _start_serve_phase() -> void:
 		nb = maxi(nb - 1, 1)
 	players[srv].enter_serve(rules.deuce_court(), nb)
 	players[1 - srv].set_free()
+	for p in players:
+		p.begin_point_fatigue()
 	phase = Phase.SERVE_WAIT
 	_phase_t = 0.0
 	point_started.emit(srv, fault_count > 0)
@@ -346,15 +352,45 @@ func _end_point(winner: int, reason: String) -> void:
 	_pending_ev = ev
 	_next_action = "match" if ev["match"] else "next"
 	fault_count = 0
+	# الراحة بين النقاط: لا استعادة فورية — يبدأ الشريط بالامتلاء تدريجياً بعد لحظات من انتهاء الجهد.
+	# تبديل الملعب (90 ث في الواقع) وما بين المجموعات يمنحان راحة أطول واستعادة جزء من الإرهاق المتراكم.
+	var boost := 1.0
+	var cap_gain := 0.0
+	var rest_s := 5.4
+	if ev["set"] and not ev["match"]:
+		boost = 4.5
+		cap_gain = 0.045
+		rest_s = 8.0
+	elif ev["change_ends"] and ev["game"]:
+		boost = 3.4
+		cap_gain = 0.016
+		rest_s = 7.6
+	elif ev["game"]:
+		boost = 1.25
+		rest_s = 6.2
 	for i in 2:
 		players[i].lock()
-		var rec: float = float(players[i].d["recover"]) * (2.5 if ev["change_ends"] else (1.6 if ev["game"] else 1.0))
-		players[i].stamina = minf(players[i].stamina + rec, 1.0)
+		players[i].begin_rest(boost, cap_gain)
+		if fast:
+			players[i].simulate_rest(rest_s)
 	if not fast:
 		players[winner].react_point(true, reason, ev["match"])
 		players[loser].react_point(false, reason, false)
 	if OS.has_environment("MP_QTE"):
 		print("POINT ", reason, " winner=", winner, " rally=", rally_hits + 1)
+	if OS.has_environment("MP_ERR") and (reason == "out" or reason == "net"):
+		var le: Dictionary = _last_info[loser]
+		var keys := ["type", "q", "effort", "over", "depth_off", "bias", "sig", "D", "fit", "power", "stretch", "run", "hurried", "target"]
+		var out := ""
+		for k in keys:
+			var v = le.get(k, "-")
+			out += k + "=" + (str(snappedf(float(v), 0.01)) if (v is float) else str(v)) + " "
+		print("ERR ", players[loser].display_name, " ", reason, " rally=", rally_hits + 1, " land=", ball.st.bounce_pos.snapped(Vector3(0.1, 0.1, 0.1)), " ", out)
+	if OS.has_environment("MP_WIN") and (reason == "winner" or reason == "ace"):
+		var li: Dictionary = _last_info[winner]
+		var rcv := players[loser]
+		print("WIN rally=", rally_hits + 1, " type=", li.get("type"), " v=", int(float(li.get("speed", 0)) * 3.6), " tgt=", li.get("target"), " D=", snappedf(float(li.get("D", 0)), 0.01),
+			" rcv_pos=", rcv.position.snapped(Vector3(0.1, 0.1, 0.1)), " rcv_state=", rcv.state, " bounce=", ball.st.bounce_pos.snapped(Vector3(0.1, 0.1, 0.1)), " stam=", snappedf(rcv.stamina, 0.01), " ai=", rcv.get_meta("dbg2", {}))
 	call_made.emit(reason, {"winner": winner, "ev": ev, "rally": rally_hits + 1})
 	score_changed.emit()
 	if ev["change_ends"] and not ev["match"]:

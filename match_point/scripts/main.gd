@@ -686,6 +686,11 @@ var _agg := {"calls": {}, "shots": 0, "serve_n": 0, "pts": [0, 0], "wins": [0, 0
 
 
 func _on_hit_stat(info: Dictionary) -> void:
+	var pl: TennisPlayer = players[int(info["player"])]
+	_agg["st_sum"] = float(_agg.get("st_sum", 0.0)) + pl.stamina
+	_agg["st_n"] = int(_agg.get("st_n", 0)) + 1
+	_agg["st_min"] = minf(float(_agg.get("st_min", 1.0)), pl.stamina)
+	_agg["cap_min"] = minf(float(_agg.get("cap_min", 1.0)), pl.stamina_cap)
 	if info["serve"]:
 		_agg["serve_n"] += 1
 	else:
@@ -736,4 +741,7 @@ func _on_finished(winner: int) -> void:
 	for k in range(1, 13):
 		hist += str(k) + ":" + str(_agg["rally_hist"].get(k, 0)) + " "
 	print("rally length hist: ", hist)
+	for pl in players:
+		print("cost ", pl.display_name, " ", pl.dbg_cost, " drain=", snappedf(float(pl.d["drain"]), 0.01), " rec=", snappedf(float(pl.d["recover"]), 0.01))
+	print("stamina at hits: avg=", snappedf(float(_agg.get("st_sum", 0.0)) / maxf(float(_agg.get("st_n", 1)), 1.0), 0.01), " min=", snappedf(float(_agg.get("st_min", 1.0)), 0.01), " cap_min=", snappedf(float(_agg.get("cap_min", 1.0)), 0.01))
 	get_tree().quit()
