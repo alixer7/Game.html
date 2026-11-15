@@ -1,0 +1,740 @@
+class_name TennisPlayer
+extends Node3D
+## لاعب التنس: الحركة، التحضير، توقيت الضربة، جودة التنفيذ، والإرسال.
+## نفس المنطق يُستخدم للاعب البشري والآلي — الفرق في من يعطي الأوامر فقط.
+
+signal ball_struck(info: Dictionary)
+signal swing_feedback(kind: String, delta: float)
+signal serve_reset
+
+enum St { LOCKED, FREE, PREP, SWING, RECOVER, SERVE_READY, SERVE_TOSS, SERVE_SWING }
+
+const SWING_TIME := 0.24          # زمن التأرجح الأمامي حتى التلامس
+const MAX_EARLY := 0.50
+const CHARGE_TIME := 0.70
+const REACH_LAT := 1.9
+const REACH_FWD := 1.9
+const REACH_BACK := 0.9
+const REACH_HIGH := 3.05
+const TOSS_ARM := 0.45
+const TOSS_FLIGHT := 0.85
+const SERVE_SWING := 0.26
+const SERVE_IDEAL := TOSS_FLIGHT - SERVE_SWING
+const SERVE_CATCH := 1.25
+const TIMING_BIAS := 0.38         # راديان انحراف لكل ثانية خطأ توقيت
+const FH_IDEAL := Vector2(0.72, -0.42)
+const BH_IDEAL := Vector2(-0.62, -0.50)
+
+var idx := 0
+var side := 1
+var hand := 1
+var is_human := false
+var display_name := ""
+var prof := {"speed": 6.7, "accel": 10.8, "power": 1.0, "control": 1.0, "serve": 1.0}
+var ball: TennisBall
+var game: Node
+var rig: PlayerRig
+var state: int = St.LOCKED
+var vel := Vector3.ZERO
+var want := Vector3.ZERO
+var stamina := 1.0
+var assist := 1
+var rng := RandomNumberGenerator.new()
+
+# --- الضربة ---
+var prep_type: int = Shot.Type.TOPSPIN
+var charge := 0.0
+var aim := Vector2.ZERO
+var ai_target := Vector3.ZERO
+var ai_power := 0.7
+var ai_drop := false
+var ai_timing := 0.0
+var use_ai_target := false
+var stroke_side := 1
+var contact_t := -1.0
+var contact_pos := Vector3.ZERO
+var has_contact := false
+var timing_delta := 0.0
+var last_shot_info := {}
+var _state_t := 0.0
+var _recover_until := 0.0
+var _volley := false
+var _overhead := false
+var _boost_until := 0.0
+var _assist_plan := {}
+var _assist_plan_t := -1.0
+
+# --- الإرسال ---
+var serve_type: int = Shot.Type.SERVE_FLAT
+var serve_deuce := true
+var tossed := false
+var toss_t := 0.0
+var _serve_contact_t := 0.0
+var _auto_release_t := -1.0
+
+# --- المشي بين النقاط ---
+var _walk_target := Vector3.ZERO
+var _walking := false
+
+
+func setup(p_idx: int, p_side: int, p_hand: int, p_ball: TennisBall, p_game: Node, colors: Dictionary, human: bool) -> void:
+	idx = p_idx
+	side = p_side
+	hand = p_hand
+	ball = p_ball
+	game = p_game
+	is_human = human
+	rotation.y = 0.0 if side == 1 else PI
+	rng.randomize()
+	rig = PlayerRig.new()
+	add_child(rig)
+	rig.setup(colors, hand)
+	ball.prediction_changed.connect(_on_prediction_changed)
+
+
+func to_local_pt(w: Vector3) -> Vector3:
+	return Vector3((w.x - position.x) * side, w.y, (w.z - position.z) * side)
+
+
+func to_world_pt(l: Vector3) -> Vector3:
+	return Vector3(position.x + l.x * side, l.y, position.z + l.z * side)
+
+
+func ball_hand_pos() -> Vector3:
+	return rig.off_hand_world()
+
+
+func now() -> float:
+	return ball.clock
+
+
+# =====================================================================
+#  أوامر الحالة (من إدارة المباراة)
+# =====================================================================
+func place(p: Vector3) -> void:
+	position = Vector3(p.x, 0.0, p.z)
+	vel = Vector3.ZERO
+	_walking = false
+
+
+func walk_to(p: Vector3) -> void:
+	_walk_target = Vector3(p.x, 0.0, p.z)
+	_walking = true
+
+
+func lock() -> void:
+	state = St.LOCKED
+	has_contact = false
+	rig.set_ready(0.3)
+
+
+func set_free() -> void:
+	state = St.FREE
+	_walking = false
+	rig.set_ready(0.25)
+
+
+func enter_serve(deuce: bool) -> void:
+	state = St.SERVE_READY
+	serve_deuce = deuce
+	tossed = false
+	_walking = false
+	_auto_release_t = -1.0
+	use_ai_target = false
+	aim = Vector2.ZERO
+	ball.hold(self)
+	rig.serve_stance()
+
+
+func on_opponent_hit() -> void:
+	if state == St.FREE and vel.length() < 3.2:
+		rig.split_step()
+		_boost_until = now() + 0.55
+
+
+# =====================================================================
+#  أوامر الضربة (من المتحكم البشري أو الآلي)
+# =====================================================================
+func can_prep() -> bool:
+	return state == St.FREE or (state == St.RECOVER and now() >= _recover_until - 0.08)
+
+
+func begin_prep(type: int) -> bool:
+	if not can_prep():
+		return false
+	state = St.PREP
+	_state_t = now()
+	prep_type = type
+	charge = 0.12
+	aim = Vector2.ZERO
+	use_ai_target = false
+	ai_drop = false
+	_refresh_prep_side(true)
+	return true
+
+
+func cancel_prep() -> void:
+	if state == St.PREP:
+		state = St.FREE
+		rig.set_ready(0.25)
+
+
+func release_shot() -> void:
+	if state != St.PREP:
+		return
+	var c := find_contact(0.02, 1.2)
+	var t_now := now()
+	if c.is_empty():
+		_whiff()
+		return
+	var dtc: float = float(c["t"]) - t_now
+	var delta := dtc - SWING_TIME
+	if delta > MAX_EARLY:
+		_whiff()
+		return
+	if not is_human:
+		delta = ai_timing
+	has_contact = true
+	contact_t = c["t"]
+	contact_pos = c["pos"]
+	timing_delta = delta
+	stroke_side = 1 if float(c["lat"]) >= -0.05 else -1
+	_volley = int(c["bounces"]) == 0
+	_overhead = contact_pos.y > 2.05 and prep_type != Shot.Type.LOB
+	state = St.SWING
+	_state_t = t_now
+	rig.start_swing(stroke_side, prep_type, _volley and not _overhead, _overhead, dtc, to_local_pt(contact_pos), Vector3(0, 0, -1))
+	if is_human:
+		var a := absf(delta)
+		if a < 0.035:
+			swing_feedback.emit("perfect", delta)
+		elif a < 0.09:
+			swing_feedback.emit("good", delta)
+		elif delta > 0.0:
+			swing_feedback.emit("early", delta)
+		else:
+			swing_feedback.emit("late", delta)
+
+
+func _whiff() -> void:
+	has_contact = false
+	state = St.SWING
+	_state_t = now()
+	var nc := Vector3((0.75 if stroke_side > 0 else -0.6) * hand, 0.95, -0.45)
+	rig.start_swing(stroke_side, prep_type, false, false, SWING_TIME, nc, Vector3(0, 0, -1))
+	if is_human:
+		swing_feedback.emit("miss", 0.0)
+
+
+## البحث عن أفضل لحظة تلامس في المسار المتوقع ضمن النافذة الزمنية
+func find_contact(t_min: float, t_max: float) -> Dictionary:
+	if ball.mode != TennisBall.Mode.FREE or not game.can_hit(idx):
+		return {}
+	var n := ball.pred_pos.size()
+	if n == 0:
+		return {}
+	var t_now := now()
+	var i0 := maxi(int((t_now + t_min - ball.pred_t0) / TennisBall.DT) - 1, 0)
+	var i1 := mini(int((t_now + t_max - ball.pred_t0) / TennisBall.DT), n - 1)
+	var need_bounce: bool = game.must_bounce(idx)
+	var px := position.x + vel.x * 0.10
+	var pz := position.z + vel.z * 0.10
+	var best := -1
+	var best_cost := 1e9
+	var best_lat := 0.0
+	var best_lz := 0.0
+	for i in range(i0, i1 + 1):
+		var bc := ball.pred_bounces[i]
+		if bc >= 2:
+			break
+		if need_bounce and bc < 1:
+			continue
+		var bp := ball.pred_pos[i]
+		if bp.z * side < 0.25 or bp.y > REACH_HIGH:
+			continue
+		var lx := (bp.x - px) * side * hand
+		var lz := (bp.z - pz) * side
+		var cf := Vector2(lx - FH_IDEAL.x, lz - FH_IDEAL.y).length()
+		var cb := Vector2(lx - BH_IDEAL.x, lz - BH_IDEAL.y).length() + 0.12
+		var c := minf(cf, cb) + absf(bp.y - 1.0) * 0.22
+		if c < best_cost:
+			best_cost = c
+			best = i
+			best_lat = lx
+			best_lz = lz
+	if best < 0:
+		return {}
+	if absf(best_lat) > REACH_LAT or best_lz < -REACH_FWD or best_lz > REACH_BACK:
+		return {}
+	return {"i": best, "t": ball.pred_time(best), "pos": ball.pred_pos[best], "lat": best_lat, "lz": best_lz,
+		"bounces": ball.pred_bounces[best], "cost": best_cost}
+
+
+func _refresh_prep_side(force: bool) -> void:
+	var c := find_contact(0.02, 1.4)
+	var s := stroke_side
+	var vol := false
+	var over := false
+	if not c.is_empty():
+		s = 1 if float(c["lat"]) >= -0.05 else -1
+		vol = int(c["bounces"]) == 0
+		over = (c["pos"] as Vector3).y > 2.05 and prep_type != Shot.Type.LOB
+	elif ball.mode == TennisBall.Mode.FREE:
+		var l := to_local_pt(ball.st.pos)
+		s = 1 if l.x * hand >= -0.1 else -1
+	if force or s != stroke_side or vol != _volley or over != _overhead:
+		stroke_side = s
+		_volley = vol
+		_overhead = over
+		rig.set_prep(stroke_side, prep_type, _volley and not _overhead, _overhead)
+
+
+func _on_prediction_changed() -> void:
+	# تغيّر المسار (ارتداد غير منتظم أو لمس الشبكة): أعد حساب نقطة التلامس
+	if state == St.SWING and has_contact:
+		var rel := contact_t - now()
+		var c := find_contact(maxf(rel - 0.12, 0.0), rel + 0.16)
+		if c.is_empty():
+			has_contact = false
+		else:
+			contact_t = c["t"]
+			contact_pos = c["pos"]
+
+
+# =====================================================================
+#  الإرسال
+# =====================================================================
+func start_serve(type: int, auto_timing_err: float = NAN) -> void:
+	if state != St.SERVE_READY:
+		return
+	state = St.SERVE_TOSS
+	_state_t = now()
+	serve_type = type
+	tossed = false
+	_auto_release_t = -1.0
+	if not is_nan(auto_timing_err):
+		_auto_release_t = -2.0
+		ai_timing = auto_timing_err
+	rig.serve_toss()
+
+
+func release_serve() -> void:
+	if state != St.SERVE_TOSS or not tossed:
+		return
+	var t_now := now()
+	timing_delta = (t_now - toss_t) - SERVE_IDEAL     # موجب = متأخر
+	_serve_contact_t = t_now + SERVE_SWING
+	state = St.SERVE_SWING
+	var cw := ball.toss_pos_at(_serve_contact_t)
+	cw.y = clampf(cw.y, 2.15, 2.95)
+	rig.serve_swing(SERVE_SWING, to_local_pt(cw), Vector3(0, 0, -1))
+	if is_human:
+		var a := absf(timing_delta)
+		if a < 0.035:
+			swing_feedback.emit("perfect", timing_delta)
+		elif a < 0.09:
+			swing_feedback.emit("good", timing_delta)
+		elif timing_delta < 0.0:
+			swing_feedback.emit("early", timing_delta)
+		else:
+			swing_feedback.emit("late", timing_delta)
+
+
+## نسبة تقدم رمية الكرة للواجهة: 0 عند الرمي، 1 عند اللحظة المثالية
+func serve_timing_ratio() -> float:
+	if state != St.SERVE_TOSS or not tossed:
+		return -1.0
+	return (now() - toss_t) / SERVE_IDEAL
+
+
+func _serve_aim_target() -> Vector3:
+	var box_sign := -side if serve_deuce else side
+	var x := box_sign * 2.06 + aim.x * 1.75 * side
+	var lo := 0.22
+	var hi := Court.SINGLES_HALF_W - 0.2
+	x = clampf(x * box_sign, lo, hi) * box_sign
+	var depth := 5.3 + (aim.y * 0.85 if aim.y > 0.0 else aim.y * 1.6)
+	return Vector3(x, 0.0, -side * depth)
+
+
+func _do_serve() -> void:
+	var b := ball.st.pos
+	b.y = clampf(b.y, 2.15, 2.95)
+	var tpen := clampf((absf(timing_delta) - 0.035) / 0.16, 0.0, 1.0)
+	var power := ai_power if not is_human else 0.88 - 0.5 * tpen
+	var prm := Shot.params(serve_type, power, hand)
+	var speed: float = float(prm["speed"]) * float(prof["serve"])
+	var target := ai_target if use_ai_target else _serve_aim_target()
+	var plan := ShotSolver.plan(b, target, speed, prm["top"], prm["side"], prm["gyro"], prm["clear"])
+	if not plan.get("ok", false):
+		plan = ShotSolver.solve_arc(b, target, deg_to_rad(8.0), prm["top"], prm["side"], prm["gyro"])
+	var d := (1.0 + 2.4 * tpen + 0.5 * (1.0 - stamina)) * float(prof["control"])
+	var az := deg_to_rad(rng.randfn(0.0, float(prm["sig_az"]) * d))
+	# التأخر = الكرة منخفضة فتذهب للشبكة، التبكير = تطير طويلة
+	var el := deg_to_rad(rng.randfn(0.0, float(prm["sig_el"]) * d)) - timing_delta * 0.14
+	var sv := 1.0 + rng.randfn(0.0, float(prm["sig_v"]) * d)
+	var v := ShotSolver.perturb(plan["vel"], az, el, sv)
+	ball.launch(b, v, plan["spin"])
+	stamina = maxf(stamina - 0.006, 0.0)
+	state = St.RECOVER
+	_recover_until = now() + 0.42
+	last_shot_info = {"player": idx, "type": serve_type, "serve": true, "speed": v.length(), "D": d, "forced": false,
+		"timing": timing_delta, "frame": false, "target": target, "volley": false}
+	ball_struck.emit(last_shot_info)
+
+
+# =====================================================================
+#  تنفيذ الضربة
+# =====================================================================
+func _do_contact() -> void:
+	var b := ball.st.pos
+	var l := to_local_pt(b)
+	var lat := l.x * hand
+	var ok: bool = ball.mode == TennisBall.Mode.FREE and game.can_hit(idx)
+	ok = ok and absf(lat) <= REACH_LAT + 0.12 and l.z >= -(REACH_FWD + 0.2) and l.z <= REACH_BACK + 0.2
+	ok = ok and b.y <= REACH_HIGH + 0.1 and b.z * side > 0.05
+	if game.must_bounce(idx) and ball.bounces_since_hit < 1:
+		ok = false
+	if not ok:
+		has_contact = false
+		state = St.RECOVER
+		_recover_until = now() + 0.30
+		if is_human:
+			swing_feedback.emit("miss", 0.0)
+		return
+	_execute_shot(b, lat, l.z)
+
+
+func _aim_to_target(eff: int) -> Vector3:
+	var ax := clampf(aim.x, -1.0, 1.0)
+	var ay := clampf(aim.y, -1.0, 1.0)
+	var depth := 9.0
+	match eff:
+		Shot.Type.DROP:
+			depth = 2.0 + (ay + 1.0) * 1.2
+		Shot.Type.LOB:
+			depth = 10.3 + ay * 0.9
+		Shot.Type.SMASH:
+			depth = 8.0 + ay * 3.0
+		Shot.Type.VOLLEY:
+			depth = 8.5 + ay * 2.8
+		_:
+			depth = 9.0 + (ay * 2.6 if ay > 0.0 else ay * 4.5)
+	return Vector3(ax * 4.0 * side, 0.0, -side * depth)
+
+
+func _execute_shot(b: Vector3, lat: float, lz: float) -> void:
+	var h := b.y
+	var volley := ball.bounces_since_hit == 0
+	var v_in := ball.st.vel.length()
+	var type := prep_type
+	var wants_drop := ai_drop if use_ai_target else (type == Shot.Type.SLICE and aim.y < -0.55)
+	var eff := type
+	if h > 2.05 and type != Shot.Type.LOB:
+		eff = Shot.Type.SMASH
+	elif volley:
+		if type == Shot.Type.LOB:
+			eff = Shot.Type.LOB
+		elif wants_drop:
+			eff = Shot.Type.DROP
+		else:
+			eff = Shot.Type.VOLLEY
+	elif wants_drop:
+		eff = Shot.Type.DROP
+	var power := ai_power if use_ai_target else charge
+
+	# ---- صعوبة الضربة ----
+	var alat := absf(lat)
+	var stretch := smoothstep(1.0, REACH_LAT, alat)
+	var jam := 1.0 - smoothstep(0.12, 0.45, alat)
+	if eff == Shot.Type.SMASH:
+		stretch = smoothstep(0.9, 1.8, alat)
+		jam = 0.0
+	var run := clampf(vel.length() / 7.0, 0.0, 1.0)
+	var hpen := 0.0
+	if eff != Shot.Type.SMASH and eff != Shot.Type.LOB:
+		if h < 0.45:
+			hpen = (0.45 - h) / 0.35
+		elif h > 1.45:
+			hpen = (h - 1.45) / 0.6
+		hpen = clampf(hpen, 0.0, 1.0)
+	var pace := clampf((v_in - 11.0) / 14.0, 0.0, 1.0)
+	var behind := clampf((lz - 0.05) / 0.7, 0.0, 1.0)
+	var tpen := clampf((absf(timing_delta) - 0.03) / 0.17, 0.0, 1.0)
+	# ضغط الوقت: كلما قصر زمن وصول الكرة (إرسال قوي، كرة طائرة) قلّ التحكم
+	var flight := now() - ball.hit_clock
+	var rush := clampf((0.95 - flight) / 0.5, 0.0, 1.0)
+	if volley:
+		rush *= 0.35
+	var d := 1.0 + 2.2 * stretch + 1.0 * jam + 0.9 * run + 0.8 * hpen + 0.7 * pace + 1.2 * behind + 1.6 * tpen + 2.0 * rush + 1.2 * (1.0 - stamina)
+	d *= lerpf(0.85, 1.15, power)
+	var forced := (stretch > 0.35 or run > 0.7 or pace > 0.75 or hpen > 0.6 or rush > 0.4)
+
+	var pmod := (1.0 - 0.5 * stretch) * (1.0 - 0.3 * jam) * (1.0 - 0.3 * tpen) * (1.0 - 0.25 * behind)
+	var prm := Shot.params(eff, power * pmod, hand)
+	var speed: float = float(prm["speed"]) * float(prof["power"])
+	if eff == Shot.Type.FLAT or eff == Shot.Type.TOPSPIN or eff == Shot.Type.VOLLEY:
+		speed += 0.10 * v_in * (1.0 - stretch)
+
+	var target := ai_target if use_ai_target else _aim_to_target(eff)
+	var plan := ShotSolver.plan(b, target, speed, prm["top"], prm["side"], prm["gyro"], prm["clear"], prm["arc"])
+	if not plan.get("ok", false):
+		plan = ShotSolver.solve_arc(b, Vector3(0, 0, -side * 8.5), deg_to_rad(34.0), 60.0, 0.0, 0.0)
+	if not plan.get("ok", false):
+		has_contact = false
+		state = St.RECOVER
+		_recover_until = now() + 0.3
+		return
+
+	# ---- خطأ التنفيذ ----
+	var sig := d * float(prof["control"])
+	var bias := TIMING_BIAS * timing_delta * hand * (-1.0 if stroke_side > 0 else 1.0)
+	var az := deg_to_rad(rng.randfn(0.0, float(prm["sig_az"]) * sig)) + bias
+	var el := deg_to_rad(rng.randfn(0.0, float(prm["sig_el"]) * sig))
+	var sv := 1.0 + rng.randfn(0.0, float(prm["sig_v"]) * sig)
+	var frame := false
+	if rng.randf() < 0.005 + 0.10 * maxf(0.0, d - 3.0):
+		frame = true
+		az += deg_to_rad(rng.randfn(0.0, 6.0))
+		el += deg_to_rad(rng.randf_range(2.0, 13.0)) * (1.0 if rng.randf() < 0.7 else -0.5)
+		sv *= rng.randf_range(0.45, 0.8)
+	# الضربة تحت ضغط شديد تخرج ضعيفة وقصيرة (كرة سهلة للخصم)
+	if d > 2.2 and eff != Shot.Type.LOB and eff != Shot.Type.DROP:
+		sv *= clampf(1.0 - 0.10 * (d - 2.2), 0.72, 1.0)
+	var v := ShotSolver.perturb(plan["vel"], az, el, sv)
+	var spin: Vector3 = plan["spin"]
+	if frame:
+		spin *= 0.4
+	ball.launch(b, v, spin)
+	stamina = maxf(stamina - 0.003 - 0.004 * power, 0.0)
+	state = St.RECOVER
+	_recover_until = now() + 0.26 + 0.2 * stretch
+	last_shot_info = {"player": idx, "type": eff, "serve": false, "speed": v.length(), "D": d, "forced": forced,
+		"timing": timing_delta, "frame": frame, "target": target, "volley": volley, "side": stroke_side}
+	ball_struck.emit(last_shot_info)
+
+
+# =====================================================================
+#  خطة الاعتراض (للذكاء الاصطناعي ولمساعدة الجري التلقائي)
+# =====================================================================
+func plan_intercept(pref_h: float = 0.95, allow_volley: bool = false) -> Dictionary:
+	if ball.mode != TennisBall.Mode.FREE or not game.can_hit(idx):
+		return {}
+	var n := ball.pred_pos.size()
+	if n == 0:
+		return {}
+	var t_now := now()
+	var i0 := maxi(int((t_now + 0.05 - ball.pred_t0) / TennisBall.DT) - 1, 0)
+	var need_bounce: bool = game.must_bounce(idx)
+	var vmax: float = float(prof["speed"]) * lerpf(0.84, 1.0, stamina) * 0.94
+	var t_acc: float = vmax / float(prof["accel"]) * 0.5
+	var best := -1
+	var best_score := -1e9
+	var best_stand := Vector3.ZERO
+	var best_side := 1
+	var best_slack := 0.0
+	var i := i0
+	while i < n:
+		var bc := ball.pred_bounces[i]
+		if bc >= 2:
+			break
+		var bp := ball.pred_pos[i]
+		var valid := bp.z * side > 0.5 and bp.y >= 0.22 and bp.y <= 2.75
+		if bc == 0 and (need_bounce or not allow_volley):
+			valid = false
+		if valid:
+			var t_i := ball.pred_time(i) - t_now
+			for s in [1, -1]:
+				var ideal: Vector2 = FH_IDEAL if s > 0 else BH_IDEAL
+				var stand := Vector3(bp.x - ideal.x * hand * side, 0.0, bp.z - ideal.y * side)
+				if stand.z * side < 0.9:
+					continue
+				var dist := Vector2(stand.x - position.x, stand.z - position.z).length()
+				var t_need := dist / vmax + (t_acc if dist > 0.6 else 0.0) + 0.06
+				var slack := t_i - t_need
+				var score := 0.0
+				if slack >= 0.0:
+					score = 10.0 - absf(bp.y - pref_h) * 2.2 - maxf(0.0, absf(stand.z) - 13.8) * 0.9
+					score += minf(slack, 0.4) * 0.6
+					if bc == 0:
+						score -= 0.6 if bp.y < 0.9 else 0.0
+					if s < 0:
+						score -= 0.18
+				else:
+					score = slack * 6.0 - absf(bp.y - pref_h) * 0.5
+				if score > best_score:
+					best_score = score
+					best = i
+					best_stand = stand
+					best_side = s
+					best_slack = slack
+		i += 2
+	if best < 0:
+		return {}
+	return {"i": best, "t": ball.pred_time(best), "pos": ball.pred_pos[best], "stand": best_stand, "side": best_side,
+		"slack": best_slack, "bounces": ball.pred_bounces[best]}
+
+
+# =====================================================================
+#  التحديث الفيزيائي
+# =====================================================================
+func _physics_process(dt: float) -> void:
+	var t_now := now()
+	match state:
+		St.LOCKED:
+			if _walking:
+				var d := _walk_target - position
+				d.y = 0.0
+				if d.length() < 0.12:
+					_walking = false
+					want = Vector3.ZERO
+				else:
+					want = (d / 1.2).limit_length(1.0)
+				_move(dt, 0.42)
+			else:
+				want = Vector3.ZERO
+				_move(dt, 0.5)
+		St.FREE:
+			_apply_assist()
+			_move(dt, 1.0)
+		St.PREP:
+			charge = minf(charge + dt / CHARGE_TIME, 1.0)
+			_refresh_prep_side(false)
+			_apply_assist()
+			_move(dt, 0.74)
+			# الكرة مرّت أو انتهت النقطة: ألغِ التحضير
+			if not is_human and not game.can_hit(idx):
+				cancel_prep()
+		St.SWING:
+			if has_contact:
+				if assist > 0 or not is_human:
+					var ideal: Vector2 = FH_IDEAL if stroke_side > 0 else BH_IDEAL
+					if _overhead:
+						ideal = Vector2(0.25, -0.30)
+					var stand := Vector3(contact_pos.x - ideal.x * hand * side, 0.0, contact_pos.z - ideal.y * side)
+					var d := stand - position
+					d.y = 0.0
+					want = (d / 0.45).limit_length(1.0)
+					_move(dt, 0.62)
+				else:
+					_move(dt, 0.5)
+				rig.update_contact(to_local_pt(contact_pos), contact_t - t_now)
+				if t_now >= contact_t:
+					_do_contact()
+			else:
+				_move(dt, 0.4)
+				if t_now - _state_t > 0.5:
+					state = St.FREE
+		St.RECOVER:
+			# إكمال حركة الضربة يقيّد الحركة لحظياً (لا تعافٍ فوري)
+			_move(dt, 0.35)
+			if t_now >= _recover_until:
+				state = St.FREE
+		St.SERVE_READY:
+			# تحرك جانبي على خط القاعدة لاختيار موضع الإرسال
+			var sx := position.x * side
+			var mv := want.x * side * 1.8 * dt
+			var lo := 0.25 if serve_deuce else -4.0
+			var hi := 4.0 if serve_deuce else -0.25
+			position.x = clampf(sx + mv, lo, hi) * side
+			vel = Vector3.ZERO
+		St.SERVE_TOSS:
+			vel = Vector3.ZERO
+			if not tossed and t_now - _state_t >= TOSS_ARM:
+				tossed = true
+				toss_t = t_now
+				var pr := ball_hand_pos()
+				var c := to_world_pt(Vector3(0.20 * hand, 2.70, -0.42))
+				var v0 := (c - pr) / TOSS_FLIGHT + Vector3(0, 0.5 * BallPhysics.G * TOSS_FLIGHT, 0)
+				ball.toss(pr, v0)
+				if _auto_release_t < -1.0:
+					_auto_release_t = toss_t + SERVE_IDEAL + ai_timing
+			if tossed:
+				if _auto_release_t > 0.0 and t_now >= _auto_release_t:
+					release_serve()
+				elif t_now - toss_t > SERVE_CATCH:
+					ball.hold(self)
+					state = St.SERVE_READY
+					tossed = false
+					rig.serve_stance()
+					serve_reset.emit()
+		St.SERVE_SWING:
+			vel = Vector3.ZERO
+			if t_now >= _serve_contact_t:
+				_do_serve()
+	# --- تغذية الأنيميشن ---
+	rig.move_vel = Vector3(vel.x * side, 0.0, vel.z * side)
+	rig.look_target = to_local_pt(ball.st.pos)
+	rig.alert = move_toward(rig.alert, 1.0 if (ball.in_play or state == St.PREP) else 0.25, dt * 3.0)
+	# --- اللياقة ---
+	var sp := vel.length()
+	if sp > 3.0:
+		stamina = maxf(stamina - pow(sp / 7.0, 2.0) * 0.030 * dt, 0.0)
+	else:
+		stamina = minf(stamina + 0.012 * dt, 1.0)
+
+
+func _apply_assist() -> void:
+	if not is_human or assist == 0:
+		return
+	if want.length() > 0.2:
+		return
+	if ball.mode != TennisBall.Mode.FREE or not game.can_hit(idx):
+		# الجري التلقائي يعيد اللاعب للتمركز بعد ضربته (بخطوات جانبية)
+		if assist >= 2 and state == St.FREE and ball.in_play and game.last_hitter == idx:
+			var tgt: Vector3 = last_shot_info.get("target", Vector3.ZERO)
+			var home := Vector3(-0.08 * tgt.x, 0.0, side * (Court.HALF_LENGTH + 0.7))
+			var dh := home - position
+			dh.y = 0.0
+			if dh.length() > 0.3:
+				want = (dh / 0.9).limit_length(0.52)
+		return
+	if assist >= 2:
+		var t_now := now()
+		if t_now - _assist_plan_t > 0.12:
+			_assist_plan = plan_intercept(0.95, position.z * side < 5.5)
+			_assist_plan_t = t_now
+		if not _assist_plan.is_empty():
+			var d: Vector3 = (_assist_plan["stand"] as Vector3) - position
+			d.y = 0.0
+			want = (d / 0.7).limit_length(1.0)
+	else:
+		var c := find_contact(0.02, 0.9)
+		if not c.is_empty():
+			var s := 1 if float(c["lat"]) >= -0.05 else -1
+			var ideal: Vector2 = FH_IDEAL if s > 0 else BH_IDEAL
+			var cp: Vector3 = c["pos"]
+			var stand := Vector3(cp.x - ideal.x * hand * side, 0.0, cp.z - ideal.y * side)
+			var d := stand - position
+			d.y = 0.0
+			if d.length() < 2.4:
+				want = (d / 0.7).limit_length(0.75)
+
+
+func _move(dt: float, k: float) -> void:
+	var vmax: float = float(prof["speed"]) * k * lerpf(0.84, 1.0, stamina)
+	var tv := want.limit_length(1.0) * vmax
+	tv.y = 0.0
+	if tv.z * side > 0.0:
+		tv.z *= 0.82          # الرجوع للخلف أبطأ
+	var dv := tv - vel
+	var a: float = float(prof["accel"])
+	if vel.dot(tv) < 0.0 or tv.length() < vel.length():
+		a *= 1.4              # الكبح أقوى من التسارع
+	var step := a * dt
+	if dv.length() > step:
+		dv = dv.normalized() * step
+	vel += dv
+	position += vel * dt
+	# الحدود: لا عبور للشبكة ولا خروج من الصالة
+	var zs := position.z * side
+	if zs < 0.75:
+		position.z = 0.75 * side
+		if vel.z * side < 0.0:
+			vel.z = 0.0
+	elif zs > Court.ARENA_HALF_L - 1.0:
+		position.z = (Court.ARENA_HALF_L - 1.0) * side
+		vel.z = 0.0
+	if absf(position.x) > Court.ARENA_HALF_W - 0.9:
+		position.x = signf(position.x) * (Court.ARENA_HALF_W - 0.9)
+		vel.x = 0.0

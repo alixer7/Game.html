@@ -1,0 +1,854 @@
+class_name PlayerRig
+extends Node3D
+## جسم اللاعب الإجرائي + نظام الأنيميشن.
+## الحركة كلها مبنية على أهداف (المضرب، اليدان، القدمان) تُحل بالحركة العكسية (IK)
+## بحيث يلتقي وجه المضرب بالكرة فعلياً عند لحظة الضرب.
+## الإحداثيات المحلية: -Z للأمام (نحو الشبكة)، +X يمين اللاعب، +Y للأعلى.
+
+const STAND_HIP := 0.975
+const THIGH := 0.46
+const SHIN := 0.45
+const ANKLE_H := 0.085
+const UPPER_ARM := 0.32
+const FOREARM := 0.345        # من المرفق إلى مركز القبضة
+const HEAD_DIST := 0.46       # من القبضة إلى مركز رأس المضرب
+const SHOULDER_X := 0.20
+const SHOULDER_Y := 0.235
+const HIP_X := 0.095
+const WAIST_UP := 0.10
+const ABD_LEN := 0.17
+const SWING_NOMINAL := 0.24
+
+enum Mode { READY, PREP, SWING, SERVE_STANCE, SERVE_TOSS, SERVE_SWING }
+enum Clip { FH_DRIVE, BH_DRIVE, FH_SLICE, BH_SLICE, FH_VOLLEY, BH_VOLLEY, OVERHEAD }
+
+
+class Pose:
+	var grip := Vector3(0.12, 1.08, -0.32)
+	var axis := Vector3(-0.35, 0.45, -0.82)
+	var nrm := Vector3(1, 0, 0)
+	var lhand := Vector3(-0.1, 1.1, -0.4)
+	var pole := Vector3(0.4, -0.8, 0.45)
+	var turn := 0.0
+	var hip := 0.0
+	var lf := 6.0
+	var ls := 0.0
+	var cr := 0.3
+	var jp := 0.0
+	var sway := Vector3.ZERO
+	var stance := 0.0
+	var foot_l := Vector2(-0.24, 0.0)
+	var foot_r := Vector2(0.24, 0.0)
+
+	func blend(o: Pose, w: float) -> Pose:
+		var p := Pose.new()
+		p.grip = grip.lerp(o.grip, w)
+		p.axis = axis.lerp(o.axis, w).normalized()
+		p.nrm = nrm.lerp(o.nrm, w).normalized()
+		p.lhand = lhand.lerp(o.lhand, w)
+		p.pole = pole.lerp(o.pole, w)
+		p.turn = lerpf(turn, o.turn, w)
+		p.hip = lerpf(hip, o.hip, w)
+		p.lf = lerpf(lf, o.lf, w)
+		p.ls = lerpf(ls, o.ls, w)
+		p.cr = lerpf(cr, o.cr, w)
+		p.jp = lerpf(jp, o.jp, w)
+		p.sway = sway.lerp(o.sway, w)
+		p.stance = lerpf(stance, o.stance, w)
+		p.foot_l = foot_l.lerp(o.foot_l, w)
+		p.foot_r = foot_r.lerp(o.foot_r, w)
+		return p
+
+
+var hand := 1
+var colors := {}
+
+# --- مدخلات من اللاعب ---
+var move_vel := Vector3.ZERO      # السرعة في الإحداثيات المحلية
+var look_target := Vector3(0, 1.2, -10)   # محلي
+var alert := 0.0                  # 0..1 حالة التأهب (الكرة في اللعب)
+
+# --- حالة الأنيميشن ---
+var mode := Mode.READY
+var clip_id := Clip.FH_DRIVE
+var clip_keys: Array = []
+var clip_t := 0.0
+var lift := 0.5
+var prep_w := 0.0
+var contact := Vector3(0.75, 0.95, -0.42)
+var hit_dir := Vector3(0, 0, -1)
+var serve_t := 0.0
+var _gait := 0.0
+var _run_turn := 0.0
+var _time := 0.0
+var _split_t := -1.0
+var _blend_from: Pose = null
+var _blend_t := 1.0
+var _blend_dur := 0.2
+var _last: Pose = Pose.new()
+var _foot_pos := [Vector3(-0.24, ANKLE_H, 0), Vector3(0.24, ANKLE_H, 0)]
+var _lhand_world_cache := Vector3.ZERO
+
+# --- العقد ---
+var _pelvis: MeshInstance3D
+var _abdomen: MeshInstance3D
+var _chest: MeshInstance3D
+var _head: MeshInstance3D
+var _uarm: Array[MeshInstance3D] = []
+var _farm: Array[MeshInstance3D] = []
+var _thigh: Array[MeshInstance3D] = []
+var _shin: Array[MeshInstance3D] = []
+var _foot: Array[MeshInstance3D] = []
+var _racket: Node3D
+var _mat: StandardMaterial3D
+
+
+func setup(p_colors: Dictionary, p_hand: int) -> void:
+	colors = p_colors
+	hand = p_hand
+	_build()
+	_apply(_ready_pose(0.0), 0.0)
+
+
+# =====================================================================
+#  بناء الجسم
+# =====================================================================
+func _mi(mesh: Mesh) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.mesh = mesh
+	m.material_override = _mat
+	add_child(m)
+	return m
+
+
+func _build() -> void:
+	_mat = MeshKit.vcol_material(0.72)
+	var skin: Color = colors["skin"]
+	var shirt: Color = colors["shirt"]
+	var shorts: Color = colors["shorts"]
+	var shoe: Color = colors["shoes"]
+	var hair: Color = colors["hair"]
+	var white := Color(0.93, 0.93, 0.93)
+	var trim: Color = colors.get("trim", white)
+
+	# الحوض
+	var st := MeshKit.begin()
+	MeshKit.add_tube(st, [[0.085, 0.138, 0.090, shorts], [0.04, 0.160, 0.108, shorts], [-0.05, 0.158, 0.112, shorts], [-0.12, 0.10, 0.09, shorts]], 14)
+	_pelvis = _mi(MeshKit.finish(st))
+
+	# البطن
+	st = MeshKit.begin()
+	MeshKit.add_tube(st, [[-0.075, 0.166, 0.116, shirt], [-0.02, 0.160, 0.110, shirt], [0.07, 0.152, 0.102, shirt], [0.20, 0.166, 0.112, shirt]], 14, Transform3D.IDENTITY, false, true)
+	_abdomen = _mi(MeshKit.finish(st))
+
+	# الصدر + الرقبة
+	st = MeshKit.begin()
+	MeshKit.add_tube(st, [[-0.03, 0.164, 0.110, shirt], [0.10, 0.186, 0.126, shirt], [0.20, 0.198, 0.120, shirt],
+		[0.255, 0.170, 0.100, shirt], [0.285, 0.09, 0.075, shirt], [0.30, 0.060, 0.062, trim],
+		[0.305, 0.052, 0.055, skin], [0.39, 0.050, 0.054, skin]], 14)
+	_chest = _mi(MeshKit.finish(st))
+
+	# الرأس
+	st = MeshKit.begin()
+	var head_fn := func(n: Vector3) -> Color:
+		if n.y > 0.62 or (n.z > 0.10 and n.y > -0.38) or (n.z > -0.45 and n.y > 0.40):
+			return hair
+		return skin
+	MeshKit.add_ellipsoid(st, Vector3.ZERO, Vector3(0.094, 0.118, 0.104), skin, 16, 12, Transform3D.IDENTITY, head_fn)
+	MeshKit.add_ellipsoid(st, Vector3(0, -0.012, -0.102), Vector3(0.014, 0.022, 0.018), skin.darkened(0.06), 6, 4)   # الأنف
+	MeshKit.add_ellipsoid(st, Vector3(0.034, 0.016, -0.093), Vector3(0.009, 0.006, 0.005), Color(0.12, 0.09, 0.08), 6, 4)
+	MeshKit.add_ellipsoid(st, Vector3(-0.034, 0.016, -0.093), Vector3(0.009, 0.006, 0.005), Color(0.12, 0.09, 0.08), 6, 4)
+	MeshKit.add_ellipsoid(st, Vector3(0.094, 0.0, 0.01), Vector3(0.012, 0.026, 0.018), skin.darkened(0.08), 6, 4)   # الأذنان
+	MeshKit.add_ellipsoid(st, Vector3(-0.094, 0.0, 0.01), Vector3(0.012, 0.026, 0.018), skin.darkened(0.08), 6, 4)
+	MeshKit.add_ellipsoid(st, Vector3(0.034, 0.034, -0.094), Vector3(0.015, 0.004, 0.005), hair, 6, 4)   # الحاجبان
+	MeshKit.add_ellipsoid(st, Vector3(-0.034, 0.034, -0.094), Vector3(0.015, 0.004, 0.005), hair, 6, 4)
+	MeshKit.add_ellipsoid(st, Vector3(0, -0.052, -0.090), Vector3(0.020, 0.0035, 0.006), skin.darkened(0.35), 6, 4)   # الفم
+	# عصابة الرأس
+	MeshKit.add_tube(st, [[0.078, 0.086, 0.096, trim], [0.050, 0.093, 0.103, trim]], 16, Transform3D.IDENTITY, false, false)
+	_head = _mi(MeshKit.finish(st))
+
+	for i in 2:
+		# العضد مع كمّ القميص
+		st = MeshKit.begin()
+		MeshKit.add_tube(st, [[0.0, 0.055, 0.058, shirt], [-0.07, 0.057, 0.059, shirt], [-0.15, 0.054, 0.055, shirt],
+			[-0.152, 0.047, 0.049, skin], [-0.24, 0.043, 0.044, skin], [-UPPER_ARM, 0.038, 0.039, skin]], 10)
+		_uarm.append(_mi(MeshKit.finish(st)))
+		# الساعد + سوار المعصم + اليد
+		st = MeshKit.begin()
+		MeshKit.add_tube(st, [[0.0, 0.038, 0.039, skin], [-0.07, 0.043, 0.044, skin], [-0.19, 0.031, 0.032, skin],
+			[-0.215, 0.030, 0.031, skin], [-0.217, 0.035, 0.036, white], [-0.262, 0.035, 0.036, white],
+			[-0.264, 0.028, 0.026, skin], [-0.30, 0.040, 0.030, skin], [-0.355, 0.040, 0.032, skin], [-0.385, 0.028, 0.024, skin]], 10)
+		_farm.append(_mi(MeshKit.finish(st)))
+		# الفخذ مع الشورت
+		st = MeshKit.begin()
+		MeshKit.add_tube(st, [[0.03, 0.094, 0.100, shorts], [-0.10, 0.096, 0.100, shorts], [-0.235, 0.092, 0.094, shorts],
+			[-0.237, 0.074, 0.078, skin], [-0.36, 0.060, 0.062, skin], [-THIGH, 0.053, 0.055, skin]], 12)
+		_thigh.append(_mi(MeshKit.finish(st)))
+		# الساق مع الجورب
+		st = MeshKit.begin()
+		MeshKit.add_tube(st, [[0.0, 0.053, 0.055, skin], [-0.12, 0.056, 0.060, skin, 0.0, 0.012], [-0.27, 0.042, 0.044, skin, 0.0, 0.006],
+			[-0.33, 0.037, 0.039, skin], [-0.332, 0.041, 0.043, white], [-SHIN, 0.041, 0.043, white]], 10)
+		_shin.append(_mi(MeshKit.finish(st)))
+		# الحذاء (أنبوب أفقي: نبنيه على Y ثم نديره ليتجه للأمام)
+		st = MeshKit.begin()
+		var fx := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3.ZERO)
+		var sole: Color = white
+		MeshKit.add_tube(st, [[-0.085, 0.040, 0.036, shoe, 0.0, -0.044], [-0.03, 0.047, 0.047, shoe, 0.0, -0.034], [0.06, 0.050, 0.040, shoe, 0.0, -0.042],
+			[0.14, 0.052, 0.032, shoe, 0.0, -0.050], [0.20, 0.040, 0.024, shoe, 0.0, -0.056]], 10, fx)
+		MeshKit.add_box(st, Vector3(0, -0.071, -0.055), Vector3(0.094, 0.026, 0.285), sole)
+		_foot.append(_mi(MeshKit.finish(st)))
+
+	_build_racket()
+
+
+func _build_racket() -> void:
+	_racket = Node3D.new()
+	add_child(_racket)
+	var frame_c: Color = colors.get("racket", Color(0.08, 0.08, 0.1))
+	var grip_c := Color(0.92, 0.92, 0.9)
+	var st := MeshKit.begin()
+	# المقبض
+	MeshKit.add_tube(st, [[-0.075, 0.018, 0.015, grip_c], [0.10, 0.016, 0.014, grip_c], [0.102, 0.013, 0.012, frame_c], [0.15, 0.012, 0.011, frame_c]], 8)
+	# العنق (فرعان)
+	for sgn in [-1.0, 1.0]:
+		var a := Vector3(0.0, 0.15, 0.0)
+		var b := Vector3(0.085 * sgn, 0.325, 0.0)
+		var dir := (b - a)
+		var ln := dir.length()
+		var bas := Basis(Quaternion(Vector3.UP, dir / ln))
+		MeshKit.add_tube(st, [[0.0, 0.010, 0.010, frame_c], [ln, 0.010, 0.010, frame_c]], 6, Transform3D(bas, a))
+	# الإطار البيضاوي
+	var segs := 28
+	var hc := Vector3(0, HEAD_DIST, 0)
+	var ra := 0.128
+	var rb := 0.168
+	var tube := 0.0105
+	var verts: Array = []
+	var ring := 6
+	for i in segs:
+		var a := TAU * i / segs
+		var c := hc + Vector3(cos(a) * ra, sin(a) * rb, 0)
+		var outward := Vector3(cos(a) * rb, sin(a) * ra, 0).normalized()
+		for j in ring:
+			var b := TAU * j / ring
+			verts.append(c + outward * cos(b) * tube + Vector3(0, 0, 1) * sin(b) * tube * 1.25)
+	for i in segs:
+		var i2 := (i + 1) % segs
+		for j in ring:
+			var j2 := (j + 1) % ring
+			var q := [verts[i * ring + j], verts[i2 * ring + j], verts[i2 * ring + j2], verts[i * ring + j2]]
+			for t in [[0, 1, 2], [0, 2, 3]]:
+				for k in t:
+					st.set_smooth_group(0)
+					st.set_color(frame_c)
+					st.add_vertex(q[k])
+	var mi := MeshInstance3D.new()
+	mi.mesh = MeshKit.finish(st)
+	var rm := MeshKit.vcol_material(0.35, 0.3)
+	rm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = rm
+	_racket.add_child(mi)
+	# الأوتار
+	var q := QuadMesh.new()
+	q.size = Vector2(ra * 2.0, rb * 2.0)
+	var smi := MeshInstance3D.new()
+	smi.mesh = q
+	smi.position = hc
+	var sm := ShaderMaterial.new()
+	sm.shader = load("res://shaders/strings.gdshader")
+	smi.material_override = sm
+	smi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_racket.add_child(smi)
+
+
+# =====================================================================
+#  واجهة التحكم بالأنيميشن
+# =====================================================================
+func set_ready(blend: float = 0.22) -> void:
+	if mode == Mode.READY:
+		return
+	_start_blend(blend)
+	mode = Mode.READY
+
+
+func set_prep(side: int, type: int, volley: bool, overhead: bool) -> void:
+	var id := _clip_for(side, type, volley, overhead)
+	if mode == Mode.PREP and id == clip_id:
+		return
+	_start_blend(0.20)
+	mode = Mode.PREP
+	clip_id = id
+	lift = _lift_for(type)
+	clip_keys = _make_clip(id)
+	var nc := _nominal_contact(id)
+	contact = Vector3(nc.x * hand, nc.y, nc.z)
+	prep_w = 0.0
+
+
+func start_swing(side: int, type: int, volley: bool, overhead: bool, time_to_contact: float, contact_local: Vector3, dir_local: Vector3) -> void:
+	var id := _clip_for(side, type, volley, overhead)
+	_start_blend(0.07 if mode == Mode.PREP and id == clip_id else 0.10)
+	mode = Mode.SWING
+	clip_id = id
+	lift = _lift_for(type)
+	contact = contact_local
+	hit_dir = dir_local
+	clip_keys = _make_clip(id)
+	clip_t = -time_to_contact
+
+
+func update_contact(contact_local: Vector3, time_to_contact: float) -> void:
+	contact = contact_local
+	if mode == Mode.SWING and clip_t < 0.0:
+		clip_t = -time_to_contact
+
+
+func serve_stance() -> void:
+	_start_blend(0.35)
+	mode = Mode.SERVE_STANCE
+
+
+func serve_toss() -> void:
+	_start_blend(0.08)
+	mode = Mode.SERVE_TOSS
+	serve_t = 0.0
+
+
+func serve_swing(time_to_contact: float, contact_local: Vector3, dir_local: Vector3) -> void:
+	_start_blend(0.08)
+	mode = Mode.SERVE_SWING
+	clip_id = Clip.OVERHEAD
+	contact = contact_local
+	hit_dir = dir_local
+	clip_keys = _make_clip(Clip.OVERHEAD)
+	clip_t = -time_to_contact
+
+
+func split_step() -> void:
+	if _split_t < 0.0:
+		_split_t = 0.0
+
+
+func is_swinging() -> bool:
+	return mode == Mode.SWING or mode == Mode.SERVE_SWING
+
+
+## موضع اليد الحرة (التي تمسك الكرة عند الإرسال) بالإحداثيات العالمية
+func off_hand_world() -> Vector3:
+	return global_transform * _lhand_world_cache
+
+
+func _start_blend(dur: float) -> void:
+	_blend_from = _last
+	_blend_t = 0.0
+	_blend_dur = maxf(dur, 0.01)
+
+
+func _clip_for(side: int, type: int, volley: bool, overhead: bool) -> int:
+	if overhead:
+		return Clip.OVERHEAD
+	if volley:
+		return Clip.FH_VOLLEY if side > 0 else Clip.BH_VOLLEY
+	if type == Shot.Type.SLICE or type == Shot.Type.DROP:
+		return Clip.FH_SLICE if side > 0 else Clip.BH_SLICE
+	return Clip.FH_DRIVE if side > 0 else Clip.BH_DRIVE
+
+
+func _lift_for(type: int) -> float:
+	match type:
+		Shot.Type.FLAT: return 0.15
+		Shot.Type.TOPSPIN: return 0.85
+		Shot.Type.LOB: return 1.0
+	return 0.4
+
+
+# =====================================================================
+#  تعريف الحركات (مفاتيح زمنية بالنسبة للحظة الضرب)
+#  كل مفتاح: t, g (القبضة) أو c (من نقطة التلامس)، ax اتجاه المضرب، nr عمودي الأوتار،
+#  turn دوران الصدر (موجب نحو يد الضرب)، hip دوران الحوض، cr انثناء الركب، lh اليد الحرة
+# =====================================================================
+func _k(t: float, g: Variant, ax: Vector3, nr: Vector3, turn: float, hip: float, cr: float, lh: Variant, extra: Dictionary = {}) -> Dictionary:
+	var d := {"t": t, "g": g, "ax": ax.normalized(), "nr": nr.normalized(), "turn": turn, "hip": hip, "cr": cr, "lh": lh,
+		"lf": 6.0, "ls": 0.0, "jp": 0.0, "pole": Vector3(0.4, -0.8, 0.45)}
+	for k in extra:
+		d[k] = extra[k]
+	return d
+
+
+func _make_clip(id: int) -> Array:
+	var L := lift
+	match id:
+		Clip.FH_DRIVE:
+			return [
+				_k(-0.24, Vector3(0.52, 1.28, 0.30), Vector3(0.25, 0.90, 0.35), Vector3(0.9, -0.1, -0.4), 82, 45, 0.38, Vector3(0.30, 1.22, -0.38)),
+				_k(-0.11, Vector3(0.60, 0.80 - 0.14 * L, 0.36), Vector3(0.35, -0.25 - 0.25 * L, 0.90), Vector3(0.5, -0.6, -0.6), 58, 30, 0.52, Vector3(0.08, 1.15, -0.42)),
+				_k(0.0, null, Vector3(0.93, 0.08 + 0.12 * L, -0.30), Vector3(0, -0.12 * L, -1), 8, 0, 0.32, Vector3(-0.25, 1.10, -0.20), {"lf": 9.0}),
+				_k(0.10, Vector3(0.12, 1.30 + 0.14 * L, -0.62), Vector3(-0.50, 0.78, -0.35), Vector3(-0.6, -0.5, -0.6), -35, -20, 0.22, Vector3(-0.28, 1.15, -0.05), {"lf": 8.0}),
+				_k(0.30, Vector3(-0.24, 1.44, -0.16), Vector3(-0.45, 0.25, 0.85), Vector3(-0.8, 0.1, -0.5), -62, -30, 0.18, Vector3(-0.26, 1.25, -0.10)),
+			]
+		Clip.BH_DRIVE:
+			return [
+				_k(-0.24, Vector3(-0.42, 1.05, 0.30), Vector3(-0.15, 0.85, 0.50), Vector3(-0.8, -0.1, -0.5), -105, -60, 0.38, "throat"),
+				_k(-0.11, Vector3(-0.50, 0.72 - 0.10 * L, 0.22), Vector3(-0.25, -0.30 - 0.15 * L, 0.92), Vector3(-0.5, -0.6, -0.6), -95, -55, 0.52, Vector3(-0.45, 0.88, 0.35)),
+				_k(0.0, null, Vector3(-0.93, 0.12 + 0.10 * L, -0.32), Vector3(0, -0.10 * L, -1), -72, -45, 0.32, Vector3(-0.35, 1.0, 0.50), {"lf": 8.0}),
+				_k(0.10, Vector3(0.22, 1.36 + 0.08 * L, -0.66), Vector3(0.30, 0.90, -0.30), Vector3(0.6, -0.4, -0.6), -48, -35, 0.22, Vector3(-0.45, 1.0, 0.55)),
+				_k(0.30, Vector3(0.46, 1.58, -0.30), Vector3(0.35, 0.80, 0.48), Vector3(0.8, 0.0, -0.5), -30, -25, 0.18, Vector3(-0.40, 0.95, 0.45)),
+			]
+		Clip.FH_SLICE:
+			return [
+				_k(-0.24, Vector3(0.45, 1.45, 0.20), Vector3(0.2, 0.85, 0.45), Vector3(0.8, 0.2, -0.5), 70, 40, 0.3, Vector3(0.2, 1.2, -0.35)),
+				_k(-0.10, Vector3(0.50, 1.25, 0.12), Vector3(0.5, 0.6, 0.6), Vector3(0.5, 0.3, -0.8), 55, 30, 0.38, Vector3(0.0, 1.15, -0.35)),
+				_k(0.0, null, Vector3(0.92, 0.22, -0.25), Vector3(0, 0.35, -0.94), 20, 10, 0.42, Vector3(-0.25, 1.1, -0.15)),
+				_k(0.12, Vector3(0.05, 0.80, -0.75), Vector3(-0.3, 0.1, -0.95), Vector3(0.2, 0.9, -0.3), -15, -5, 0.45, Vector3(-0.3, 1.1, 0.0)),
+				_k(0.30, Vector3(-0.15, 0.95, -0.50), Vector3(-0.55, 0.4, -0.7), Vector3(0.2, 0.8, -0.5), -30, -10, 0.3, Vector3(-0.28, 1.15, -0.05)),
+			]
+		Clip.BH_SLICE:
+			return [
+				_k(-0.24, Vector3(-0.30, 1.42, 0.22), Vector3(-0.20, 0.80, 0.55), Vector3(-0.8, 0.2, -0.5), -100, -55, 0.28, "throat"),
+				_k(-0.10, Vector3(-0.36, 1.25, 0.10), Vector3(-0.45, 0.60, 0.65), Vector3(-0.5, 0.3, -0.8), -92, -52, 0.36, "throat"),
+				_k(0.0, null, Vector3(-0.90, 0.25, -0.20), Vector3(0, 0.35, -0.94), -80, -50, 0.42, Vector3(-0.40, 1.05, 0.45)),
+				_k(0.12, Vector3(0.20, 0.78, -0.78), Vector3(0.35, 0.10, -0.93), Vector3(-0.2, 0.9, -0.3), -65, -42, 0.46, Vector3(-0.42, 1.0, 0.55)),
+				_k(0.30, Vector3(0.42, 0.95, -0.55), Vector3(0.6, 0.45, -0.65), Vector3(-0.2, 0.8, -0.5), -50, -35, 0.3, Vector3(-0.38, 0.98, 0.45)),
+			]
+		Clip.FH_VOLLEY:
+			return [
+				_k(-0.16, Vector3(0.38, 1.18, -0.15), Vector3(0.35, 0.90, 0.10), Vector3(0.3, 0.1, -0.95), 40, 15, 0.38, Vector3(-0.2, 1.15, -0.3)),
+				_k(0.0, null, Vector3(0.80, 0.55, -0.20), Vector3(0, 0.15, -1), 25, 8, 0.46, Vector3(-0.24, 1.12, -0.2)),
+				_k(0.12, Vector3(-0.12, -0.12, -0.28), Vector3(0.70, 0.55, -0.45), Vector3(0, 0.25, -1), 10, 0, 0.42, Vector3(-0.26, 1.1, -0.15), {"rel": true}),
+				_k(0.28, Vector3(0.15, 1.05, -0.35), Vector3(-0.3, 0.6, -0.75), Vector3(1, 0, 0), 0, 0, 0.32, "throat"),
+			]
+		Clip.BH_VOLLEY:
+			return [
+				_k(-0.16, Vector3(-0.25, 1.18, -0.12), Vector3(-0.30, 0.92, 0.15), Vector3(-0.3, 0.1, -0.95), -55, -20, 0.38, "throat"),
+				_k(0.0, null, Vector3(-0.80, 0.55, -0.22), Vector3(0, 0.15, -1), -45, -15, 0.46, Vector3(-0.3, 1.1, 0.2)),
+				_k(0.12, Vector3(0.12, -0.12, -0.28), Vector3(-0.70, 0.55, -0.45), Vector3(0, 0.25, -1), -35, -10, 0.42, Vector3(-0.35, 1.05, 0.3), {"rel": true}),
+				_k(0.28, Vector3(0.10, 1.05, -0.35), Vector3(-0.3, 0.6, -0.75), Vector3(1, 0, 0), 0, 0, 0.32, "throat"),
+			]
+		Clip.OVERHEAD:
+			var up := Vector3(0.9, -0.15, 0.5)
+			return [
+				_k(-0.26, Vector3(0.42, 1.60, 0.26), Vector3(-0.10, 0.97, 0.05), Vector3(0.9, 0.1, -0.4), 95, 70, 0.55, Vector3(-0.02, 2.08, -0.40), {"lf": -8.0, "pole": up}),
+				_k(-0.13, Vector3(0.32, 1.76, 0.20), Vector3(-0.15, -0.95, 0.28), Vector3(0.9, -0.1, -0.4), 70, 50, 0.38, Vector3(-0.10, 1.55, -0.30), {"lf": -2.0, "pole": up}),
+				_k(0.0, null, Vector3(0.03, 0.98, -0.17), Vector3(0, -0.15, -1), 15, 10, 0.0, Vector3(-0.12, 1.15, -0.22), {"lf": 10.0, "jp": 0.14, "ls": -10.0, "pole": up}),
+				_k(0.12, Vector3(0.02, 1.55, -0.72), Vector3(-0.30, -0.45, -0.84), Vector3(-0.3, -0.8, -0.4), -25, -10, 0.1, Vector3(-0.15, 1.1, -0.2), {"lf": 22.0, "jp": 0.08}),
+				_k(0.34, Vector3(-0.34, 0.92, -0.42), Vector3(-0.45, -0.75, 0.45), Vector3(-0.8, -0.2, -0.5), -50, -25, 0.32, Vector3(-0.2, 1.1, -0.15), {"lf": 18.0}),
+			]
+	return []
+
+
+func _mir(v: Vector3) -> Vector3:
+	return Vector3(v.x * hand, v.y, v.z)
+
+
+## تحويل مفتاح إلى وضعية (مع ربط مفتاح التلامس بموضع الكرة الفعلي)
+func _key_pose(k: Dictionary, id: int) -> Pose:
+	var p := Pose.new()
+	p.axis = _mir(k["ax"])
+	p.nrm = _mir(k["nr"])
+	var nominal := _nominal_contact(id)
+	var dy: float = (contact.y - nominal.y) * 0.65
+	var c_grip := contact - _contact_axis(id) * HEAD_DIST
+	if k["g"] == null:
+		p.grip = c_grip
+		if id != Clip.OVERHEAD:
+			# وجه المضرب يتجه نحو اتجاه الضربة
+			var n: Vector3 = (hit_dir + Vector3(0, float(k["nr"].y), 0)).normalized()
+			p.nrm = n
+	elif k.get("rel", false):
+		p.grip = c_grip + _mir(k["g"])
+	else:
+		var g: Vector3 = _mir(k["g"])
+		# تكييف المسار مع ارتفاع وبعد الكرة الفعلي
+		var w := clampf(1.0 - absf(float(k["t"])) / 0.34, 0.0, 1.0)
+		g.y += dy * (0.5 + 0.5 * w)
+		g.x += (contact.x - nominal.x * hand) * 0.6 * w
+		g.z += (contact.z - nominal.z) * 0.5 * w
+		p.grip = g
+	p.turn = k["turn"]
+	p.hip = k["hip"]
+	p.cr = float(k["cr"]) + clampf((nominal.y - contact.y) * 0.9, -0.15, 0.45) * (0.0 if id == Clip.OVERHEAD else 1.0)
+	p.lf = k["lf"]
+	p.ls = k["ls"]
+	p.jp = k["jp"]
+	p.pole = _mir(k["pole"])
+	if id == Clip.OVERHEAD:
+		p.jp += clampf(contact.y - 2.70, -0.14, 0.25) * clampf(1.0 - absf(float(k["t"])) / 0.2, 0.0, 1.0)
+	# الميل الجانبي عند التمدد نحو كرة بعيدة
+	var lat := contact.x * hand
+	var side_sign := 1.0 if nominal.x > 0.0 else -1.0
+	var ext := (absf(lat) - absf(nominal.x)) if id != Clip.OVERHEAD else 0.0
+	var wk := clampf(1.0 - absf(float(k["t"])) / 0.25, 0.0, 1.0)
+	p.ls += clampf(ext * 24.0, -8.0, 30.0) * side_sign * wk
+	p.sway = Vector3(clampf(ext * 0.4, -0.15, 0.5) * side_sign * hand * wk, 0, clampf((contact.z - nominal.z) * 0.35, -0.35, 0.2) * wk)
+	if k["lh"] is String:
+		p.lhand = p.grip + p.axis * 0.24
+	else:
+		p.lhand = _mir(k["lh"])
+	p.stance = 1.0
+	var fs := _stance_feet(id)
+	p.foot_l = fs[0]
+	p.foot_r = fs[1]
+	return p
+
+
+func _nominal_contact(id: int) -> Vector3:
+	match id:
+		Clip.FH_DRIVE, Clip.FH_SLICE: return Vector3(0.75, 0.95, -0.42)
+		Clip.BH_DRIVE, Clip.BH_SLICE: return Vector3(-0.60, 0.92, -0.52)
+		Clip.FH_VOLLEY: return Vector3(0.65, 1.25, -0.55)
+		Clip.BH_VOLLEY: return Vector3(-0.55, 1.25, -0.55)
+	return Vector3(0.20, 2.70, -0.42)
+
+
+func _contact_axis(id: int) -> Vector3:
+	for k in clip_keys:
+		if k["g"] == null:
+			return _mir(k["ax"])
+	return Vector3.UP
+
+
+## مواضع القدمين في وقفة الضربة (x, z) — [يسار، يمين] بعد عكس اليد
+func _stance_feet(id: int) -> Array:
+	var a: Vector2
+	var b: Vector2
+	match id:
+		Clip.FH_DRIVE, Clip.FH_SLICE, Clip.FH_VOLLEY:
+			a = Vector2(-0.17, -0.20)      # القدم المعاكسة لليد
+			b = Vector2(0.27, 0.14)        # قدم جهة اليد
+		Clip.BH_DRIVE, Clip.BH_SLICE, Clip.BH_VOLLEY:
+			a = Vector2(-0.14, 0.24)
+			b = Vector2(-0.02, -0.36)
+		_:
+			a = Vector2(-0.10, -0.22)
+			b = Vector2(0.16, 0.20)
+	if hand > 0:
+		return [a, b]
+	return [Vector2(-b.x, b.y), Vector2(-a.x, a.y)]
+
+
+func _sample_clip(t: float) -> Pose:
+	var n := clip_keys.size()
+	if n == 0:
+		return _ready_pose(0.0)
+	if t <= float(clip_keys[0]["t"]):
+		return _key_pose(clip_keys[0], clip_id)
+	if t >= float(clip_keys[n - 1]["t"]):
+		return _key_pose(clip_keys[n - 1], clip_id)
+	var i := 0
+	while i < n - 2 and t > float(clip_keys[i + 1]["t"]):
+		i += 1
+	var t0: float = clip_keys[i]["t"]
+	var t1: float = clip_keys[i + 1]["t"]
+	var u := (t - t0) / (t1 - t0)
+	var p1 := _key_pose(clip_keys[i], clip_id)
+	var p2 := _key_pose(clip_keys[i + 1], clip_id)
+	var p0 := _key_pose(clip_keys[maxi(i - 1, 0)], clip_id)
+	var p3 := _key_pose(clip_keys[mini(i + 2, n - 1)], clip_id)
+	var out := p1.blend(p2, u)
+	# مسار القبضة منحنى Catmull-Rom لحركة قوسية طبيعية
+	out.grip = _catmull(p0.grip, p1.grip, p2.grip, p3.grip, u)
+	out.lhand = _catmull(p0.lhand, p1.lhand, p2.lhand, p3.lhand, u)
+	return out
+
+
+func _catmull(a: Vector3, b: Vector3, c: Vector3, d: Vector3, u: float) -> Vector3:
+	var u2 := u * u
+	var u3 := u2 * u
+	return 0.5 * ((2.0 * b) + (-a + c) * u + (2.0 * a - 5.0 * b + 4.0 * c - d) * u2 + (-a + 3.0 * b - 3.0 * c + d) * u3)
+
+
+# =====================================================================
+#  الوضعيات الأساسية
+# =====================================================================
+func _chest_frame(p: Pose) -> Transform3D:
+	var yaw_h := -deg_to_rad(p.hip) * hand
+	var yaw_c := -deg_to_rad(p.turn) * hand
+	var lean := Basis(Vector3.RIGHT, -deg_to_rad(p.lf)) * Basis(Vector3.BACK, -deg_to_rad(p.ls))
+	var bp := Basis(Vector3.RIGHT, -deg_to_rad(p.lf) * 0.35) * Basis(Vector3.UP, yaw_h)
+	var bc := lean * Basis(Vector3.UP, yaw_c)
+	var ba := Basis(Quaternion(bp).slerp(Quaternion(bc), 0.5))
+	var hip_y := STAND_HIP - 0.17 * p.cr + p.jp
+	var pp := Vector3(p.sway.x, hip_y, p.sway.z)
+	var pw := pp + bp.y * WAIST_UP
+	var pc := pw + ba.y * ABD_LEN
+	return Transform3D(bc, pc)
+
+
+func _ready_pose(dt: float) -> Pose:
+	var p := Pose.new()
+	var v := Vector2(move_vel.x, move_vel.z)
+	var speed := v.length()
+	var run := smoothstep(2.6, 5.2, speed)
+	# الدوران نحو اتجاه الجري عند العدو
+	var want_turn := 0.0
+	if speed > 2.6:
+		want_turn = clampf(rad_to_deg(atan2(v.x, -v.y)), -115.0, 115.0) * run
+	_run_turn = move_toward(_run_turn, want_turn, 420.0 * dt)
+	p.turn = _run_turn * hand
+	p.hip = _run_turn * hand * 0.85
+	p.cr = lerpf(lerpf(0.16, 0.34, alert), 0.22, run)
+	p.lf = lerpf(lerpf(3.0, 8.0, alert), 12.0, run)
+	p.ls = 0.0
+	p.stance = 0.0
+	var cf := _chest_frame(p)
+	var swing := sin(_gait * TAU) * run
+	# اليد الضاربة: المضرب أمام الجسم، ويتأرجح مع الجري
+	var g_ready := Vector3(0.10 * hand, -0.09, -0.33)
+	var g_run := Vector3(0.25 * hand, -0.10 + 0.05 * swing * hand, -0.20 - 0.16 * swing * hand)
+	p.grip = cf * g_ready.lerp(g_run, run)
+	var ax_ready := Vector3(-0.38 * hand, 0.50, -0.78)
+	var ax_run := Vector3(-0.10 * hand, 0.55, -0.83)
+	p.axis = (cf.basis * ax_ready.lerp(ax_run, run)).normalized()
+	p.nrm = (cf.basis * Vector3(1, 0.1, 0)).normalized()
+	var throat := p.grip + p.axis * 0.24
+	var l_run := cf * Vector3(-0.25 * hand, -0.14 - 0.05 * swing * hand, -0.18 + 0.16 * swing * hand)
+	p.lhand = throat.lerp(l_run, run)
+	p.pole = Vector3(0.4 * hand, -0.8, 0.45)
+	var w := lerpf(0.17, 0.27, alert)
+	p.foot_l = Vector2(-w, 0.02)
+	p.foot_r = Vector2(w, 0.02)
+	return p
+
+
+func _serve_stance_pose() -> Pose:
+	var p := Pose.new()
+	p.turn = 75.0
+	p.hip = 72.0
+	p.cr = 0.14
+	p.lf = 3.0
+	p.grip = _mir(Vector3(0.10, 1.04, -0.28))
+	p.axis = _mir(Vector3(-0.2, 0.4, -0.9)).normalized()
+	p.nrm = _mir(Vector3(0.9, 0.2, -0.2)).normalized()
+	p.lhand = _mir(Vector3(-0.04, 1.08, -0.40))
+	p.stance = 1.0
+	var fs := _stance_feet(Clip.OVERHEAD)
+	p.foot_l = fs[0]
+	p.foot_r = fs[1]
+	return p
+
+
+func _serve_toss_pose(t: float) -> Pose:
+	var up := Vector3(0.9, -0.15, 0.5)
+	var keys := [
+		_k(0.0, Vector3(0.10, 1.04, -0.28), Vector3(-0.2, 0.4, -0.9), Vector3(0.9, 0.2, -0.2), 75, 72, 0.14, Vector3(-0.04, 1.08, -0.40), {"lf": 3.0}),
+		_k(0.25, Vector3(0.30, 0.82, 0.10), Vector3(0.1, -0.6, -0.8), Vector3(0.9, 0.1, -0.3), 78, 72, 0.22, Vector3(-0.04, 0.98, -0.42), {"lf": 5.0}),
+		_k(0.45, Vector3(0.50, 0.98, 0.38), Vector3(0.3, -0.2, 0.93), Vector3(0.9, 0.0, -0.4), 85, 72, 0.28, Vector3(-0.02, 1.95, -0.44), {"lf": 0.0, "pole": up}),
+		_k(0.80, Vector3(0.42, 1.60, 0.26), Vector3(-0.10, 0.97, 0.05), Vector3(0.9, 0.1, -0.4), 95, 70, 0.55, Vector3(-0.02, 2.08, -0.40), {"lf": -8.0, "pole": up}),
+	]
+	var saved := clip_keys
+	var saved_id := clip_id
+	var saved_contact := contact
+	clip_keys = keys
+	clip_id = Clip.OVERHEAD
+	contact = Vector3(0.20 * hand, 2.70, -0.42)
+	var p := _sample_clip(t)
+	clip_keys = saved
+	clip_id = saved_id
+	contact = saved_contact
+	return p
+
+
+# =====================================================================
+#  التحديث كل إطار
+# =====================================================================
+func _process(dt: float) -> void:
+	_time += dt
+	var speed := Vector2(move_vel.x, move_vel.z).length()
+	if speed > 0.2:
+		var step_len := 0.30 + 0.135 * speed
+		_gait = fposmod(_gait + dt * speed / (2.0 * step_len), 1.0)
+	if _split_t >= 0.0:
+		_split_t += dt
+		if _split_t > 0.42:
+			_split_t = -1.0
+
+	var target: Pose
+	match mode:
+		Mode.READY:
+			target = _ready_pose(dt)
+		Mode.PREP:
+			prep_w = minf(prep_w + dt / 0.22, 1.0)
+			target = _key_pose(clip_keys[0], clip_id)
+		Mode.SWING:
+			clip_t += dt
+			target = _sample_clip(clip_t)
+			if clip_t > float(clip_keys[clip_keys.size() - 1]["t"]) + 0.02:
+				set_ready(0.28)
+		Mode.SERVE_STANCE:
+			target = _serve_stance_pose()
+		Mode.SERVE_TOSS:
+			serve_t += dt
+			target = _serve_toss_pose(serve_t)
+		Mode.SERVE_SWING:
+			clip_t += dt
+			target = _sample_clip(clip_t)
+			if clip_t > 0.36:
+				set_ready(0.35)
+		_:
+			target = _ready_pose(dt)
+
+	if _blend_t < 1.0 and _blend_from != null:
+		_blend_t = minf(_blend_t + dt / _blend_dur, 1.0)
+		var w := _blend_t * _blend_t * (3.0 - 2.0 * _blend_t)
+		target = _blend_from.blend(target, w)
+	_last = target
+	_apply(target, dt)
+
+
+func _limb_basis(down: Vector3, hint: Vector3) -> Basis:
+	var y := -down
+	var z := hint - y * hint.dot(y)
+	if z.length_squared() < 0.0001:
+		z = Vector3.BACK - y * Vector3.BACK.dot(y)
+	z = z.normalized()
+	var x := y.cross(z)
+	return Basis(x, y, z)
+
+
+## حل IK لعظمتين. يعيد موضع المفصل الأوسط.
+func _ik(a: Vector3, t: Vector3, l1: float, l2: float, pole: Vector3) -> Vector3:
+	var d := t - a
+	var dist := clampf(d.length(), absf(l1 - l2) + 0.01, l1 + l2 - 0.002)
+	var dir := d.normalized() if d.length_squared() > 0.000001 else Vector3.DOWN
+	var along := (l1 * l1 - l2 * l2 + dist * dist) / (2.0 * dist)
+	var h := sqrt(maxf(l1 * l1 - along * along, 0.0))
+	var pp := pole - dir * pole.dot(dir)
+	if pp.length_squared() < 0.0001:
+		pp = Vector3.BACK - dir * Vector3.BACK.dot(dir)
+	return a + dir * along + pp.normalized() * h
+
+
+func _apply(p: Pose, dt: float) -> void:
+	var speed := Vector2(move_vel.x, move_vel.z).length()
+	var gait_w := smoothstep(0.25, 1.3, speed) * (1.0 - 0.75 * p.stance * (1.0 - smoothstep(2.5, 5.0, speed)))
+	var run := smoothstep(2.6, 5.2, speed)
+
+	# --- قفزة الانقسام (split step) ---
+	var split_y := 0.0
+	var split_cr := 0.0
+	if _split_t >= 0.0:
+		if _split_t < 0.24:
+			split_y = 0.055 * sin(PI * _split_t / 0.24)
+		else:
+			split_cr = 0.22 * sin(PI * (_split_t - 0.24) / 0.18)
+
+	# --- الحوض والجذع ---
+	var bob := 0.022 * gait_w * cos(_gait * TAU * 2.0) + 0.006 * sin(_time * 7.0) * alert * (1.0 - gait_w)
+	var lean_run_f := clampf(-move_vel.z / 7.0, -0.6, 1.0) * 9.0 * (1.0 - p.stance * 0.5)
+	var lean_run_s := clampf(move_vel.x / 7.0, -1.0, 1.0) * 8.0 * (1.0 - p.stance * 0.5)
+	var lf := deg_to_rad(p.lf + lean_run_f)
+	var ls := deg_to_rad(p.ls + lean_run_s)
+	var yaw_h := -deg_to_rad(p.hip) * hand
+	var yaw_c := -deg_to_rad(p.turn) * hand
+	var lean := Basis(Vector3.RIGHT, -lf) * Basis(Vector3.BACK, -ls)
+	var bp := Basis(Vector3.RIGHT, -lf * 0.35) * Basis(Vector3.BACK, -ls * 0.3) * Basis(Vector3.UP, yaw_h)
+	var bc := lean * Basis(Vector3.UP, yaw_c)
+	var ba := Basis(Quaternion(bp).slerp(Quaternion(bc), 0.5))
+	var hip_y := STAND_HIP - 0.17 * (p.cr + split_cr) + p.jp + bob + split_y
+	var pp := Vector3(p.sway.x, hip_y, p.sway.z)
+	var pw := pp + bp.y * WAIST_UP
+	var pc := pw + ba.y * ABD_LEN
+	_pelvis.transform = Transform3D(bp, pp)
+	_abdomen.transform = Transform3D(ba, pw)
+	_chest.transform = Transform3D(bc, pc)
+
+	# --- الرأس يتابع الكرة ---
+	var neck := pc + bc * Vector3(0, 0.39, 0)
+	var hp := neck + bc.y * 0.085
+	var ld := (look_target - hp)
+	var bh := bc
+	if ld.length_squared() > 0.01:
+		ld = ld.normalized()
+		ld.y = clampf(ld.y, -0.5, 0.75)
+		var look := Basis.looking_at(ld.normalized(), Vector3.UP)
+		var qc := Quaternion(bc)
+		var ql := Quaternion(look)
+		var ang := qc.angle_to(ql)
+		var wl := 1.0 if ang < 1.25 else 1.25 / ang
+		bh = Basis(qc.slerp(ql, wl))
+	_head.transform = Transform3D(bh, hp)
+
+	# --- الذراعان ---
+	var sh_r := pc + bc * Vector3(SHOULDER_X * hand, SHOULDER_Y, 0)
+	var sh_l := pc + bc * Vector3(-SHOULDER_X * hand, SHOULDER_Y, 0)
+	var grip := p.grip
+	# لا يتجاوز الهدف طول الذراع (وإلا فالمضرب يتبع نهاية الذراع)
+	var reach := UPPER_ARM + FOREARM - 0.004
+	var gd := grip - sh_r
+	if gd.length() > reach:
+		grip = sh_r + gd.normalized() * reach
+	var el_r := _ik(sh_r, grip, UPPER_ARM, FOREARM, bc * p.pole)
+	var ia := 0 if hand > 0 else 1
+	var ib := 1 - ia
+	_uarm[ia].transform = Transform3D(_limb_basis((el_r - sh_r).normalized(), bc.z), sh_r)
+	_farm[ia].transform = Transform3D(_limb_basis((grip - el_r).normalized(), p.axis), el_r)
+	var lh := p.lhand
+	var ld2 := lh - sh_l
+	if ld2.length() > reach:
+		lh = sh_l + ld2.normalized() * reach
+	var el_l := _ik(sh_l, lh, UPPER_ARM, FOREARM, bc * Vector3(-0.4 * hand, -0.8, 0.45))
+	_uarm[ib].transform = Transform3D(_limb_basis((el_l - sh_l).normalized(), bc.z), sh_l)
+	_farm[ib].transform = Transform3D(_limb_basis((lh - el_l).normalized(), bc.z), el_l)
+	_lhand_world_cache = lh + (lh - el_l).normalized() * 0.07
+
+	# --- المضرب ---
+	var ry := p.axis.normalized()
+	var rz := p.nrm - ry * p.nrm.dot(ry)
+	if rz.length_squared() < 0.0001:
+		rz = Vector3.BACK - ry * Vector3.BACK.dot(ry)
+	rz = rz.normalized()
+	_racket.transform = Transform3D(Basis(ry.cross(rz), ry, rz), grip)
+
+	# --- الساقان ---
+	var v2 := Vector2(move_vel.x, move_vel.z)
+	var dir2 := v2 / speed if speed > 0.01 else Vector2.ZERO
+	var step_len := 0.30 + 0.135 * speed
+	var duty := lerpf(0.62, 0.36, clampf(speed / 7.5, 0.0, 1.0))
+	var stride := 2.0 * step_len * duty
+	var lift_h := 0.05 + 0.032 * speed
+	var stance_feet := [p.foot_l, p.foot_r]
+	for i in 2:
+		var sgn := -1.0 if i == 0 else 1.0
+		var hipj := pp + bp * Vector3(HIP_X * sgn, -0.03, 0)
+		# هدف الوقفة
+		var sf: Vector2 = stance_feet[i]
+		var stand := Vector3(sf.x + p.sway.x * 0.5, ANKLE_H, sf.y + p.sway.z * 0.5)
+		# هدف الجري
+		var c := fposmod(_gait + 0.5 * i, 1.0)
+		var along := 0.0
+		var lift := 0.0
+		var swing_s := 0.0
+		if c < duty:
+			along = stride * (0.5 - c / duty)
+		else:
+			swing_s = (c - duty) / (1.0 - duty)
+			var e := swing_s * swing_s * (3.0 - 2.0 * swing_s)
+			along = stride * (-0.5 + e)
+			lift = lift_h * sin(PI * swing_s) + 0.10 * run * sin(PI * minf(swing_s * 1.6, 1.0))
+		var base := Vector2(0.11 * sgn, 0.0).rotated(-yaw_h)
+		var run_t := Vector3(base.x + dir2.x * along, ANKLE_H + lift, base.y + dir2.y * along)
+		var tgt := stand.lerp(run_t, gait_w)
+		tgt.y += split_y * 0.9
+		if p.jp > 0.02:
+			tgt.y += p.jp * 0.85
+		# تنعيم خفيف لمنع القفزات
+		var fp: Vector3 = _foot_pos[i]
+		if dt > 0.0:
+			fp = fp.lerp(tgt, clampf(dt * 28.0, 0.0, 1.0))
+		else:
+			fp = tgt
+		_foot_pos[i] = fp
+		var knee_pole := bp * Vector3(0.22 * sgn, 0.0, -1.0)
+		var knee := _ik(hipj, fp, THIGH, SHIN, knee_pole)
+		var leg_dir := (fp - knee).normalized()
+		var ankle := knee + leg_dir * SHIN if (fp - hipj).length() > THIGH + SHIN - 0.004 else fp
+		_thigh[i].transform = Transform3D(_limb_basis((knee - hipj).normalized(), bp.z), hipj)
+		_shin[i].transform = Transform3D(_limb_basis(leg_dir, bp.z), knee)
+		# القدم: تتجه مع الحوض وتميل عند الرفع
+		var foot_yaw := yaw_h * 0.7 + (-0.18 * sgn)
+		var pitch := 0.0
+		if gait_w > 0.05 and swing_s > 0.0:
+			pitch = -0.9 * sin(PI * minf(swing_s * 1.4, 1.0)) * gait_w * clampf(speed / 5.0, 0.3, 1.0)
+		if p.jp > 0.03:
+			pitch = -0.6
+		_foot[i].transform = Transform3D(Basis(Vector3.UP, foot_yaw) * Basis(Vector3.RIGHT, pitch), ankle)
