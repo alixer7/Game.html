@@ -86,6 +86,11 @@ var _bounce_phase_prev := 0.0
 # --- المشي بين النقاط ---
 var _walk_target := Vector3.ZERO
 var _walking := false
+# --- التقاط الكرة من الأرض بين النقاط ---
+var _pickup_state := 0            # 0 لا شيء، 1 يمشي نحوها، 2 ينحني، 3 يمسكها
+var _pickup_t := 0.0
+var _pickup_keep := false
+var _pickup_throw := Vector3.ZERO
 
 
 func setup(p_idx: int, p_side: int, p_profile: Dictionary, rating_offset: float, p_ball: TennisBall, p_game: Node, human: bool) -> void:
@@ -103,6 +108,8 @@ func setup(p_idx: int, p_side: int, p_profile: Dictionary, rating_offset: float,
 	rig = PlayerRig.new()
 	add_child(rig)
 	rig.setup(profile["look"], hand, profile["body"], bool(profile["two_handed"]))
+	# أسلوب الإرسال: الأجسام الانفجارية تستخدم وقفة pinpoint، والكلاسيكية platform
+	rig.pinpoint = String(profile["body"]) in ["athlete", "power"]
 	ball.prediction_changed.connect(_on_prediction_changed)
 
 
@@ -145,6 +152,63 @@ func place(p: Vector3) -> void:
 	_walking = false
 
 
+## التقاط الكرة: keep = يحتفظ بها (المرسل التالي)، وإلا يرميها لجامع الكرات عند throw_target
+func start_pickup(keep: bool, throw_target: Vector3) -> void:
+	_pickup_state = 1
+	_pickup_t = 0.0
+	_pickup_keep = keep
+	_pickup_throw = throw_target
+	_walking = false
+
+
+func pickup_active() -> bool:
+	return _pickup_state == 1 or _pickup_state == 2 or (_pickup_state == 3 and not _pickup_keep)
+
+
+func cancel_pickup() -> void:
+	if _pickup_state == 3 and not _pickup_keep and ball.holder == self:
+		ball.throw_to(_pickup_throw, 0.8)
+	_pickup_state = 0
+
+
+func _update_pickup(dt: float) -> bool:
+	if _pickup_state == 0:
+		return false
+	_pickup_t += dt
+	match _pickup_state:
+		1:
+			# الوقوف بحيث تصل اليد الحرة إلى الكرة أمامه قليلاً
+			var off := Vector3(-0.22 * hand * side, 0.0, -0.34 * side)
+			var stand := Vector3(ball.st.pos.x, 0.0, ball.st.pos.z) - off
+			var dw := stand - position
+			dw.y = 0.0
+			if dw.length() < 0.10 or _pickup_t > 2.4:
+				_pickup_state = 2
+				_pickup_t = 0.0
+				want = Vector3.ZERO
+				rig.pickup_pt = to_local_pt(Vector3(ball.st.pos.x, BallPhysics.R, ball.st.pos.z))
+				rig.react(PlayerRig.React.PICKUP)
+			else:
+				want = (dw / 0.8).limit_length(0.85)
+			_move(dt, 0.32)
+		2:
+			want = Vector3.ZERO
+			_move(dt, 0.3)
+			if _pickup_t >= 0.52:
+				ball.hold(self)
+				_pickup_state = 3
+				_pickup_t = 0.0
+		3:
+			want = Vector3.ZERO
+			_move(dt, 0.3)
+			if _pickup_keep:
+				_pickup_state = 0
+			elif _pickup_t >= 0.75:
+				ball.throw_to(_pickup_throw, 0.85)
+				_pickup_state = 0
+	return true
+
+
 func walk_to(p: Vector3) -> void:
 	_walk_target = Vector3(p.x, 0.0, p.z)
 	_walking = true
@@ -157,22 +221,46 @@ func lock() -> void:
 		rig.set_ready(0.3)
 
 
-func react_point(won: bool, kind: String, big: bool) -> void:
+func react_point(won: bool, kind: String, big: bool, rally: int = 1) -> void:
+	var clay: bool = game != null and game.surface_id == Court.Surface.CLAY
+	var spent := stamina < 0.42 or breath > 0.62
 	if big and won:
 		rig.react(PlayerRig.React.ARMS_UP)
-	elif won:
-		if kind == "ace" or kind == "winner" or rng.randf() < 0.45:
+		return
+	# بعد تبادل طويل مرهق: اليدان على الركبتين (فوزاً أو خسارة) أحياناً
+	if spent and rng.randf() < 0.65:
+		rig.react(PlayerRig.React.TIRED)
+		return
+	var x := rng.randf()
+	if won:
+		if rally >= 12 and x < 0.4:
+			rig.react(PlayerRig.React.RACKET_UP)
+		elif kind == "ace" or kind == "winner" or kind == "body":
+			if x < 0.45:
+				rig.react(PlayerRig.React.FIST)
+			elif x < 0.75 and rally >= 4:
+				rig.react(PlayerRig.React.COME_ON)
+			elif x < 0.88:
+				rig.react(PlayerRig.React.STRINGS)
+		elif x < 0.30:
 			rig.react(PlayerRig.React.FIST)
-		elif rng.randf() < 0.5:
+		elif x < 0.55:
 			rig.react(PlayerRig.React.STRINGS)
+		elif x < 0.68 and clay:
+			rig.react(PlayerRig.React.SHOE_TAP)
 	else:
-		var x := rng.randf()
-		if x < 0.34:
+		if x < 0.22:
 			rig.react(PlayerRig.React.DEJECT)
-		elif x < 0.54:
+		elif x < 0.38:
+			rig.react(PlayerRig.React.HEAD_SHAKE)
+		elif x < 0.52:
 			rig.react(PlayerRig.React.HANDS_HIPS)
-		elif x < 0.80:
+		elif x < 0.62:
+			rig.react(PlayerRig.React.LOOK_UP)
+		elif x < 0.78:
 			rig.react(PlayerRig.React.STRINGS)
+		elif x < 0.88 and clay:
+			rig.react(PlayerRig.React.SHOE_TAP)
 		else:
 			rig.react(PlayerRig.React.WIPE)
 
@@ -228,8 +316,52 @@ func begin_prep(type: int) -> bool:
 	charge = 0.15
 	use_ai_target = false
 	ai_drop = false
+	_var_roll = rng.randf()
 	_refresh_prep_side(true)
 	return true
+
+
+var _var_roll := 0.5
+var swing_variant := 0
+
+
+## اختيار شكل الضربة حسب الموقف (كما يختار المحترف حركته): بُعد الكرة، ارتفاعها، سرعة الجري،
+## الوقت المتاح، ونوع الضربة الخلفية — مع تنويع عشوائي ثابت لكل ضربة بين الوقفة المفتوحة والمحايدة
+func _pick_variant(c: Dictionary, dtc: float) -> int:
+	if c.is_empty():
+		return PlayerRig.Var.NORMAL
+	var cp: Vector3 = c["pos"]
+	var lat := absf(float(c["lat"]))
+	var h := cp.y
+	var spd := Vector2(vel.x, vel.z).length()
+	var volley := int(c["bounces"]) == 0
+	var reach := reach_lat()
+	var fh := float(c["lat"]) >= -0.05
+	var two := bool(profile.get("two_handed", false))
+	if h > 2.05 and prep_type != Shot.Type.LOB:
+		return PlayerRig.Var.NORMAL
+	if volley:
+		if h < 0.62:
+			return PlayerRig.Var.LOW
+		if lat > reach * 0.78:
+			return PlayerRig.Var.STRETCH
+		return PlayerRig.Var.NORMAL
+	if lat > reach * 0.80:
+		return PlayerRig.Var.STRETCH
+	if h > 1.42 and (fh or two) and prep_type != Shot.Type.SLICE:
+		return PlayerRig.Var.JUMP
+	if h < 0.48:
+		return PlayerRig.Var.LOW
+	if spd > 3.6:
+		return PlayerRig.Var.RUN
+	if game.returning_serve(idx) and dtc < 0.55 and ball.st.vel.length() > 28.0:
+		return PlayerRig.Var.BLOCK
+	var p_open := 0.55 if fh else (0.3 if two else 0.08)
+	if dtc < 0.45:
+		p_open += 0.25
+	if lat > 1.0:
+		p_open += 0.2
+	return PlayerRig.Var.OPEN if _var_roll < p_open else PlayerRig.Var.NORMAL
 
 
 func cancel_prep() -> void:
@@ -258,7 +390,8 @@ func release_shot(q: float, tdir: float) -> bool:
 	_overhead = contact_pos.y > 2.05 and prep_type != Shot.Type.LOB
 	state = St.SWING
 	_state_t = t_now
-	rig.start_swing(stroke_side, prep_type, _volley and not _overhead, _overhead, maxf(dtc, 0.06), to_local_pt(contact_pos), Vector3(0, 0, -1))
+	swing_variant = _pick_variant(c, dtc)
+	rig.start_swing(stroke_side, prep_type, _volley and not _overhead, _overhead, maxf(dtc, 0.06), to_local_pt(contact_pos), Vector3(0, 0, -1), swing_variant)
 	if is_human:
 		swing_feedback.emit(_zone_name(q), q)
 	return true
@@ -282,6 +415,10 @@ func _whiff() -> void:
 	rig.start_swing(stroke_side, prep_type, false, false, SWING_TIME, nc, Vector3(0, 0, -1))
 	if is_human:
 		swing_feedback.emit("miss", 0.0)
+
+
+## زمن التلامس «الملتزم به» (يضبطه شريط التوقيت عند ظهوره) كي لا يقفز موعد الضربة أثناء اقتراب اللاعب
+var contact_pref_t := -1.0
 
 
 ## البحث عن أفضل لحظة تلامس في المسار المتوقع ضمن النافذة الزمنية
@@ -315,6 +452,8 @@ func find_contact(t_min: float, t_max: float) -> Dictionary:
 		var cf := Vector2(lx - FH_IDEAL.x, lz - FH_IDEAL.y).length()
 		var cb := Vector2(lx - BH_IDEAL.x, lz - BH_IDEAL.y).length() + 0.12
 		var c := minf(cf, cb) + absf(bp.y - 1.0) * 0.22
+		if contact_pref_t > 0.0:
+			c += absf(ball.pred_time(i) - contact_pref_t) * 2.5
 		if c < best_cost:
 			best_cost = c
 			best = i
@@ -348,18 +487,21 @@ func _refresh_prep_side(force: bool) -> void:
 	var s := stroke_side
 	var vol := false
 	var over := false
+	var vr := swing_variant
 	if not c.is_empty():
 		s = 1 if float(c["lat"]) >= -0.05 else -1
 		vol = int(c["bounces"]) == 0
 		over = (c["pos"] as Vector3).y > 2.05 and prep_type != Shot.Type.LOB
+		vr = _pick_variant(c, float(c["t"]) - now())
 	elif ball.mode == TennisBall.Mode.FREE:
 		var l := to_local_pt(ball.st.pos)
 		s = 1 if l.x * hand >= -0.1 else -1
-	if force or s != stroke_side or vol != _volley or over != _overhead:
+	if force or s != stroke_side or vol != _volley or over != _overhead or vr != swing_variant:
 		stroke_side = s
 		_volley = vol
 		_overhead = over
-		rig.set_prep(stroke_side, prep_type, _volley and not _overhead, _overhead)
+		swing_variant = vr
+		rig.set_prep(stroke_side, prep_type, _volley and not _overhead, _overhead, swing_variant)
 
 
 func _on_prediction_changed() -> void:
@@ -386,10 +528,19 @@ func start_serve(type: int) -> void:
 	tossed = false
 	_auto_release_t = -1.0
 	charge = 0.2
-	rig.serve_toss()
+	rig.serve_toss(_serve_style())
 
 
 ## تقدم شريط توقيت الإرسال: 0 عند الرمي، 1 آخر لحظة ممكنة
+func _serve_style() -> int:
+	match serve_type:
+		Shot.Type.SERVE_KICK:
+			return PlayerRig.ServeStyle.KICK
+		Shot.Type.SERVE_SLICE:
+			return PlayerRig.ServeStyle.SLICE
+	return PlayerRig.ServeStyle.FLAT
+
+
 func serve_bar_progress() -> float:
 	if state != St.SERVE_TOSS or not tossed:
 		return -1.0
@@ -797,7 +948,9 @@ func _physics_process(dt: float) -> void:
 	var t_now := now()
 	match state:
 		St.LOCKED:
-			if _walking:
+			if _update_pickup(dt):
+				pass
+			elif _walking:
 				var dw := _walk_target - position
 				dw.y = 0.0
 				if dw.length() < 0.12:
@@ -863,7 +1016,8 @@ func _physics_process(dt: float) -> void:
 				tossed = true
 				toss_t = t_now
 				var pr := ball_hand_pos()
-				var c := to_world_pt(Vector3(0.20 * hand, 2.70, -0.42))
+				var tt := PlayerRig.toss_target(_serve_style())
+				var c := to_world_pt(Vector3(tt.x * hand, tt.y, tt.z))
 				var v0 := (c - pr) / TOSS_FLIGHT + Vector3(0, 0.5 * BallPhysics.G * TOSS_FLIGHT, 0)
 				ball.toss(pr, v0)
 			if tossed:
@@ -891,6 +1045,8 @@ func _physics_process(dt: float) -> void:
 		want_alert = 1.0
 	rig.alert = move_toward(rig.alert, want_alert, dt * 2.6)
 	rig.fatigue = 1.0 - stamina
+	rig.exhaust = clampf(maxf(1.0 - fit(), breath * 0.8), 0.0, 1.0)
+	rig.sliding = sliding
 	_update_stamina(dt)
 	_update_catch()
 
@@ -1050,7 +1206,7 @@ func _apply_assist(preparing: bool) -> void:
 		if not _assist_plan.is_empty():
 			var dd: Vector3 = (_assist_plan["stand"] as Vector3) - position
 			dd.y = 0.0
-			want = (dd / 0.7).limit_length(1.0)
+			want = (dd / 0.7).limit_length(economic_pace(dd.length(), float(_assist_plan["t"]) - t_now))
 	else:
 		var c := find_contact(0.02, 0.9)
 		if not c.is_empty():
@@ -1062,6 +1218,15 @@ func _apply_assist(preparing: bool) -> void:
 			dd.y = 0.0
 			if dd.length() < 2.4:
 				want = (dd / 0.7).limit_length(0.75)
+
+
+## الجري الاقتصادي: اللاعب المحترف لا يعدو بأقصى سرعته إلا عند الحاجة — يحسب السرعة اللازمة للوصول
+## قبل الكرة بهامش صغير، فيوفّر لياقته في الكرات السهلة ويعدو في الصعبة
+func economic_pace(dist: float, t_left: float) -> float:
+	if dist < 0.3:
+		return 1.0
+	var need := dist / maxf(t_left - 0.22, 0.08)
+	return clampf(need / maxf(top_speed(), 1.0) * 1.25 + 0.12, 0.38, 1.0)
 
 
 ## أقصى سرعة جري حالية (تتأثر باللياقة)

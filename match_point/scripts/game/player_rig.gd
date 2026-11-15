@@ -13,7 +13,13 @@ const GRIP_B := 0.030         # إزاحة المقبض نحو باطن الكف
 
 enum Mode { READY, PREP, SWING, SERVE_STANCE, SERVE_TOSS, SERVE_SWING, REACT }
 enum Clip { FH_DRIVE, BH_DRIVE, FH_SLICE, BH_SLICE, FH_VOLLEY, BH_VOLLEY, OVERHEAD, BH2_DRIVE }
-enum React { NONE, FIST, ARMS_UP, DEJECT, HANDS_HIPS, BOUNCE, STRINGS, WIPE }
+enum React { NONE, FIST, ARMS_UP, DEJECT, HANDS_HIPS, BOUNCE, STRINGS, WIPE, TIRED, RACKET_UP, HEAD_SHAKE, LOOK_UP, SHOE_TAP, PICKUP, COME_ON }
+## أشكال متعددة لكل ضربة يختارها اللاعب حسب الموقف (كما يفعل المحترفون):
+## NORMAL وقفة محايدة، OPEN وقفة مفتوحة، STRETCH دفاعية ممدودة (اندفاع جانبي)، RUN ضربة أثناء الجري،
+## JUMP قفزة للكرة العالية، LOW كرة منخفضة بانثناء عميق، BLOCK ردّ مختصر (استقبال إرسال سريع)
+enum Var { NORMAL, OPEN, STRETCH, RUN, JUMP, LOW, BLOCK }
+## أساليب الإرسال: نوع الإرسال يغيّر مكان الرمية وانحناء الظهر والمتابعة، ووقفة القدمين حسب اللاعب
+enum ServeStyle { FLAT, SLICE, KICK }
 
 # أبعاد الجسم (تُقرأ من الهيكل العظمي)
 var STAND_HIP := 0.975
@@ -46,6 +52,7 @@ class Pose:
 	var off_curl := 0.25      # انقباض أصابع اليد الحرة
 	var off_pole := Vector3(-0.4, -0.8, 0.45)
 	var head_pitch := 0.0
+	var head_yaw := 0.0       # التفات إضافي للرأس (درجات) — هزّ الرأس مثلاً
 	var look_w := 1.0         # وزن متابعة الرأس للهدف (0 = الرأس حر حسب الوضعية)
 
 	func blend(o: Pose, w: float) -> Pose:
@@ -71,6 +78,7 @@ class Pose:
 		p.off_curl = lerpf(off_curl, o.off_curl, w)
 		p.off_pole = off_pole.lerp(o.off_pole, w)
 		p.head_pitch = lerpf(head_pitch, o.head_pitch, w)
+		p.head_yaw = lerpf(head_yaw, o.head_yaw, w)
 		p.look_w = lerpf(look_w, o.look_w, w)
 		return p
 
@@ -99,6 +107,13 @@ var hit_dir := Vector3(0, 0, -1)
 var serve_t := 0.0
 var react_id := React.NONE
 var react_t := 0.0
+var variant := Var.NORMAL
+var serve_style := ServeStyle.FLAT
+var pinpoint := false             # وقفة الإرسال: القدم الخلفية تنزلق نحو الأمامية (pinpoint) أو تبقى ثابتة (platform)
+var exhaust := 0.0                # 0..1 الإرهاق الظاهر (لهاث، انحناء، يدان على الركبتين بين النقاط)
+var sliding := 0.0                # 0..1 انزلاق على التراب
+var pickup_pt := Vector3.ZERO     # نقطة التقاط الكرة من الأرض (محلي)
+var _split_kind := 0
 var _gait := 0.0
 var _run_turn := 0.0
 var _time := 0.0
@@ -343,13 +358,14 @@ func set_ready(blend: float = 0.22) -> void:
 	mode = Mode.READY
 
 
-func set_prep(side: int, type: int, volley: bool, overhead: bool) -> void:
+func set_prep(side: int, type: int, volley: bool, overhead: bool, p_variant: int = Var.NORMAL) -> void:
 	var id := _clip_for(side, type, volley, overhead)
-	if mode == Mode.PREP and id == clip_id:
+	if mode == Mode.PREP and id == clip_id and p_variant == variant:
 		return
 	_start_blend(0.20)
 	mode = Mode.PREP
 	clip_id = id
+	variant = p_variant
 	lift = _lift_for(type)
 	clip_keys = _make_clip(id)
 	var nc := _nominal_contact(id)
@@ -357,11 +373,12 @@ func set_prep(side: int, type: int, volley: bool, overhead: bool) -> void:
 	prep_w = 0.0
 
 
-func start_swing(side: int, type: int, volley: bool, overhead: bool, time_to_contact: float, contact_local: Vector3, dir_local: Vector3) -> void:
+func start_swing(side: int, type: int, volley: bool, overhead: bool, time_to_contact: float, contact_local: Vector3, dir_local: Vector3, p_variant: int = Var.NORMAL) -> void:
 	var id := _clip_for(side, type, volley, overhead)
-	_start_blend(0.07 if mode == Mode.PREP and id == clip_id else 0.10)
+	_start_blend(0.07 if (mode == Mode.PREP and id == clip_id and p_variant == variant) else 0.11)
 	mode = Mode.SWING
 	clip_id = id
+	variant = p_variant
 	lift = _lift_for(type)
 	contact = contact_local
 	hit_dir = dir_local
@@ -380,10 +397,20 @@ func serve_stance() -> void:
 	mode = Mode.SERVE_STANCE
 
 
-func serve_toss() -> void:
+func serve_toss(style: int = ServeStyle.FLAT) -> void:
 	_start_blend(0.08)
 	mode = Mode.SERVE_TOSS
 	serve_t = 0.0
+	serve_style = style
+
+
+## مكان الرمية المثالي (محلي، لليد اليمنى) حسب نوع الإرسال:
+## المسطّح أمام الرأس قليلاً نحو اليمين، السلايس أبعد يميناً، الكيك فوق الرأس وخلفه قليلاً
+static func toss_target(style: int) -> Vector3:
+	match style:
+		ServeStyle.SLICE: return Vector3(0.36, 2.66, -0.36)
+		ServeStyle.KICK: return Vector3(0.02, 2.62, -0.10)
+	return Vector3(0.20, 2.72, -0.44)
 
 
 func serve_swing(time_to_contact: float, contact_local: Vector3, dir_local: Vector3) -> void:
@@ -392,13 +419,41 @@ func serve_swing(time_to_contact: float, contact_local: Vector3, dir_local: Vect
 	clip_id = Clip.OVERHEAD
 	contact = contact_local
 	hit_dir = dir_local
-	clip_keys = _make_clip(Clip.OVERHEAD)
+	variant = Var.NORMAL
+	clip_keys = _serve_keys()
 	clip_t = -time_to_contact
+
+
+## مفاتيح ضربة الإرسال حسب الأسلوب: الكيك بظهر أكثر تقوّساً وفرشاة صاعدة ومتابعة تنتهي على جهة اليد،
+## والسلايس بوجه مضرب مائل يلتف حول الكرة ومتابعة عبر الجسم
+func _serve_keys() -> Array:
+	var keys := _base_clip(Clip.OVERHEAD)
+	match serve_style:
+		ServeStyle.KICK:
+			keys[0]["lf"] = -20.0
+			keys[0]["turn"] = 108.0
+			keys[1]["lf"] = -12.0
+			keys[2]["ax"] = Vector3(-0.30, 0.95, -0.05).normalized()
+			keys[3]["g"] = Vector3(0.42, 1.62, -0.48)
+			keys[3]["ax"] = Vector3(0.65, -0.35, -0.67).normalized()
+			keys[3]["turn"] = 5.0
+			keys[4]["g"] = Vector3(0.40, 0.98, -0.20)
+			keys[4]["ax"] = Vector3(0.35, -0.85, 0.40).normalized()
+			keys[4]["turn"] = -15.0
+		ServeStyle.SLICE:
+			keys[0]["lf"] = -9.0
+			keys[2]["ax"] = Vector3(0.25, 0.96, -0.12).normalized()
+			keys[2]["nr"] = Vector3(-0.45, -0.1, -0.88).normalized()
+			keys[3]["turn"] = -32.0
+			keys[4]["turn"] = -58.0
+	return keys
 
 
 func split_step() -> void:
 	if _split_t < 0.0:
 		_split_t = 0.0
+		# قفزة انقسام متنوعة: عادية، قصيرة سريعة، أو عريضة منخفضة
+		_split_kind = randi() % 3
 
 
 func is_swinging() -> bool:
@@ -450,6 +505,61 @@ func _k(t: float, g: Variant, ax: Vector3, nr: Vector3, turn: float, hip: float,
 
 
 func _make_clip(id: int) -> Array:
+	return _apply_variant(_base_clip(id), id)
+
+
+## تعديل مفاتيح الحركة الأساسية حسب الشكل المختار (القيم مستوحاة من تحليل حركة المحترفين)
+func _apply_variant(keys: Array, id: int) -> Array:
+	if variant == Var.NORMAL or keys.is_empty():
+		return keys
+	var fh := id == Clip.FH_DRIVE or id == Clip.FH_SLICE or id == Clip.FH_VOLLEY
+	var sg := 1.0 if fh else -1.0
+	var vol := id == Clip.FH_VOLLEY or id == Clip.BH_VOLLEY
+	for k in keys:
+		var t: float = k["t"]
+		var pre := clampf(-t / 0.24, 0.0, 1.0)          # 1 أقصى التحضير ← 0 لحظة التلامس
+		var post := clampf(t / 0.32, 0.0, 1.0)          # 0 التلامس ← 1 نهاية المتابعة
+		var near := 1.0 - clampf(absf(t) / 0.16, 0.0, 1.0)
+		match variant:
+			Var.OPEN:
+				# وقفة مفتوحة: الحوض يحمل الالتفاف والوزن على القدم الخارجية، ثم انفجار دوراني أكبر
+				k["hip"] = float(k["hip"]) + (12.0 * pre - 16.0 * post) * sg
+				k["turn"] = float(k["turn"]) + (8.0 * pre - 10.0 * post) * sg
+				k["cr"] = float(k["cr"]) + 0.12 * pre + 0.05
+				k["sw"] = (k["sw"] as Vector3) + Vector3((0.08 * pre - 0.05 * post) * sg, 0.0, 0.02 * pre)
+			Var.STRETCH:
+				# دفاعية: تحضير قصير، انثناء عميق على الساق الخارجية، الجذع يميل نحو الكرة، متابعة مختصرة
+				k["cr"] = float(k["cr"]) + 0.32 * near + 0.18
+				k["lf"] = float(k["lf"]) + 7.0
+				k["turn"] = float(k["turn"]) * (0.72 if t < 0.0 else 0.55)
+				k["hip"] = float(k["hip"]) * 0.65
+			Var.RUN:
+				# ضربة أثناء الجري: الساقان تواصلان الخطو والجذع يلتف أقل
+				k["turn"] = float(k["turn"]) * 0.78
+				k["hip"] = float(k["hip"]) * 0.55
+				k["cr"] = float(k["cr"]) * 0.65
+				k["lf"] = float(k["lf"]) + 4.0
+			Var.JUMP:
+				# قفزة للكرة العالية: انثناء قبل الإقلاع، ذروة عند التلامس، هبوط مرن على القدمين
+				var jt := clampf((t + 0.12) / 0.12, 0.0, 1.0)
+				var jd := clampf(1.0 - (t - 0.02) / 0.22, 0.0, 1.0)
+				k["jp"] = float(k["jp"]) + 0.24 * jt * jd if t > -0.12 else float(k["jp"])
+				k["cr"] = float(k["cr"]) + (0.22 if t < -0.10 else (0.0 if t < 0.2 else 0.28))
+				k["turn"] = float(k["turn"]) + 6.0 * sg * pre
+			Var.LOW:
+				# كرة منخفضة: الركبتان تنثنيان بعمق والظهر شبه مستقيم، ورأس المضرب تحت الكرة
+				k["cr"] = float(k["cr"]) + 0.38 * near + 0.18
+				k["lf"] = float(k["lf"]) + 5.0 * near
+			Var.BLOCK:
+				# ردّ مختصر (استقبال إرسال سريع/كرة مندفعة): التفاف أقل ومتابعة قصيرة
+				k["turn"] = float(k["turn"]) * (0.62 if t < 0.0 else 0.7)
+				k["hip"] = float(k["hip"]) * 0.6
+		if vol and variant == Var.LOW:
+			k["nr"] = ((k["nr"] as Vector3) + Vector3(0, 0.35 * near, 0)).normalized()
+	return keys
+
+
+func _base_clip(id: int) -> Array:
 	var L := lift
 	match id:
 		Clip.FH_DRIVE:
@@ -589,7 +699,24 @@ func _key_pose(k: Dictionary, id: int) -> Pose:
 	var fs := _stance_feet(id)
 	p.foot_l = fs[0]
 	p.foot_r = fs[1]
+	# --- تعديلات الشكل على مسار المضرب ---
+	var kt: float = float(k["t"])
+	if k["g"] != null and id != Clip.OVERHEAD:
+		match variant:
+			Var.STRETCH, Var.BLOCK:
+				# تحضير ومتابعة أقصر: القبضة أقرب إلى منطقة التلامس
+				var cmp := 0.38 if variant == Var.STRETCH else 0.45
+				p.grip = c_grip.lerp(p.grip, 1.0 - cmp * clampf(absf(kt) / 0.24, 0.0, 1.0))
+			Var.LOW:
+				if kt < 0.0:
+					p.grip.y -= 0.12 * clampf(-kt / 0.11, 0.0, 1.0)     # إسقاط رأس المضرب تحت الكرة
+	if variant == Var.RUN:
+		p.stance = 0.3
+	elif variant == Var.JUMP:
+		p.stance = 0.8
 	# اندفاع جانبي (لانج) للكرات البعيدة: القدم الخارجية تخطو بعيداً والركبة تنثني بعمق
+	if variant == Var.STRETCH:
+		ext = maxf(ext, 0.55)
 	if id != Clip.OVERHEAD and ext > 0.22:
 		var e := clampf((ext - 0.22) / 0.9, 0.0, 1.0) * wk
 		var dxs := 0.55 * e * signf(contact.x)
@@ -643,9 +770,35 @@ func _stance_feet(id: int) -> Array:
 		Clip.FH_DRIVE, Clip.FH_SLICE, Clip.FH_VOLLEY:
 			a = Vector2(-0.22, -0.26)      # القدم المعاكسة لليد
 			b = Vector2(0.31, 0.17)        # قدم جهة اليد
+			match variant:
+				Var.OPEN, Var.STRETCH:
+					a = Vector2(-0.30, -0.02)
+					b = Vector2(0.36, 0.08)
+				Var.JUMP:
+					a = Vector2(-0.16, -0.06)
+					b = Vector2(0.20, 0.10)
+				Var.LOW:
+					a = Vector2(-0.30, -0.30)
+					b = Vector2(0.40, 0.20)
+				Var.BLOCK:
+					a = Vector2(-0.26, -0.10)
+					b = Vector2(0.30, 0.06)
 		Clip.BH_DRIVE, Clip.BH_SLICE, Clip.BH_VOLLEY, Clip.BH2_DRIVE:
 			a = Vector2(-0.20, 0.28)
 			b = Vector2(0.02, -0.40)
+			match variant:
+				Var.OPEN, Var.STRETCH:
+					a = Vector2(-0.36, 0.06)
+					b = Vector2(0.28, -0.02)
+				Var.JUMP:
+					a = Vector2(-0.18, 0.10)
+					b = Vector2(0.14, -0.08)
+				Var.LOW:
+					a = Vector2(-0.30, 0.32)
+					b = Vector2(0.10, -0.46)
+				Var.BLOCK:
+					a = Vector2(-0.30, 0.12)
+					b = Vector2(0.20, -0.16)
 		_:
 			a = Vector2(-0.09, -0.21)
 			b = Vector2(0.19, 0.23)
@@ -891,13 +1044,127 @@ func _react_pose(t: float) -> Pose:
 			p.off_curl = 0.3
 			p.head_pitch = 14.0
 			p.look_w = 0.0
+		React.TIRED:
+			# منهك: يدان على الركبتين، ظهر منحنٍ، صدر يعلو ويهبط بسرعة
+			var hv := sin(_time * 4.2) * 0.5 + 0.5
+			p.cr = 0.32 + 0.02 * hv
+			p.lf = 44.0 + 3.0 * hv
+			p.foot_l = Vector2(-0.20, 0.04)
+			p.foot_r = Vector2(0.20, 0.04)
+			var cf8 := _chest_frame(p)
+			var knee_y := STAND_HIP - 0.22 * p.cr - THIGH * 0.95
+			p.lhand = Vector3(-0.14 * hand, knee_y + 0.05, -0.20)
+			p.grip = Vector3(0.15 * hand, knee_y + 0.06, -0.22)
+			p.axis = (cf8.basis * Vector3(0.25 * hand, -0.55, -0.80)).normalized()
+			p.nrm = (cf8.basis * Vector3(hand, 0.0, 0.0)).normalized()
+			p.pole = Vector3(0.7 * hand, 0.1, 0.7)
+			p.off_pole = Vector3(-0.7 * hand, 0.1, 0.7)
+			p.off_curl = 0.25
+			p.head_pitch = 6.0
+			p.look_w = 0.15
+		React.RACKET_UP:
+			# رفع المضرب تحيةً للجمهور بعد نقطة طويلة
+			var up_k := smoothstep(0.0, 0.45, t) * (1.0 - smoothstep(1.6, 2.1, t))
+			p.cr = 0.06
+			p.lf = -3.0 * up_k
+			var cf9 := _chest_frame(p)
+			p.grip = cf9 * Vector3(0.24 * hand, -0.30 + 0.92 * up_k, -0.06 - 0.10 * up_k)
+			p.axis = (cf9.basis * Vector3(0.05 * hand, lerpf(-0.4, 1.0, up_k), lerpf(-0.9, 0.05, up_k))).normalized()
+			p.nrm = (cf9.basis * Vector3(0, 0, -1)).normalized()
+			p.pole = Vector3(0.9 * hand, -0.1, 0.4)
+			p.lhand = cf9 * Vector3(-0.24 * hand, -0.42, 0.02)
+			p.off_curl = 0.4
+			p.head_pitch = -14.0 * up_k
+			p.look_w = 0.3
+		React.HEAD_SHAKE:
+			# هزّ الرأس بخيبة والمضرب يتدلى
+			p.cr = 0.08
+			p.lf = 8.0
+			var cf10 := _chest_frame(p)
+			p.grip = cf10 * Vector3(0.25 * hand, -0.50, 0.0)
+			p.axis = (cf10.basis * Vector3(0.05 * hand, -0.9, -0.35)).normalized()
+			p.nrm = (cf10.basis * Vector3(hand, 0, 0)).normalized()
+			p.lhand = cf10 * Vector3(-0.24 * hand, -0.48, 0.03)
+			p.off_curl = 0.3
+			p.head_yaw = 24.0 * sin(t * 9.0) * (1.0 - smoothstep(0.5, 1.4, t))
+			p.head_pitch = 16.0
+			p.look_w = 0.0
+		React.LOOK_UP:
+			# النظر إلى السماء واليد على الرأس
+			var lk := smoothstep(0.0, 0.5, t)
+			p.cr = 0.05
+			p.lf = -4.0 * lk
+			var cf11 := _chest_frame(p)
+			p.grip = cf11 * Vector3(0.24 * hand, -0.48, 0.02)
+			p.axis = (cf11.basis * Vector3(0.05 * hand, -0.9, -0.3)).normalized()
+			p.nrm = (cf11.basis * Vector3(hand, 0, 0)).normalized()
+			p.lhand = cf11 * Vector3(-0.08 * hand, 0.42 * lk - 0.40 * (1.0 - lk), -0.02)
+			p.off_pole = Vector3(-0.9 * hand, 0.3, 0.2)
+			p.off_curl = 0.35
+			p.head_pitch = -30.0 * lk
+			p.look_w = 0.0
+		React.SHOE_TAP:
+			# طرق إطار المضرب على جانب الحذاء (عادة لاعبي التراب)
+			var tap := absf(sin(t * 7.5)) * (1.0 - smoothstep(1.6, 2.0, t))
+			p.cr = 0.32
+			p.lf = 28.0
+			p.foot_l = Vector2(-0.24, -0.05)
+			p.foot_r = Vector2(0.16, 0.06)
+			var cf12 := _chest_frame(p)
+			var shoe := Vector3(-0.34 * hand, 0.10, -0.08)
+			p.grip = shoe + Vector3(0.18 * hand, 0.42 + 0.05 * tap, 0.02)
+			p.axis = (shoe - p.grip).normalized()
+			p.nrm = Vector3(hand, 0.0, 0.0)
+			p.pole = Vector3(0.8 * hand, -0.2, 0.5)
+			p.lhand = cf12 * Vector3(-0.10 * hand, -0.40, -0.18)
+			p.off_curl = 0.4
+			p.head_pitch = 30.0
+			p.look_w = 0.0
+		React.PICKUP:
+			# التقاط الكرة من الأرض: انثناء الركبتين والجذع، اليد الحرة تصل للكرة ثم ينهض
+			var dn := smoothstep(0.0, 0.42, t) * (1.0 - smoothstep(0.62, 1.05, t))
+			p.cr = 0.10 + 1.75 * dn
+			p.lf = 4.0 + 52.0 * dn
+			var pk := pickup_pt
+			# القدم المقابلة لليد الحرة تتقدم قليلاً والأخرى تتأخر (وقفة القرفصاء الطبيعية)
+			p.foot_l = Vector2(-0.20, 0.10 * hand)
+			p.foot_r = Vector2(0.20, -0.10 * hand)
+			var cf13 := _chest_frame(p)
+			# يد المضرب تتدلى بجانب الركبة (بإحداثيات الجسم لا الصدر المنحني)
+			p.grip = Vector3(0.32 * hand, lerpf(0.52, 0.34, dn), lerpf(0.0, -0.26, dn))
+			p.axis = Vector3(0.12 * hand, -0.55, -0.83).normalized()
+			p.nrm = Vector3(hand, 0.0, 0.0)
+			p.pole = Vector3(0.8 * hand, 0.0, 0.6)
+			var rest_l := cf13 * Vector3(-0.22 * hand, -0.30, -0.18)
+			p.lhand = rest_l.lerp(pk + Vector3(0, 0.05, 0), dn)
+			p.off_pole = Vector3(-0.5 * hand, -0.6, 0.6)
+			p.off_curl = lerpf(0.15, 0.6, smoothstep(0.45, 0.6, t))
+			p.head_pitch = 30.0 * dn
+			p.look_w = 0.4
+		React.COME_ON:
+			# «هيّا!»: انحناء متفجر وقبضة مشدودة نحو الصدر والمضرب ممدود جانباً
+			var pmp := smoothstep(0.0, 0.18, t) * (1.0 - smoothstep(1.2, 1.6, t))
+			p.cr = 0.48 * pmp + 0.08
+			p.lf = 20.0 * pmp
+			p.foot_l = Vector2(-0.26, 0.02)
+			p.foot_r = Vector2(0.26, 0.02)
+			var cf14 := _chest_frame(p)
+			p.grip = cf14 * Vector3(0.40 * hand, -0.20, -0.12)
+			p.axis = (cf14.basis * Vector3(0.6 * hand, -0.3, -0.7)).normalized()
+			p.nrm = (cf14.basis * Vector3(0, 0.2, -1)).normalized()
+			p.lhand = cf14 * Vector3(-0.10 * hand, -0.06 + 0.06 * sin(minf(t, 1.1) * 14.0), -0.24)
+			p.off_pole = Vector3(-0.6 * hand, -0.8, 0.0)
+			p.off_curl = 1.0
+			p.head_pitch = -6.0
+			p.look_w = 0.0
 	p.offgrip = 0.0
 	if react_id == React.DEJECT or react_id == React.HANDS_HIPS or react_id == React.BOUNCE:
 		p.look_w = 0.0
 	elif react_id == React.FIST or react_id == React.ARMS_UP:
 		p.look_w = 0.25
 	# الحركات القصيرة تنتهي بوضعية الحمل المسترخية
-	var endt := {React.FIST: 1.5, React.STRINGS: 3.2, React.WIPE: 1.35}
+	var endt := {React.FIST: 1.5, React.STRINGS: 3.2, React.WIPE: 1.35, React.RACKET_UP: 2.2, React.HEAD_SHAKE: 1.6,
+		React.LOOK_UP: 2.0, React.SHOE_TAP: 2.1, React.PICKUP: 1.15, React.COME_ON: 1.6}
 	if endt.has(react_id) and t > float(endt[react_id]):
 		var q := Pose.new()
 		q.cr = 0.07
@@ -932,23 +1199,35 @@ func _serve_stance_pose() -> Pose:
 
 func _serve_toss_pose(t: float) -> Pose:
 	var up := Vector3(0.9, -0.15, 0.5)
+	var tt := toss_target(serve_style)
+	# اليد الحرة ترتفع نحو مكان الرمية (يختلف بين المسطّح والسلايس والكيك)
+	var toss_hand := Vector3(-0.02 + 0.5 * (tt.x - 0.20), 1.95, -0.44 + 0.6 * (tt.z + 0.44))
+	var arch: float = {ServeStyle.FLAT: -10.0, ServeStyle.SLICE: -8.0, ServeStyle.KICK: -20.0}[serve_style]
+	var trn: float = {ServeStyle.FLAT: 95.0, ServeStyle.SLICE: 92.0, ServeStyle.KICK: 108.0}[serve_style]
 	var keys := [
 		_k(0.0, Vector3(0.10, 1.04, -0.28), Vector3(-0.2, 0.4, -0.9), Vector3(0.9, 0.2, -0.2), 75, 72, 0.14, Vector3(-0.04, 1.08, -0.40), {"lf": 3.0}),
 		_k(0.25, Vector3(0.30, 0.82, 0.10), Vector3(0.1, -0.6, -0.8), Vector3(0.9, 0.1, -0.3), 78, 72, 0.22, Vector3(-0.04, 0.98, -0.42), {"lf": 5.0}),
-		_k(0.45, Vector3(0.50, 0.98, 0.38), Vector3(0.3, -0.2, 0.93), Vector3(0.9, 0.0, -0.4), 85, 72, 0.28, Vector3(-0.02, 1.95, -0.44), {"lf": 0.0, "pole": up}),
-		_k(0.80, Vector3(0.42, 1.60, 0.26), Vector3(-0.10, 0.97, 0.05), Vector3(0.9, 0.1, -0.4), 95, 70, 0.66, Vector3(-0.02, 2.08, -0.40), {"lf": -10.0, "pole": up, "sw": Vector3(0, 0, -0.06)}),
+		_k(0.45, Vector3(0.50, 0.98, 0.38), Vector3(0.3, -0.2, 0.93), Vector3(0.9, 0.0, -0.4), 85, 72, 0.28, toss_hand, {"lf": 0.0, "pole": up}),
+		_k(0.80, Vector3(0.42, 1.60, 0.26), Vector3(-0.10, 0.97, 0.05), Vector3(0.9, 0.1, -0.4), trn, 70, 0.66, toss_hand + Vector3(0, 0.13, 0.04), {"lf": arch, "pole": up, "sw": Vector3(0, 0, -0.06)}),
 	]
 	var saved := clip_keys
 	var saved_id := clip_id
 	var saved_contact := contact
 	clip_keys = keys
 	clip_id = Clip.OVERHEAD
-	contact = Vector3(0.20 * hand, 2.70, -0.42)
+	contact = Vector3(tt.x * hand, tt.y, tt.z)
 	var p := _sample_clip(t)
 	clip_keys = saved
 	clip_id = saved_id
 	contact = saved_contact
 	p.off_curl = 0.3 if t < 0.45 else 0.1
+	# وقفة «pinpoint»: القدم الخلفية تنزلق لتلتصق بالأمامية أثناء الرمية فيدفع اللاعب بالقدمين معاً
+	if pinpoint:
+		var k := smoothstep(0.28, 0.62, t)
+		if hand > 0:
+			p.foot_r = p.foot_r.lerp(p.foot_l + Vector2(0.17, 0.12), k)
+		else:
+			p.foot_l = p.foot_l.lerp(p.foot_r + Vector2(-0.17, 0.12), k)
 	return p
 
 
@@ -1316,6 +1595,12 @@ func _feet_step(p: Pose, dt: float, yaw_h: float, speed: float, gait_w: float, r
 			locs[i] = Vector2(l3c.x, l3c.z)
 			pos = Vector3(l3c.x, ANKLE_H + lift, l3c.z)
 		else:
+			if sliding > 0.25:
+				# أثناء الانزلاق تتحرك القدم المثبّتة مع الجسم بدل أن تبقى في مكانها
+				var mv := xf.basis * Vector3(move_vel.x, 0.0, move_vel.z) * dt * clampf(sliding * 1.2, 0.0, 1.0)
+				_fw[i] = (_fw[i] as Vector3) + mv
+				var l3s: Vector3 = inv * (_fw[i] as Vector3)
+				locs[i] = Vector2(l3s.x, l3s.z)
 			var l2: Vector2 = locs[i]
 			var lift2 := 0.0
 			if moving:
@@ -1351,16 +1636,19 @@ func _apply(p: Pose, dt: float) -> void:
 	var split_y := 0.0
 	var split_cr := 0.0
 	if _split_t >= 0.0:
-		if _split_t < 0.24:
-			split_y = 0.055 * sin(PI * _split_t / 0.24)
+		var hop: float = [0.055, 0.035, 0.07][_split_kind]
+		var air_t: float = [0.24, 0.18, 0.26][_split_kind]
+		if _split_t < air_t:
+			split_y = hop * sin(PI * _split_t / air_t)
 		else:
-			split_cr = 0.22 * sin(PI * (_split_t - 0.24) / 0.18)
+			split_cr = [0.22, 0.16, 0.30][_split_kind] * sin(PI * clampf((_split_t - air_t) / 0.18, 0.0, 1.0))
 	if dt <= 0.0:
 		_stride_sig = cos(_gait * TAU) * gait_w
 
 	# --- الجذع ---
 	var sg := _stride_sig
-	var breath := sin(_time * lerpf(1.6, 3.4, fatigue)) * lerpf(0.004, 0.012, fatigue)
+	var bk := maxf(fatigue, exhaust)
+	var breath := sin(_time * lerpf(1.6, 3.8, bk)) * lerpf(0.004, 0.018, bk)
 	# اهتزاز المشي: الأدنى عند تباعد القدمين (مشي) والأعلى في طور الطيران (جري)
 	var bob_t := gait_w * (0.016 * (1.0 - 2.0 * absf(sg)) * (1.0 - run) + 0.026 * (2.0 * absf(sg) - 1.0) * run)
 	_bob = bob_t if dt <= 0.0 else lerpf(_bob, bob_t, clampf(dt * 14.0, 0.0, 1.0))
@@ -1369,7 +1657,14 @@ func _apply(p: Pose, dt: float) -> void:
 	var lean_run_f := clampf(-move_vel.z / 7.0, -0.6, 1.0) * 9.0 * (1.0 - p.stance * 0.5) + balance.y * 14.0 + clampf(-_acc.z, -12.0, 12.0) * 0.9
 	var lean_run_s := clampf(move_vel.x / 7.0, -1.0, 1.0) * 8.0 * (1.0 - p.stance * 0.5) + balance.x * 16.0 + clampf(_acc.x, -12.0, 12.0) * 0.6
 	var pc := p.blend(p, 0.0)
-	pc.cr += split_cr + 0.16 * _brake
+	pc.cr += split_cr + 0.16 * _brake + 0.42 * sliding
+	# الإرهاق: انحناء أكبر للجذع ورأس أثقل، ويخف التأهب
+	pc.lf += 7.0 * exhaust * (1.0 - p.stance * 0.6)
+	pc.head_pitch += 8.0 * exhaust * (1.0 - alert * 0.7)
+	# الانزلاق على التراب: الساق الأمامية ممدودة والجذع يميل للخلف قليلاً
+	if sliding > 0.01:
+		pc.lf -= 6.0 * sliding
+		pc.sway.z += 0.10 * sliding
 	# دوران الحوض مع الخطوة ودوران الصدر المعاكس له
 	pc.hip += sg * 7.0 * hand * gait_w
 	pc.turn -= sg * 6.0 * hand * gait_w
@@ -1430,7 +1725,7 @@ func _apply(p: Pose, dt: float) -> void:
 			yaw_t = (signf(_head_yaw) if absf(_head_yaw) > 0.2 else signf(yaw_t)) * 1.15
 		yaw_t = clampf(yaw_t, -1.15, 1.15)
 		pitch_t = clampf(pitch_t, -0.55, 0.85)
-	yaw_t *= p.look_w
+	yaw_t = yaw_t * p.look_w + deg_to_rad(p.head_yaw)
 	pitch_t = pitch_t * p.look_w - deg_to_rad(p.head_pitch)
 	var hy := _damp(_head_yaw, yaw_t, _head_vy, 0.085, 7.5, dt)
 	var hp := _damp(_head_pitch, pitch_t, _head_vp, 0.085, 6.0, dt)

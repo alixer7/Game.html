@@ -105,6 +105,10 @@ func start_pos(idx: int) -> Vector3:
 func _begin_point() -> void:
 	phase = Phase.PRE_POINT
 	_phase_t = 0.0
+	_pickup_checked = false
+	var srv_has_ball: bool = ball.mode == TennisBall.Mode.HELD and ball.holder == players[server()]
+	for p in players:
+		p.cancel_pickup()
 	last_hitter = -1
 	bounces = 0
 	serve_in_flight = false
@@ -124,7 +128,7 @@ func _begin_point() -> void:
 			players[i].place(start_pos(i))
 		else:
 			players[i].walk_to(start_pos(i))
-	_fed = _first_point or fast or fault_count > 0
+	_fed = _first_point or fast or fault_count > 0 or srv_has_ball
 	_first_point = false
 	if _fed:
 		ball.hold(players[server()])
@@ -133,6 +137,36 @@ func _begin_point() -> void:
 		ball.st.pos = _kid_pos()
 	_update_pressure()
 	_update_wind()
+
+
+## إن توقفت الكرة قرب أحد اللاعبين بعد النقطة يلتقطها بنفسه: المرسل التالي يحتفظ بها، والآخر يرميها لجامع الكرات
+var _pickup_checked := false
+
+
+func _maybe_pickup() -> void:
+	if _pickup_checked or _phase_t < 1.0:
+		return
+	if ball.mode != TennisBall.Mode.FREE or ball.st.pos.y > 0.12 or Vector2(ball.st.vel.x, ball.st.vel.z).length() > 1.3:
+		if _phase_t > 2.0:
+			_pickup_checked = true
+		return
+	_pickup_checked = true
+	var best := -1
+	var best_d := 4.2
+	for i in 2:
+		var p := players[i]
+		if ball.st.pos.z * p.side < 0.4:
+			continue
+		var dd := Vector2(ball.st.pos.x - p.position.x, ball.st.pos.z - p.position.z).length()
+		if dd < best_d:
+			best_d = dd
+			best = i
+	if best < 0:
+		return
+	var nxt_srv := server()
+	var keep := best == nxt_srv and _next_action != "second" and _next_action != "match"
+	var kid := Vector3(9.0 * (signf(ball.st.pos.x) if absf(ball.st.pos.x) > 0.5 else 1.0), 1.1, players[best].side * (Court.HALF_LENGTH + 5.6))
+	players[best].start_pickup(keep, kid)
 
 
 func _kid_pos() -> Vector3:
@@ -205,6 +239,11 @@ func _physics_process(dt: float) -> void:
 				_end_point(1 - last_hitter, "out")
 		Phase.POINT_OVER:
 			var wait2 := 0.05 if fast else (3.4 if (_pending_ev.get("game", false)) else 2.6)
+			if not fast:
+				_maybe_pickup()
+				for p in players:
+					if p.pickup_active() and _phase_t < wait2 + 1.6:
+						wait2 = _phase_t + 0.1
 			if _change_pending and not fast:
 				wait2 = 5.0
 			if _next_action == "second" or _next_action == "let":
@@ -398,8 +437,8 @@ func _end_point(winner: int, reason: String) -> void:
 		if fast:
 			players[i].simulate_rest(rest_s)
 	if not fast:
-		players[winner].react_point(true, reason, ev["match"])
-		players[loser].react_point(false, reason, false)
+		players[winner].react_point(true, reason, ev["match"], rally_hits + 1)
+		players[loser].react_point(false, reason, false, rally_hits + 1)
 	if OS.has_environment("MP_QTE"):
 		print("POINT ", reason, " winner=", winner, " rally=", rally_hits + 1)
 	if OS.has_environment("MP_ERR") and (reason == "out" or reason == "net"):

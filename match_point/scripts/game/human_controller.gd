@@ -104,6 +104,7 @@ func _stop_bar(p: float) -> void:
 
 func _end_bar(immediate: bool) -> void:
 	_bar_on = false
+	player.contact_pref_t = -1.0
 	if immediate:
 		bar.hide_bar()
 		_bar_hide_t = 0.0
@@ -170,6 +171,7 @@ func _update_bar(dt: float) -> void:
 		if _bar_hide_t <= 0.0:
 			bar.hide_bar()
 			_bar_on = false
+			player.contact_pref_t = -1.0
 		return
 	# --- الإرسال: الشريط يتبع رمية الكرة ---
 	if st == TennisPlayer.St.SERVE_TOSS:
@@ -191,6 +193,9 @@ func _update_bar(dt: float) -> void:
 	# --- الضربات ---
 	var t_now := player.now()
 	var c := player.find_contact(0.02, 3.0)
+	if c.is_empty() and player.contact_pref_t > 0.0:
+		player.contact_pref_t = -1.0
+		c = player.find_contact(0.02, 3.0)
 	if c.is_empty():
 		if _bar_on and not bar.stopped:
 			_end_bar(true)
@@ -204,14 +209,16 @@ func _update_bar(dt: float) -> void:
 			_bar_end = end_t
 			_bar_p = 0.0
 			_bar_key = _stroke_key(c)
+			player.contact_pref_t = float(c["t"])
 			# التعب يضيّق المنطقة الخضراء
 			bar.start(PlayerProfile.green_width(player.r, _bar_key) * lerpf(0.6, 1.0, player.fit()))
 			if OS.has_environment("MP_QTE"):
-				print("QTE start dist=", snappedf(dist, 0.1), " dur=", snappedf(end_t - t_now, 0.01), " state=", player.state)
+				print("QTE start dist=", snappedf(dist, 0.1), " dur=", snappedf(end_t - t_now, 0.01), " state=", player.state, " gw=", snappedf(bar.green_w, 0.001), " fit=", snappedf(player.fit(), 0.01), " st=", snappedf(player.stamina, 0.01), " key=", _bar_key)
 		return
 	if bar.stopped:
 		return
 	_bar_end = lerpf(_bar_end, end_t, 0.35)
+	player.contact_pref_t = float(c["t"])
 	var p := (t_now - _bar_t0) / maxf(_bar_end - _bar_t0, 0.05)
 	_bar_p = maxf(_bar_p, p)
 	bar.progress = _bar_p

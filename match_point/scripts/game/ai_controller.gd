@@ -131,8 +131,8 @@ func _track_ball() -> void:
 	var stand: Vector3 = _plan["stand"]
 	var d := stand - player.position
 	d.y = 0.0
-	player.want = (d / 0.5).limit_length(1.0)
 	var t_left: float = float(_plan["t"]) - t_now
+	player.want = (d / 0.5).limit_length(player.economic_pace(d.length(), t_left))
 	if player.state != TennisPlayer.St.PREP and t_left < 0.8 and player.can_prep():
 		_choose_shot()
 		if player.begin_prep(_shot["type"]):

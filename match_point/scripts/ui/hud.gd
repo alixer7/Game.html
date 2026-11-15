@@ -38,6 +38,7 @@ var _strip_base := ""
 var _strip_base_col := Color(0.86, 0.30, 0.16)
 var _strip_speed := ""
 var _strip_a := 0.0
+var _comfort_t := 0.0
 
 
 func _ready() -> void:
@@ -353,10 +354,27 @@ func _update_gauges() -> void:
 	qte.anchor_feet = cam.unproject_position(hp)
 	qte.anchor_side = cam.unproject_position(hp + Vector3(0, 1.1, 0)) + Vector2(52.0, 0.0)
 	qte.stamina = human.stamina
+	qte.stamina_cap = human.stamina_cap
+	qte.recovering = human.rest_t > 1.0 and human.stamina < human.stamina_cap - 0.01 and not human.ball.in_play
 	qte.show_stamina = game.phase != TennisMatch.Phase.MATCH_OVER
 	var st := human.state
 	qte.charging = st == TennisPlayer.St.PREP or (st == TennisPlayer.St.SERVE_TOSS)
 	qte.charge = human.charge
+	# علامة القوة المريحة على دائرة الشحن: بعدها تبدأ الكرة بالطول ويقل التحكم (حسب تقييم القوة واللياقة)
+	if st == TennisPlayer.St.PREP:
+		_comfort_t -= get_process_delta_time()
+		if _comfort_t <= 0.0:
+			_comfort_t = 0.12
+			var c := human.find_contact(0.02, 1.6)
+			var v_in: float = human.ball.pred_vel[int(c["i"])].length() if not c.is_empty() else human.ball.st.vel.length()
+			var vol: bool = not c.is_empty() and int(c["bounces"]) == 0
+			var eff := human.effective_type(human.prep_type, (c["pos"] as Vector3).y if not c.is_empty() else 1.0, vol, false)
+			qte.comfort = human.comfort_power(eff, v_in, 0.0, vol)
+	elif st == TennisPlayer.St.SERVE_TOSS:
+		var eff_s := 0.70 + 0.22 * PlayerProfile.t(human.r, "serve_pow") + 0.06 * (PlayerProfile.t(human.r, "serve_acc") - 0.6) - 0.15 * (1.0 - human.fit())
+		qte.comfort = clampf((eff_s - 0.55) / 0.45, 0.0, 1.0)
+	else:
+		qte.comfort = -1.0
 
 
 func _draw_stamina() -> void:

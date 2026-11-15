@@ -57,6 +57,7 @@ func _ready() -> void:
 			if a.begins_with("--camz="): Settings.data["cam_zoom"] = int(a.split("=")[1])
 			if a.begins_with("--quality="): Settings.data["quality"] = int(a.split("=")[1])
 			if a.begins_with("--fbskill="): _fb_sigma = float(a.split("=")[1])
+			if a.begins_with("--fblead="): _fb_lead = float(a.split("=")[1])
 			if a.begins_with("--p0="): Settings.data["player_id"] = a.split("=")[1]
 			if a.begins_with("--p1="): Settings.data["opponent_id"] = a.split("=")[1]
 			if a.begins_with("--wind="): Settings.data["wind"] = int(a.split("=")[1])
@@ -334,11 +335,19 @@ func _run_poses(which: String) -> void:
 		"toss": times = [0.0, 0.25, 0.45, 0.62, 0.80, 0.80]
 		"run": times = [0.0, 0.17, 0.33, 0.5, 0.67, 0.83]
 		"ready": times = [0, 0, 0, 0, 0, 0]
+	var pvar := 0
+	var pstyle := 0
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--posevar="): pvar = int(a.split("=")[1])
+		if a.begins_with("--posestyle="): pstyle = int(a.split("=")[1])
 	for i in times.size():
 		var rig := PlayerRig.new()
 		add_child(rig)
 		var prof := PlayerProfile.get_profile(_pose_prof)
 		rig.setup(prof["look"], int(prof["hand"]), prof["body"], bool(prof["two_handed"]))
+		rig.variant = pvar
+		rig.serve_style = pstyle
+		rig.pinpoint = String(prof["body"]) in ["athlete", "power"]
 		rig.set_process(false)
 		rig.position = Vector3(4.5 - i * 1.8, 0, 8.0)
 		rig.rotation.y = PI
@@ -360,8 +369,17 @@ func _run_poses(which: String) -> void:
 		else:
 			rig.clip_id = clip
 			rig.lift = 0.6
-			rig.clip_keys = rig._make_clip(clip)
+			rig.clip_keys = rig._serve_keys() if which == "serve" else rig._make_clip(clip)
 			var nc := rig._nominal_contact(clip)
+			if which == "serve":
+				var tt := PlayerRig.toss_target(pstyle)
+				nc = Vector3(tt.x, tt.y, tt.z)
+			elif pvar == PlayerRig.Var.STRETCH:
+				nc.x += 0.8 * signf(nc.x)
+			elif pvar == PlayerRig.Var.JUMP:
+				nc.y = 1.62
+			elif pvar == PlayerRig.Var.LOW:
+				nc.y = 0.42
 			if which == "vol" and i >= 3:
 				rig.clip_id = PlayerRig.Clip.BH_VOLLEY
 				rig.clip_keys = rig._make_clip(PlayerRig.Clip.BH_VOLLEY)
@@ -471,6 +489,32 @@ func _run_anim(which: String) -> void:
 					if t > 0.1 and not started:
 						started = true
 						rig.react(PlayerRig.React.STRINGS if _pose_prof == "samer" else PlayerRig.React.WIPE)
+				"tired", "pickup", "comeon", "racketup", "shake", "lookup", "shoetap", "fist", "deject":
+					rig.alert = 0.0
+					rig.exhaust = 0.8 if which == "tired" else 0.0
+					if t > 0.1 and not started:
+						started = true
+						var ids := {"tired": PlayerRig.React.TIRED, "pickup": PlayerRig.React.PICKUP, "comeon": PlayerRig.React.COME_ON,
+							"racketup": PlayerRig.React.RACKET_UP, "shake": PlayerRig.React.HEAD_SHAKE, "lookup": PlayerRig.React.LOOK_UP,
+							"shoetap": PlayerRig.React.SHOE_TAP, "fist": PlayerRig.React.FIST, "deject": PlayerRig.React.DEJECT}
+						rig.pickup_pt = Vector3(-0.22 * rig.hand, BallPhysics.R, -0.34)
+						rig.react(ids[which])
+				"slide":
+					want = Vector3(6.0, 0, 0) if t < 0.5 else Vector3.ZERO
+					rig.sliding = clampf((vel.length() - 2.6) / 2.4, 0.0, 1.0) if t > 0.5 else 0.0
+				"jumpfh", "openfh", "stretchfh", "lowfh", "bh2open":
+					var vmap := {"jumpfh": PlayerRig.Var.JUMP, "openfh": PlayerRig.Var.OPEN, "stretchfh": PlayerRig.Var.STRETCH, "lowfh": PlayerRig.Var.LOW, "bh2open": PlayerRig.Var.OPEN}
+					var sd2 := -1 if which == "bh2open" else 1
+					if t > 0.15 and not started:
+						started = true
+						rig.set_prep(sd2, Shot.Type.TOPSPIN, false, false, vmap[which])
+					if t > 0.50 and not swung:
+						swung = true
+						var nc2 := rig._nominal_contact(rig.clip_id)
+						if which == "jumpfh": nc2.y = 1.62
+						if which == "lowfh": nc2.y = 0.42
+						if which == "stretchfh": nc2.x += 0.8 * signf(nc2.x)
+						rig.start_swing(sd2, Shot.Type.TOPSPIN, false, false, 0.24, Vector3(nc2.x * rig.hand, nc2.y, nc2.z), Vector3(0, 0, -1), vmap[which])
 			vel = vel.move_toward(want, 9.0 * dt)
 			holder.position += vel * dt
 			rig.move_vel = vel
@@ -597,7 +641,7 @@ func _physics_process(dt: float) -> void:
 					_fb_down = false
 			elif game.can_hit(0) and _fb_wait <= 0.0:
 				var c := p.find_contact(0.02, 1.3)
-				if not c.is_empty() and float(c["t"]) - p.now() < 0.8:
+				if not c.is_empty() and float(c["t"]) - p.now() < _fb_lead:
 					_fb_btn = 0
 					_fb_touch(true, pad.button_center(_fb_btn))
 					_fb_down = true
@@ -630,11 +674,13 @@ func _fb_target() -> float:
 		_fb_tgt = -1.0
 	if _fb_tgt < 0.0:
 		var g := hud.qte.green_w
-		_fb_tgt = clampf(1.0 - g * 0.5 + randfn(0.0, _fb_sigma), 0.05, 0.995)
+		# تعويض تأخر حدث اللمس (2-3 خطوات فيزياء) كما يتعلّم اللاعب البشري
+		_fb_tgt = clampf(1.0 - g * 0.5 - 0.045 + randfn(0.0, _fb_sigma), 0.05, 0.995)
 	return _fb_tgt
 
 
 var _fb_sigma := 0.07
+var _fb_lead := 0.58     # ضغط الزر قبل التلامس بـ ~0.6 ث: تحضير كافٍ وقوة قريبة من الحد المريح
 
 
 func _process(_dt: float) -> void:

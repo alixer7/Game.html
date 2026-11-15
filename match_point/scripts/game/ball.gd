@@ -38,6 +38,8 @@ var _acc := 0.0
 var _feed_p0 := Vector3.ZERO
 var _feed_t0 := 0.0
 var _feed_T := 1.0
+var _feed_target := Vector3.ZERO
+var _feed_arc := 1.5
 var _mesh: MeshInstance3D
 var _shadow: MeshInstance3D
 var _streak: MeshInstance3D
@@ -143,8 +145,23 @@ func feed(from: Vector3, by: Node, flight: float) -> void:
 	_feed_p0 = from
 	_feed_t0 = clock
 	_feed_T = flight
+	_feed_arc = 1.5
 	st.pos = from
 	st.spin = Vector3(4.0, 0, 0)
+	_clear_prediction()
+
+
+## رمية هادئة من اللاعب إلى جامع الكرات (بعد التقاطها من الأرض)
+func throw_to(target: Vector3, flight: float) -> void:
+	mode = Mode.FEED
+	_feed_p0 = st.pos
+	_feed_t0 = clock
+	_feed_T = flight
+	_feed_target = target
+	_feed_arc = 1.1
+	holder = null
+	in_play = false
+	st.spin = Vector3(-6.0, 0, 0)
 	_clear_prediction()
 
 
@@ -258,12 +275,16 @@ func _tick() -> void:
 				st.pos = holder.ball_hand_pos()
 		Mode.FEED:
 			var u := clampf((clock - _feed_t0) / _feed_T, 0.0, 1.0)
-			var tgt: Vector3 = holder.ball_hand_pos() if holder != null else _feed_p0
+			var tgt: Vector3 = holder.ball_hand_pos() if holder != null else _feed_target
 			var prev := st.pos
-			st.pos = _feed_p0.lerp(tgt, u) + Vector3(0, 4.0 * 1.5 * u * (1.0 - u), 0)
+			st.pos = _feed_p0.lerp(tgt, u) + Vector3(0, 4.0 * _feed_arc * u * (1.0 - u), 0)
 			st.vel = (st.pos - prev) / DT
 			if u >= 1.0:
-				hold(holder)
+				if holder != null:
+					hold(holder)
+				else:
+					mode = Mode.HELD
+					st.vel = Vector3.ZERO
 		Mode.TOSS:
 			st.pos = toss_pos_at(clock)
 			st.vel = _toss_v0 + Vector3(0, -BallPhysics.G * (clock - _toss_t0), 0)

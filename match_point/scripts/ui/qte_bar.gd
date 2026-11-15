@@ -13,6 +13,9 @@ var stop_p := 0.0
 var charge := 0.0
 var charging := false
 var stamina := 1.0
+var stamina_cap := 1.0
+var recovering := false
+var comfort := -1.0              # حد القوة المريحة على دائرة الشحن (أو -1)
 var show_stamina := false
 var label := ""
 var label_col := Color.WHITE
@@ -141,8 +144,20 @@ func _draw_ring() -> void:
 	var col := Color(0.98, 0.9, 0.3).lerp(Color(1.0, 0.45, 0.15), smoothstep(0.5, 1.0, ch))
 	if ch >= 0.999:
 		col = Color(1.0, 0.25, 0.2)
+	var cf := comfort
+	if cf >= 0.0 and cf < 0.999:
+		# ما بعد الحد المريح: منطقة خطر (الكرة تطول ويقل التحكم)
+		draw_arc(c, rad, -PI * 0.5 + TAU * cf, PI * 1.5, 40, Color(1.0, 0.25, 0.2, 0.28 * a), 5.0, true)
 	if ch > 0.0:
-		draw_arc(c, rad, -PI * 0.5, -PI * 0.5 + TAU * ch, 48, Color(col.r, col.g, col.b, a), 5.0, true)
+		if cf >= 0.0 and ch > cf:
+			draw_arc(c, rad, -PI * 0.5, -PI * 0.5 + TAU * cf, 48, Color(0.45, 0.95, 0.5, a), 5.0, true)
+			draw_arc(c, rad, -PI * 0.5 + TAU * cf, -PI * 0.5 + TAU * ch, 48, Color(1.0, 0.32, 0.22, a), 5.0, true)
+		else:
+			draw_arc(c, rad, -PI * 0.5, -PI * 0.5 + TAU * ch, 48, Color(col.r, col.g, col.b, a) if cf < 0.0 else Color(0.45, 0.95, 0.5, a), 5.0, true)
+	if cf >= 0.0 and cf < 0.999:
+		var ang := -PI * 0.5 + TAU * cf
+		var dirv := Vector2(cos(ang), sin(ang))
+		draw_line(c + dirv * (rad - 5.0), c + dirv * (rad + 5.0), Color(1, 1, 1, 0.95 * a), 2.0, true)
 	var txt := str(int(round(ch * 100.0)))
 	var ts := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 13)
 	draw_string(_font, c + Vector2(-ts.x * 0.5, 5), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, 0.95 * a))
@@ -155,8 +170,19 @@ func _draw_stamina() -> void:
 	var x0 := anchor_feet.x - w * 0.5
 	var y0 := anchor_feet.y + 8.0
 	var s := clampf(stamina, 0.0, 1.0)
+	var cap := clampf(stamina_cap, 0.0, 1.0)
 	var col := Color(0.30, 0.90, 0.45)
 	if s < 0.6:
 		col = Color(0.98, 0.82, 0.25).lerp(Color(0.30, 0.90, 0.45), (s - 0.3) / 0.3) if s > 0.3 else Color(0.95, 0.30, 0.22).lerp(Color(0.98, 0.82, 0.25), s / 0.3)
+	if s < 0.3:
+		col = col.lerp(Color(1, 1, 1), 0.25 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)))
 	draw_rect(Rect2(x0 - 2, y0 - 2, w + 4, 9), Color(0.02, 0.03, 0.06, 0.7))
+	# الإرهاق المتراكم: الجزء الذي لم يعد متاحاً حتى الراحة الطويلة (مخطط بالأحمر الداكن)
+	if cap < 0.995:
+		draw_rect(Rect2(x0 + w * cap, y0, w * (1.0 - cap), 5), Color(0.45, 0.08, 0.06, 0.85))
 	draw_rect(Rect2(x0, y0, w * s, 5), col)
+	if recovering:
+		# مؤشر الاستعادة التدريجية: لمعة تتحرك نحو السقف
+		var ph := fmod(Time.get_ticks_msec() * 0.0012, 1.0)
+		var gx := x0 + w * lerpf(s, cap, ph)
+		draw_rect(Rect2(gx - 1, y0, 2, 5), Color(1, 1, 1, 0.55 * (1.0 - ph)))
