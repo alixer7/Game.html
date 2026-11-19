@@ -17,6 +17,7 @@ var _shot_i: int = 0
 var _presses: Array = []
 var _free_cam: Camera3D = null
 var _fps_t: float = 0.0
+var _solve_t: float = 0.0
 
 
 static func parse_args() -> Dictionary:
@@ -124,6 +125,20 @@ func _process(delta: float) -> void:
 			var pl: Node = world.get("player") if world != null else null
 			var pos: Vector3 = (pl as Node3D).global_position if pl != null else Vector3.ZERO
 			print("DEV t=%.1f fps=%d pos=%s" % [_t, Engine.get_frames_per_second(), str(pos)])
+	if args.has("solve") and _t >= float(args["solve"]) and world != null:
+		_solve_t -= delta
+		if _solve_t <= 0.0:
+			_solve_t = 0.4
+			for n in get_tree().get_nodes_in_group("pylon_puzzle"):
+				if int(n.get("_state")) == 2:
+					var seq: Array = n.get("_seq")
+					var i: int = int(n.get("_input_i"))
+					var py: Node = (n.get("_pylons") as Array)[int(seq[i])]
+					py.call("hit", world.get("player"), "punch")
+					print("DEV solve: hit pylon ", seq[i])
+	if args.has("blockpos") and int(_t * 2.0) != int((_t - delta) * 2.0):
+		for b in get_tree().get_nodes_in_group("push_block"):
+			print("DEV block at ", (b as Node3D).global_position)
 	if args.has("quit") and _t >= float(args["quit"]):
 		get_tree().quit()
 

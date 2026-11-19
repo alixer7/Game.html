@@ -5,7 +5,7 @@ extends Node3D
 ## Hit the core (spin / dash / land on it) three times to win; the goal portal unlocks.
 ## Level JSON: {"t":"boss","p":[x,y,z] = centre of the arena floor surface,"r": arena radius}
 
-const MAX_HP := 3
+const MAX_HP := 4
 const ST_WAIT := 0
 const ST_INTRO := 1
 const ST_FLOAT := 2
@@ -16,6 +16,7 @@ const ST_SLAM := 6
 const ST_STUN := 7
 const ST_RECOVER := 8
 const ST_DEAD := 9
+const ST_SWEEP := 10
 
 const VIOLET := Color(0.78, 0.4, 1.0)
 const GOLD := Color(1.0, 0.8, 0.3)
@@ -43,6 +44,10 @@ var _open_target: float = 0.0
 var _flash: float = 0.0
 var _dead_fx: float = 0.0
 
+var _sweep_arms: Node3D
+var _sweep_ang: float = 0.0
+var _sweep_cool: float = 0.0
+var _meteor_cd: float = 0.0
 var _core_mat: StandardMaterial3D
 var _shell: MeshInstance3D
 var _armor: Node3D
@@ -66,7 +71,7 @@ func _hover_y() -> float:
 
 
 func _phase() -> int:
-	return MAX_HP - _hp   # 0, 1, 2 as the boss gets angrier
+	return MAX_HP - _hp   # 0..3 as the boss gets angrier
 
 
 # ------------------------------------------------------------------ build
@@ -119,14 +124,24 @@ func _build() -> void:
 	_armor = Node3D.new()
 	add_child(_armor)
 	var shard_mat: StandardMaterial3D = Mats.std(Color(0.1, 0.08, 0.16), 0.9, 0.28, VIOLET, 0.5)
-	for i in range(6):
-		var shard := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(1.0, 2.1, 0.4)
-		shard.mesh = bm
-		shard.material_override = shard_mat
+	var gold: Material = Mats.metal(Color(1.0, 0.78, 0.35), 0.25, 1.0, Color(1.0, 0.7, 0.3), 0.3)
+	for i in range(8):
+		var shard := Node3D.new()
 		_armor.add_child(shard)
+		Geo.put(shard, Geo.rounded_box(Vector3(1.1, 2.3, 0.45), 0.12, 2), shard_mat)
+		Geo.put(shard, Geo.box(Vector3(0.9, 0.12, 0.5)), gold, Vector3(0.0, 0.8, 0.0))
+		Geo.put(shard, Geo.box(Vector3(0.12, 1.6, 0.5)), Mats.glow(VIOLET, 2.0), Vector3(0.0, -0.1, 0.0), Vector3.ZERO, Vector3.ONE, false)
 		_shards.append(shard)
+	_sweep_arms = Node3D.new()
+	_sweep_arms.top_level = true
+	_sweep_arms.visible = false
+	add_child(_sweep_arms)
+	for k in range(2):
+		var arm := Node3D.new()
+		arm.rotation.y = PI * float(k)
+		_sweep_arms.add_child(arm)
+		Geo.put(arm, Geo.cyl(0.1, 0.1, _arena_r, 10), Mats.neon(Hazards.RED, 3.4, 0.8, 0.95), Vector3(0.0, 0.0, -_arena_r * 0.5), Vector3(90.0, 0.0, 0.0), Vector3.ONE, false)
+		Geo.put(arm, Geo.cyl(0.25, 0.25, _arena_r, 10), Mats.neon(Hazards.RED, 1.2, 1.5, 0.2, 0.6), Vector3(0.0, 0.0, -_arena_r * 0.5), Vector3(90.0, 0.0, 0.0), Vector3.ONE, false)
 
 	_light = OmniLight3D.new()
 	_light.light_color = VIOLET
@@ -169,6 +184,8 @@ func _layout_shards() -> void:
 		var a: float = TAU * float(i) / float(_shards.size())
 		var r: float = lerpf(2.55, 4.4, _open)
 		var s: Node3D = _shards[i]
+		if not is_instance_valid(s):
+			continue
 		s.position = Vector3(cos(a) * r, lerpf(0.0, 0.7, _open), sin(a) * r)
 		s.rotation = Vector3(0.55 * _open, PI * 0.5 - a, 0.0)
 
@@ -181,8 +198,25 @@ func hit(_by: Node, kind: String) -> bool:
 	return true
 
 
+## Blasts `n` armour plates off as real rigid bodies.
+func _break_shards(n: int, force: float = 9.0) -> void:
+	var par: Node = get_parent()
+	for i in range(n):
+		var alive: Array = []
+		for s in _shards:
+			if is_instance_valid(s) and (s as Node3D).visible:
+				alive.append(s)
+		if alive.is_empty():
+			return
+		var sh: Node3D = alive[randi() % alive.size()]
+		Debris.parts(par, sh, global_position, force, Vector3.ZERO, 6.0)
+		sh.visible = false
+		Fx.burst(par, sh.global_position, Color(1.0, 0.8, 0.5), 12, 6.0, 0.3, 0.4, -6.0)
+
+
 func _damage(_kind: String) -> void:
 	_hp -= 1
+	_break_shards(2)
 	_inv = 1.3
 	_flash = 1.0
 	Sfx.play("boss_hit")
@@ -278,8 +312,16 @@ func _physics_process(delta: float) -> void:
 			_volley_left -= 1
 			_volley_t = 0.55 - 0.08 * float(_phase())
 		if _volley_left <= 0 and _volley_t <= 0.0:
-			_set_state(ST_AIM)
-			_marker.visible = true
+			if _phase() >= 1 and _sweep_cool <= 0.0:
+				_set_state(ST_SWEEP)
+				_sweep_ang = randf() * TAU
+				Sfx.play("boss_roar", -4.0, 1.3)
+				world.toast("احذر الليزر الدوّار! اقفز فوقه", Hazards.RED)
+			else:
+				_set_state(ST_AIM)
+				_marker.visible = true
+	elif _state == ST_SWEEP:
+		_tick_sweep(delta, pl)
 	elif _state == ST_AIM:
 		_tick_aim(delta, pl)
 	elif _state == ST_DIVE:
@@ -294,6 +336,12 @@ func _physics_process(delta: float) -> void:
 		if _st > 1.1:
 			_set_state(ST_FLOAT)
 
+	_sweep_cool = maxf(_sweep_cool - delta, 0.0)
+	if _phase() >= 2 and (_state == ST_FLOAT or _state == ST_VOLLEY):
+		_meteor_cd -= delta
+		if _meteor_cd <= 0.0:
+			_meteor_cd = 9.0
+			_summon_meteors()
 	# touching the boss while it is dangerous
 	if pl != null and (_state == ST_FLOAT or _state == ST_VOLLEY or _state == ST_AIM or _state == ST_DIVE or _state == ST_SLAM):
 		var c: Vector3 = pl.global_position + Vector3(0.0, 0.6, 0.0)
@@ -307,6 +355,45 @@ func _hover(delta: float, extra: float, bob: float) -> void:
 	var rad: float = _arena_r * 0.28
 	var want := Vector3(_floor.x + cos(_orbit) * rad, _floor.y + _hover_y() + extra + sin(_t * 1.7) * bob, _floor.z + sin(_orbit) * rad)
 	position = position.lerp(want, 1.0 - exp(-3.0 * delta))
+
+
+func _tick_sweep(delta: float, pl: Player) -> void:
+	# sink to the arena centre and spin two low laser arms around it (jump over them)
+	var want := Vector3(_floor.x, _floor.y + 3.2, _floor.z)
+	position = position.lerp(want, 1.0 - exp(-3.0 * delta))
+	var on: bool = _st > 0.9
+	_sweep_arms.visible = _st > 0.4
+	_sweep_arms.global_position = Vector3(_floor.x, _floor.y + 0.55, _floor.z)
+	var spd: float = 1.3 + 0.35 * float(_phase())
+	if on:
+		_sweep_ang += delta * spd
+	_sweep_arms.rotation.y = _sweep_ang
+	if on and pl != null:
+		var lp: Vector3 = pl.global_position - _sweep_arms.global_position
+		if lp.y < 0.7 and lp.y > -0.6:
+			var r: float = Vector2(lp.x, lp.z).length()
+			if r < _arena_r and r > 0.5:
+				var pa: float = atan2(-lp.x, -lp.z)
+				for k in range(2):
+					var d: float = absf(wrapf(pa - (_sweep_ang + PI * float(k)), -PI, PI)) * r
+					if d < 0.45:
+						pl.hurt(Vector3(_floor.x, pl.global_position.y, _floor.z), 1)
+	if _st > 5.5:
+		_sweep_arms.visible = false
+		_sweep_cool = 6.0
+		_set_state(ST_AIM)
+		_marker.visible = true
+
+
+func _summon_meteors() -> void:
+	var m := Hazards.Meteors.new()
+	m.world = world
+	m.setup({"p": [_floor.x, _floor.y, _floor.z], "r": _arena_r - 2.0, "every": 0.55, "aim": 0.75})
+	get_parent().add_child(m)
+	world.toast("الحارس يستدعي النيازك!", Color(1.0, 0.6, 0.3))
+	var tw := m.create_tween()
+	tw.tween_interval(4.0)
+	tw.tween_callback(m.queue_free)
 
 
 func _tick_aim(delta: float, pl: Player) -> void:
@@ -412,6 +499,8 @@ func _tick_dead(delta: float) -> void:
 		Sfx.play("enemy_pop", -6.0, randf_range(0.7, 1.1))
 	if _st > 1.8:
 		var par2: Node = get_parent()
+		_break_shards(8, 14.0)
+		_sweep_arms.visible = false
 		Fx.burst(par2, global_position, Color(1.0, 0.85, 1.0), 60, 14.0, 0.7, 1.2, -4.0)
 		Fx.burst(par2, global_position, GOLD, 40, 10.0, 0.5, 1.0, -6.0)
 		Fx.ring(par2, global_position, VIOLET, 16.0, 0.9, 3.5)

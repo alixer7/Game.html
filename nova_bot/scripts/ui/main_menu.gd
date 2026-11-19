@@ -3,7 +3,7 @@ extends Node3D
 ## Title screen: a 3D diorama (robot on a floating platform, drifting islands, orbiting gems) behind
 ## three UI pages: main, level select and settings. Everything is built from code.
 
-const CARD_W := 400.0
+const CARD_W := 332.0
 const CARD_H := 660.0
 
 var start_page: String = "main"
@@ -334,7 +334,7 @@ func _build_levels() -> Control:
 	page.add_child(back)
 
 	var n: int = Game.level_count()
-	var gap: float = 44.0
+	var gap: float = 26.0
 	var total: float = float(n) * CARD_W + float(n - 1) * gap
 	var x0: float = -total * 0.5
 	for i in range(n):
@@ -424,13 +424,13 @@ class CardFront extends Control:
 			var c: Color = UIKit.COL_CYAN if found else Color(0.4, 0.46, 0.6, 0.7)
 			if locked:
 				c = Color(0.3, 0.34, 0.45, 0.6)
-			UIIcons.draw(self, "bot", Vector2(w * 0.5 + (float(i) - 1.0) * 74.0, 590.0), 24.0, c)
+			UIIcons.draw(self, "bot", Vector2(w * 0.5 + (float(i) - 1.0) * 70.0, 590.0), 24.0, c)
 		if card.done and not locked:
 			UIIcons.draw(self, "check", Vector2(w * 0.5 - 84.0, 628.0), 15.0, UIKit.COL_GREEN)
 			draw_string(UIKit.font(), Vector2(w * 0.5 - 56.0, 640.0), Game.format_time(card.best_time), HORIZONTAL_ALIGNMENT_LEFT, 160.0, 34, UIKit.COL_TEXT)
 		if locked:
 			draw_rect(Rect2(Vector2.ZERO, size), Color(0.01, 0.02, 0.06, 0.45))
-			UIIcons.draw(self, "lock", Vector2(w * 0.5, 210.0), 54.0, Color(0.85, 0.9, 1.0, 0.95))
+			UIIcons.draw(self, "lock", Vector2(w * 0.5, 60.0 + (w - 60.0) * 0.5 - 10.0), 50.0, Color(0.85, 0.9, 1.0, 0.95))
 
 
 class LevelCard extends Control:
@@ -481,7 +481,8 @@ class LevelCard extends Control:
 		pm.set_shader_parameter("locked", 1.0 if locked else 0.0)
 		planet.material = pm
 		planet.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		UIKit.place(planet, Vector2.ZERO, Vector2(40.0, 56.0), Vector2(320.0, 320.0))
+		var psz: float = MainMenu.CARD_W - 60.0
+		UIKit.place(planet, Vector2.ZERO, Vector2(30.0, 60.0), Vector2(psz, psz))
 		add_child(planet)
 
 		var num := UIKit.label_ltr(str(int(meta.get("id", 1))), 60, accent, HORIZONTAL_ALIGNMENT_LEFT, 8)
@@ -495,11 +496,12 @@ class LevelCard extends Control:
 			UIKit.fill(bl)
 			badge.add_child(bl)
 
-		var name_l := UIKit.label(str(meta.get("name", "")), 44, UIKit.COL_TEXT, HORIZONTAL_ALIGNMENT_CENTER, 5)
-		UIKit.place(name_l, Vector2.ZERO, Vector2(12.0, 386.0), Vector2(MainMenu.CARD_W - 24.0, 66.0))
+		var name_y: float = 60.0 + psz + 8.0
+		var name_l := UIKit.label(str(meta.get("name", "")), 35, UIKit.COL_TEXT, HORIZONTAL_ALIGNMENT_CENTER, 5)
+		UIKit.place(name_l, Vector2.ZERO, Vector2(8.0, name_y), Vector2(MainMenu.CARD_W - 16.0, 62.0))
 		add_child(name_l)
-		var desc := UIKit.wrap_label(str(meta.get("desc", "")), 26, UIKit.COL_DIM, MainMenu.CARD_W - 64.0)
-		UIKit.place(desc, Vector2.ZERO, Vector2(32.0, 454.0), Vector2(MainMenu.CARD_W - 64.0, 84.0))
+		var desc := UIKit.wrap_label(str(meta.get("desc", "")), 24, UIKit.COL_DIM, MainMenu.CARD_W - 40.0)
+		UIKit.place(desc, Vector2.ZERO, Vector2(20.0, name_y + 62.0), Vector2(MainMenu.CARD_W - 40.0, 96.0))
 		desc.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		add_child(desc)
 
@@ -511,7 +513,7 @@ class LevelCard extends Control:
 
 		if locked:
 			var lk := UIKit.label("مقفلة", 34, Color(0.85, 0.9, 1.0), HORIZONTAL_ALIGNMENT_CENTER, 6)
-			UIKit.place(lk, Vector2.ZERO, Vector2(12.0, 268.0), Vector2(MainMenu.CARD_W - 24.0, 56.0))
+			UIKit.place(lk, Vector2.ZERO, Vector2(12.0, 60.0 + psz * 0.5 + 40.0), Vector2(MainMenu.CARD_W - 24.0, 56.0))
 			add_child(lk)
 		pivot_offset = size * 0.5
 

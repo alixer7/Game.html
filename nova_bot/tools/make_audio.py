@@ -430,6 +430,288 @@ SFX = [
     ("whoosh", sfx_whoosh, 0.55), ("switch", sfx_switch, 0.7), ("warp", sfx_warp, 0.75), ("powerup", sfx_powerup, 0.7),
 ]
 
+
+# ------------------------------------------------------------- new SFX (v0.2)
+def _tone(f0, f1, dur, kind="sine", k=8.0, a=0.003):
+    n = int(dur * SR)
+    return osc(kind, sweep(f0, f1, n), n) * ex(n, k) * atk(n, a)
+
+
+def sfx_punch_swing():
+    d = 0.16
+    n = int(d * SR)
+    return swept_noise(d, 900, 3800, 0.9) * np.sin(np.pi * np.arange(n) / n) ** 1.2 * 0.9
+
+
+def sfx_punch_hit():
+    n = int(0.2 * SR)
+    thump = osc("sine", sweep(180, 55, n), n) * ex(n, 22) * 1.2
+    crack = hp(noise(n), 1800) * ex(n, 45) * 0.8
+    ring = osc("sq", 620, n) * ex(n, 40) * 0.12
+    return thump + crack + ring
+
+
+def sfx_charge():
+    d = 0.75
+    n = int(d * SR)
+    t = np.arange(n) / SR
+    f = sweep(220, 880, n)
+    x = osc("saw", f, n) * 0.25 + osc("sine", f * 2, n) * 0.3
+    x = lp(x, 2400) * (0.3 + 0.7 * t / d) * (1 + 0.3 * np.sin(2 * np.pi * 18 * t))
+    return x
+
+
+def sfx_battery_low():
+    a = _tone(880, 880, 0.09, "sq", 18) * 0.5
+    b = _tone(660, 660, 0.12, "sq", 14) * 0.5
+    x = np.zeros(int(0.26 * SR))
+    mix_at(x, lp(a, 3000), 0)
+    mix_at(x, lp(b, 3000), int(0.11 * SR))
+    return x
+
+
+def sfx_power_down():
+    d = 0.8
+    n = int(d * SR)
+    x = osc("saw", sweep(700, 60, n), n) * ex(n, 2.5)
+    return lp(x, 1800) * 0.8
+
+
+def sfx_shutdown():
+    d = 1.4
+    n = int(d * SR)
+    t = np.arange(n) / SR
+    x = osc("sine", sweep(520, 40, n), n) * ex(n, 1.6) + 0.4 * osc("sq", sweep(260, 20, n), n) * ex(n, 2.5)
+    x *= 1 - 0.5 * (np.sin(2 * np.pi * 9 * t) > 0.6)
+    return lp(x, 2200)
+
+
+def sfx_battery_grab():
+    x = np.zeros(int(0.45 * SR))
+    for i, m in enumerate([76, 79, 83, 88]):
+        mix_at(x, bell(midi(m), 0.3, 10) * 0.6, int(i * 0.06 * SR))
+    return x
+
+
+def sfx_battery_insert():
+    n = int(0.25 * SR)
+    clack = hp(noise(n), 2500) * ex(n, 60) + osc("sine", sweep(900, 300, n), n) * ex(n, 40) * 0.6
+    thud = osc("sine", 120, n) * ex(n, 25) * 0.7
+    return clack + thud
+
+
+def sfx_battery_eject():
+    d = 0.4
+    n = int(d * SR)
+    pop = osc("sine", sweep(200, 900, n), n) * ex(n, 14) * 0.6
+    hiss = bp(noise(n), 2000, 7000) * ex(n, 7) * 0.5
+    return pop + hiss + osc("sine", 90, n) * ex(n, 30) * 0.6
+
+
+def sfx_hatch():
+    d = 0.32
+    n = int(d * SR)
+    return bp(noise(n), 800, 3500) * ex(n, 8) * 0.6 + osc("sq", sweep(300, 500, n), n) * ex(n, 18) * 0.15
+
+
+def sfx_clamp():
+    n = int(0.18 * SR)
+    return hp(noise(n), 3000) * ex(n, 55) * 0.9 + osc("sine", 420, n) * ex(n, 35) * 0.4
+
+
+def sfx_charge_up():
+    d = 0.9
+    n = int(d * SR)
+    t = np.arange(n) / SR
+    f = sweep(300, 1600, n)
+    x = osc("saw", f, n) * 0.3 + osc("sine", f * 1.5, n) * 0.4
+    x = lp(x, 4000) * np.minimum(1, t / 0.05) * np.minimum(1, (d - t) / 0.15)
+    sp = np.zeros(n)
+    for i, m in enumerate([72, 76, 79, 84, 88]):
+        mix_at(sp, bell(midi(m), 0.4, 9) * 0.4, int((0.1 + i * 0.12) * SR))
+    return x + sp
+
+
+def sfx_energy():
+    a = bell(midi(88), 0.22, 14) * 0.7
+    b = pad_to(bell(midi(95), 0.18, 18) * 0.3, len(a))
+    return a + b
+
+
+def sfx_explode():
+    d = 0.9
+    n = int(d * SR)
+    boom = osc("sine", sweep(110, 32, n), n) * ex(n, 5.0) * 1.4
+    crack = lp(noise(n), 2400) * ex(n, 6.0)
+    debris = hp(noise(n), 3000) * ex(n, 10) * 0.4
+    return boom + crack + debris
+
+
+def sfx_deflect():
+    n = int(0.3 * SR)
+    return osc("sine", sweep(900, 2200, n), n) * ex(n, 12) * 0.6 + pad_to(bell(1400, 0.3, 12), n) * 0.5
+
+
+def sfx_clang():
+    n = int(0.5 * SR)
+    t = np.arange(n) / SR
+    x = np.zeros(n)
+    for f, k in ((520, 7), (1310, 9), (2240, 12), (3170, 16)):
+        x += np.sin(2 * np.pi * f * t) * np.exp(-t * k)
+    return x * 0.5 + hp(noise(n), 2000) * ex(n, 60) * 0.6
+
+
+def sfx_shatter():
+    d = 0.7
+    n = int(d * SR)
+    x = hp(noise(n), 3500) * ex(n, 7) * 0.7
+    t = np.arange(n) / SR
+    for i in range(14):
+        st = int(rng.uniform(0, 0.35) * SR)
+        f = rng.uniform(2500, 7000)
+        mix_at(x, np.sin(2 * np.pi * f * t[:int(0.12 * SR)]) * np.exp(-t[:int(0.12 * SR)] * 40) * 0.35, st)
+    return x
+
+
+def sfx_hopper_charge():
+    d = 0.5
+    n = int(d * SR)
+    return osc("sq", sweep(120, 340, n), n) * ex(n, 3) * 0.3 + osc("sine", sweep(240, 680, n), n) * 0.3
+
+
+def sfx_spider_hiss():
+    d = 0.35
+    n = int(d * SR)
+    return bp(noise(n), 3000, 9000) * np.sin(np.pi * np.arange(n) / n) * 0.8
+
+
+def sfx_throw():
+    return sfx_punch_swing() * 0.8
+
+
+def sfx_snow_hit():
+    d = 0.3
+    n = int(d * SR)
+    return lp(noise(n), 1600) * ex(n, 16) + hp(noise(n), 4000) * ex(n, 30) * 0.4
+
+
+def sfx_retract():
+    d = 0.45
+    n = int(d * SR)
+    return lp(osc("saw", sweep(140, 90, n), n), 900) * np.sin(np.pi * np.arange(n) / n) * 0.6 + bp(noise(n), 400, 1500) * ex(n, 5) * 0.3
+
+
+def sfx_lift():
+    d = 0.6
+    n = int(d * SR)
+    return osc("sine", sweep(200, 420, n), n) * ex(n, 3) * 0.5
+
+
+def sfx_crusher():
+    d = 0.6
+    n = int(d * SR)
+    boom = osc("sine", sweep(90, 35, n), n) * ex(n, 7) * 1.4
+    metal = pad_to(sfx_clang(), n) * 0.4
+    return boom + metal + lp(noise(n), 900) * ex(n, 10) * 0.6
+
+
+def sfx_crusher_warn():
+    d = 0.5
+    n = int(d * SR)
+    t = np.arange(n) / SR
+    return lp(noise(n), 500) * (0.5 + 0.5 * np.sin(2 * np.pi * 22 * t)) * 0.6 + osc("saw", 70, n) * 0.2
+
+
+def sfx_toggle():
+    return _tone(1200, 1600, 0.08, "sine", 30) * 0.5
+
+
+def sfx_ice_crack():
+    d = 0.4
+    n = int(d * SR)
+    x = np.zeros(n)
+    for i in range(6):
+        mix_at(x, hp(noise(int(0.03 * SR)), 2500) * rng.uniform(0.4, 1.0), int(rng.uniform(0, 0.3) * SR))
+    return x + osc("sine", sweep(900, 300, n), n) * ex(n, 14) * 0.3
+
+
+def sfx_wind():
+    d = 1.4
+    n = int(d * SR)
+    x = swept_noise(d, 300, 1100, 1.2)
+    return x * np.sin(np.pi * np.arange(n) / n) ** 0.8 * 0.8
+
+
+def sfx_geyser():
+    d = 1.0
+    n = int(d * SR)
+    x = bp(noise(n), 1200, 8000) * np.minimum(1, np.arange(n) / (0.04 * SR)) * ex(n, 2.0)
+    return x + lp(noise(n), 300) * ex(n, 3) * 0.6
+
+
+def sfx_flame():
+    d = 0.8
+    n = int(d * SR)
+    x = lp(noise(n), 900) * np.minimum(1, np.arange(n) / (0.03 * SR)) * ex(n, 2.5)
+    return x + bp(noise(n), 2000, 5000) * ex(n, 4) * 0.25
+
+
+def sfx_meteor_fall():
+    d = 1.1
+    return swept_noise(d, 3000, 400, 0.8) * 0.8
+
+
+def sfx_pylon():
+    return bell(midi(76), 0.5, 6) * 0.8
+
+
+def sfx_wrong():
+    a = _tone(300, 280, 0.18, "sq", 8)
+    b = _tone(220, 200, 0.28, "sq", 6)
+    x = np.zeros(int(0.5 * SR))
+    mix_at(x, lp(a, 1800), 0)
+    mix_at(x, lp(b, 1800), int(0.2 * SR))
+    return x
+
+
+def sfx_puzzle_solved():
+    x = np.zeros(int(1.2 * SR))
+    for i, m in enumerate([72, 76, 79, 84, 79, 84, 88]):
+        mix_at(x, bell(midi(m), 0.6, 6) * 0.6, int(i * 0.09 * SR))
+    return x
+
+
+def sfx_block_push():
+    d = 0.35
+    n = int(d * SR)
+    return lp(noise(n), 700) * ex(n, 8) * 0.9 + osc("sine", 70, n) * ex(n, 14) * 0.6
+
+
+def sfx_gate():
+    d = 0.7
+    n = int(d * SR)
+    return osc("saw", sweep(180, 520, n), n) * ex(n, 3) * 0.25 + bp(noise(n), 800, 3000) * ex(n, 4) * 0.3
+
+
+def sfx_target():
+    a = bell(midi(84), 0.35, 10) * 0.6
+    return a + pad_to(sfx_punch_hit(), len(a)) * 0.5
+
+
+SFX += [
+    ("punch_swing", sfx_punch_swing, 0.6), ("punch_hit", sfx_punch_hit, 0.85), ("charge", sfx_charge, 0.55),
+    ("battery_low", sfx_battery_low, 0.6), ("power_down", sfx_power_down, 0.75), ("shutdown", sfx_shutdown, 0.8),
+    ("battery_grab", sfx_battery_grab, 0.7), ("battery_insert", sfx_battery_insert, 0.8), ("battery_eject", sfx_battery_eject, 0.75),
+    ("hatch", sfx_hatch, 0.6), ("clamp", sfx_clamp, 0.7), ("charge_up", sfx_charge_up, 0.75), ("energy", sfx_energy, 0.6),
+    ("explode", sfx_explode, 0.9), ("deflect", sfx_deflect, 0.7), ("clang", sfx_clang, 0.7), ("shatter", sfx_shatter, 0.75),
+    ("hopper_charge", sfx_hopper_charge, 0.5), ("spider_hiss", sfx_spider_hiss, 0.55), ("throw", sfx_throw, 0.55),
+    ("snow_hit", sfx_snow_hit, 0.7), ("retract", sfx_retract, 0.55), ("lift", sfx_lift, 0.5), ("crusher", sfx_crusher, 0.9),
+    ("crusher_warn", sfx_crusher_warn, 0.5), ("toggle", sfx_toggle, 0.45), ("ice_crack", sfx_ice_crack, 0.65),
+    ("wind", sfx_wind, 0.6), ("geyser", sfx_geyser, 0.7), ("flame", sfx_flame, 0.7), ("meteor_fall", sfx_meteor_fall, 0.6),
+    ("pylon", sfx_pylon, 0.7), ("wrong", sfx_wrong, 0.7), ("puzzle_solved", sfx_puzzle_solved, 0.8),
+    ("block_push", sfx_block_push, 0.75), ("gate", sfx_gate, 0.6), ("target", sfx_target, 0.75),
+]
+
 # ----------------------------------------------------------------- music
 CHORD = {"m": [0, 3, 7], "M": [0, 4, 7], "m7": [0, 3, 7, 10], "M7": [0, 4, 7, 11], "sus": [0, 5, 7]}
 
@@ -592,21 +874,34 @@ MUSIC = [
      dict(shift=-2, pad_gain=0.6, bass="8th", arp="swing", arp_gain=0.34, arp_k=5.0, drums="half", lead_gain=0.38, lead_bright=2600, rev=0.26)),
     ("music_world3", 126, 12, PROG_A, MEL_A,
      dict(shift=-5, pad_gain=0.4, bass="driving", bright=1300, arp="sparse", arp_gain=0.3, drums="four", lead_gain=0.36, kick_gain=0.6, lead_bright=4200)),
+    ("music_world4", 96, 12, PROG_A, MEL_MENU,
+     dict(shift=2, pad=True, pad_gain=0.65, bass="whole", arp="up", arp_gain=0.34, arp_k=4.0, drums="soft", lead_gain=0.3, rev=0.34, lead_bright=2200)),
+    ("music_world5", 128, 12, PROG_BOSS, MEL_A,
+     dict(shift=0, pad_gain=0.45, bass="driving", bright=1200, arp="swing", arp_gain=0.28, drums="four", lead_gain=0.38, kick_gain=0.62, lead_bright=3800, rev=0.2)),
     ("music_boss", 142, 12, PROG_BOSS, MEL_BOSS,
      dict(shift=-2, pad_gain=0.35, bass="driving", bright=1500, arp="up", arp_gain=0.25, drums="boss", lead_gain=0.45, kick_gain=0.7, rev=0.14, lead_bright=4600)),
 ]
 
 
 def main():
+    import sys
+    only = None
+    for a in sys.argv[1:]:
+        if a.startswith("--only="):
+            only = set(a[7:].split(","))
     print("writing to", OUT)
     total = 0
     for name, fn, gain in SFX:
+        if only is not None and name not in only:
+            continue
         x = fn()
         x = declick(x)
         path, dur, pk = save(name, x, SR, gain)
         total += os.path.getsize(path)
         print(f"  sfx   {name:14s} {dur:5.2f}s peak {pk:.2f}")
     for name, bpm, bars, prog, lead, opts in MUSIC:
+        if only is not None and name not in only:
+            continue
         x, sr = render_music(name, bpm, bars, prog, lead, opts)
         path, dur, pk = save(name, x, sr, 0.72)
         total += os.path.getsize(path)

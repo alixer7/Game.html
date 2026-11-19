@@ -113,8 +113,8 @@ func _ready() -> void:
 	_touch.camera_drag.connect(rig.add_drag)
 
 	_base_music = str(_meta.get("music", "music_world1"))
-	if bool(_meta.get("boss", false)):
-		_base_music = "music_world3"
+	if not ResourceLoader.exists("res://assets/audio/" + _base_music + ".wav"):
+		_base_music = "music_world1"
 	Sfx.play_music(_base_music)
 	_hud.show_title(str(_meta.get("name", "")), str(_meta.get("desc", "")))
 

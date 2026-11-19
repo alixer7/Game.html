@@ -49,6 +49,7 @@ class Pylons extends Node3D:
 			_pylons.append(py)
 		var orb := Geo.put(self, Geo.sphere(0.5, 18), Mats.neon(Color(0.7, 0.9, 1.0), 2.0, 1.2, 0.5), Vector3(0.0, 2.5, 0.0), Vector3.ZERO, Vector3.ONE, false)
 		orb.name = "orb"
+		add_to_group("pylon_puzzle")
 
 	func _physics_process(delta: float) -> void:
 		if world == null or _done:
@@ -211,9 +212,9 @@ class PushBlock extends RigidBody3D:
 		axis_lock_angular_x = true
 		axis_lock_angular_z = true
 		axis_lock_angular_y = true
-		linear_damp = 1.5
+		linear_damp = 0.5
 		var pm := PhysicsMaterial.new()
-		pm.friction = 0.9
+		pm.friction = 0.3
 		pm.bounce = 0.0
 		physics_material_override = pm
 		var cs := CollisionShape3D.new()
@@ -258,7 +259,7 @@ class PushBlock extends RigidBody3D:
 			return false
 		# snap the shove to the dominant axis so the block lines up with plates
 		var ax := Vector3(signf(d.x), 0.0, 0.0) if absf(d.x) > absf(d.z) else Vector3(0.0, 0.0, signf(d.z))
-		var power: float = 7.5 if kind == "punch3" or kind == "spin_big" else 5.0
+		var power: float = 9.0 if kind == "punch3" or kind == "spin_big" else 6.5
 		apply_central_impulse(ax * power * mass)
 		Sfx.play("block_push", -2.0, randf_range(0.9, 1.05))
 		Fx.burst(get_parent(), global_position - ax * _size * 0.5, Color(1.0, 0.85, 0.5), 8, 4.0, 0.25, 0.3)

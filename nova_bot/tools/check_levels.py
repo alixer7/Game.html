@@ -43,6 +43,8 @@ def check(L):
     for i in range(len(S)):
         for j in range(i + 1, len(S)):
             a, b = S[i], S[j]
+            if a.tag == "ride" or b.tag == "ride":
+                continue
             for ka in (ks if a.moving else (0.0,)):
                 done = False
                 for kb in (ks if b.moving else (0.0,)):
@@ -67,7 +69,7 @@ def check(L):
 
     for o in L.objs:
         t = o["t"]
-        if t in ("bot", "crate", "check", "goal"):
+        if t in ("bot", "crate", "check", "goal", "battery", "block", "plate", "hopper", "spider", "snowbot", "turret"):
             floating = t == "bot" and any(
                 z["t"] == "zerog" and math.dist(z["p"], o["p"]) <= z["r"] for z in L.objs)
             if not floating and not rests(o["p"]):

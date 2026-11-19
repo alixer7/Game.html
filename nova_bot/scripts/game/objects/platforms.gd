@@ -502,7 +502,10 @@ class Pendulum extends AnimatableBody3D:
 		_ph = float(o.get("ph", 0.0))
 		_axis = Zones.heading_vec(float(o.get("dir", 90.0)))
 		_pivot = top + Vector3(0.0, _len, 0.0)
-		Platforms.add_box(self, s, c)
+		var ice: bool = bool(o.get("ice", false))
+		if ice:
+			set_meta("ice", true)
+		Platforms.add_box(self, s, c, Mats.platform(s * 0.5, c, false, 0.0, true) if ice else null)
 		position = top - Vector3(0.0, _th * 0.5, 0.0)
 		for sx in [-1.0, 1.0]:
 			Geo.put(self, Geo.cyl(0.12, 0.12, 0.3, 8), Mats.metal(Color(0.3, 0.3, 0.35), 0.35, 0.9), Vector3(float(sx) * s.x * 0.3, _th * 0.5 + 0.15, 0.0))

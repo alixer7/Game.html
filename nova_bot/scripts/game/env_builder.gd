@@ -147,7 +147,7 @@ static func build(parent: Node3D, theme_id: String, center: Vector3, kill_y: flo
 		env.adjustment_enabled = true
 		env.adjustment_contrast = 1.08
 		env.adjustment_saturation = 1.12
-	if q >= 2:
+	if q >= 2 and RenderingServer.get_current_rendering_method() == "forward_plus":
 		env.ssao_enabled = true
 		env.ssao_radius = 1.4
 		env.ssao_intensity = 1.6

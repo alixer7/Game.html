@@ -35,6 +35,8 @@ func _ready() -> void:
 		Game.current_level = clampi(int(_dev_args["level"]), 1, Game.level_count())
 		_swap(_make_world, true)
 	else:
+		if _dev_args.has("page"):
+			_menu_page = str(_dev_args["page"])
 		_swap(_make_menu, true)
 		if not _dev_args.is_empty():
 			_attach_dev(null)
@@ -142,6 +144,14 @@ func _fade_to(a: float, dur: float) -> void:
 	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", a, dur)
 	await tw.finished
+
+
+func _exit_tree() -> void:
+	# release static resource caches so the engine exits cleanly
+	Mats.clear()
+	Geo._cache.clear()
+	Debris._shapes.clear()
+	Debris._live.clear()
 
 
 func _notification(what: int) -> void:

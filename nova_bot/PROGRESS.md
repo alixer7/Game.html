@@ -1,78 +1,45 @@
-# NOVA BOT — PROGRESS / HANDOFF
+# NOVA BOT — PROGRESS / HANDOFF (v0.2)
 
-Astro-Bot-style 3D platformer for phones. Godot 4.3+ (tested target: 4.7 + Jolt), GDScript only, everything procedural
-(primitives + shaders + generated WAVs). Landscape, 1920x1080 base, Arabic UI (bundled DejaVu Sans Bold).
+Astro-Bot-style 3D platformer for phones. Godot 4.4+ (tested on 4.7 + Jolt), GDScript only, everything procedural
+(meshes + shaders + generated WAVs). Landscape 1920x1080 base, Arabic UI.
 
-> STATUS: code written and statically checked, but NEVER run in Godot (no engine in the authoring sandbox).
-> First thing to do on a machine with Godot: open the project, read the Output/Debugger panel, fix whatever it reports,
-> then play-test each level and tune the feel (numbers at the top of `scripts/game/player.gd`).
+## Status
+- v0.2 was run in Godot 4.7 (headless import + Xvfb/lavapipe Vulkan rendering). All 5 levels load with no script or
+  shader errors in Forward+, Mobile and Compatibility renderers.
+- Exercised in-engine with scripted inputs / dev hooks: punch combo on crates (physics debris + gem spray + collection),
+  enemy wrecks, battery drain -> reserve -> shutdown -> respawn, battery pickup swap sequence, turntable / lift / drum
+  carrying the player, pylon puzzle solve -> switch bridge, push block sliding, toggles, boss phases.
+- NOT verified: a full human play-through of every level start-to-finish, feel on a real phone, mobile performance.
+  Hop distances are validated statically by tools/build_levels.py; timing-heavy spots may need tuning after play-tests.
 
-## Done
-- core: `project.godot` (Jolt Physics, Mobile renderer, landscape), autoloads `Game` (settings/save/levels), `Sfx`,
-  `scenes/main.tscn`, `scripts/main.gd` (fade + loading overlay, Android back button)
-- UI kit + icons + neon widgets, touch controls (floating/fixed stick, Jump/Spin/Dash, camera drag), settings panel, HUD
-  (coins, bots, hp, timer, hint, toast, boss bar, pause, result), main menu (diorama, level cards, settings page)
-- 16 shaders, 35 generated WAVs (`tools/make_audio.py`)
-- player (run/jump/double-jump/hover/spin/dash, coyote+buffer), robot model, camera rig, environment builder (4 themes)
-- objects: platforms, collectibles, zones, hazards, enemies, boss, level loader, `GameWorld`
-- 4 levels (`tools/build_levels.py` -> `levels/*.json` + embedded `scripts/game/level_data.gd` + maps in docs/level_maps)
+## What changed since v0.1
+- Robot: `robot_model.gd` rewritten (Geo meshes, spring-driven joints, LED face shader, back battery with clamps).
+- Player: punch combo / air spin / charged spin / hover lasers / debris kicking / ice friction / wind; battery system
+  (drain table at the top of player.gd), reserve + shutdown, `frozen` state for cutscenes.
+- `battery_swap.gd`: cinematic swap timeline; `CameraRig.cinematic()` blends to a fixed shot.
+- `debris.gd`: rigid-body chunks (layer 5 "debris"), box shatter, crate break, shards, mesh->parts, physical pickups,
+  Carcass wreck for enemy deaths. Capped by quality (36 / 80 / 140 live pieces).
+- Enemies rewritten (+ hopper, shield bot, spider, snowbot); projectiles can be punched back at the shooter.
+- New objects: turn, retract, pend, drum, toggle, lift, crusher, sweep, icicle, wind, geyser, meteors, elec, swing,
+  pylons, block, plate, gate, targets, wall, battery. See `level_loader.gd::_make` and the DSL in `tools/leveldsl.py`.
+- Environment: `env_builder.gd` rewritten (5 themes incl. new "ice"), surface / rock / clouds / disk shaders, landmarks,
+  floating-island undersides, breakable props (`EnvBuilder.Prop`), aurora + black hole in `sky_space.gdshader`.
+- Levels: 5 levels (new L4 Ice Comet), each ~5.1-5.5 min estimated main route for a skilled player, 13-16 checkpoints,
+  3 friends, 3 spare batteries. Estimator constants are in `Level.HOP_T` / `tm()` calls in leveldsl.py.
+- Boss: 4 HP, armour plates break off physically, phase 2+ sweeping lasers, phase 3+ meteor summons.
+- Audio: 37 new SFX + music_world4 / music_world5 (tools/make_audio.py --only=...).
+- Menu: 5 level cards. Project: Forward+ on desktop, Mobile renderer on phones; physics layer 5 = debris.
 
-## Verification so far (all static - see tools/)
-- `python3 tools/build_levels.py` : every hop is checked against the player's jump/double/dash/hover/bounce/pad budget,
-  platforms are checked for plan-view overlaps, resting objects (bots/crates/checkpoints/goal) must stand on a platform.
-- `python3 tools/check_gd.py [--api] [--stats]` : parser-level checks, unknown names, arity of own functions/signals/
-  constructors, member existence on own classes (incl. `world.` = GameWorld), type-lite (operators, argument/return/
-  assignment types, `float % float`), `:=` on Variant results, Godot 3 leftovers, missing res:// files.
-  `--api` prints every engine member the code touches (eyeball against the docs).
-- `python3 tools/check_shaders.py [--unused]`, `python3 tools/check_schema.py` (JSON keys vs GDScript readers).
-- Not covered: engine-side API signatures/types, shader compilation, physics feel, performance on real phones.
+## Conventions (unchanged + new)
+- Tabs. No lambdas. Avoid `:=` with Variant RHS. Objects hold `var world: Node` and call it dynamically.
+- Heading convention: JSON `yaw`/`dir`/`heading` in degrees, 0 = -Z, 90 = +X. `ry` = Godot rotation.y degrees.
+- "hittable" group: `hit_radius`, optional `hit_offset`, `hit(by, kind) -> bool`; kinds: punch, punch3, spin,
+  spin_big, dash, stomp, laser, reflect.
+- Switch ids connect puzzles: `world.activate_switch(id, dur)` (0 = permanent) / `world.is_switch_on(id)`.
+- `world.toggle_state` flips on every player jump (jump-switch platforms).
+- Floor metadata `ice` on a collider makes the player slide.
 
-## Next batch (suggested order)
-1. Run it; fix whatever the editor reports (parse errors first, then runtime errors in Output).
-2. Playtest on a phone: stick dead-zone/size, button positions, camera assist, jump feel; adjust constants.
-3. Check each level: unreachable bots/coins, unfair spots (use `tools/build_levels.py`, re-run to regenerate).
-4. Content: worlds 5-8 (gravity flip, wind, magnetic platforms), a hub level, robot skins unlocked by rescued bots.
-
-## File map
-```
-project.godot            autoload Game, Sfx; layers: 1 world, 2 player, 3 enemy, 4 trigger
-scenes/main.tscn         Node + scripts/main.gd (Main)
-scripts/core/game.gd     settings, save, LEVELS catalogue, input actions, vibrate(), level_record()
-scripts/core/sfx.gd      play(name,vol_db,pitch) loop_start/stop play_music stop_music set_muffled
-scripts/main.gd          go_menu(page) start_level(id); fade + loading overlay; Android back -> screen.on_back()
-scripts/ui/*             ui_kit, ui_icons, neon_button/slider/toggle/segment, touch_controls, settings_panel, hud
-scripts/game/mats.gd     material factory (Mats.theme must be set before building a level)
-scripts/game/fx.gd       burst/ring/popup + RingFx/Trail3D/Spin
-scripts/game/env_builder.gd   themes: launch / crystal / foundry / core
-scripts/game/player.gd, robot_model.gd, camera_rig.gd
-scripts/game/level_loader.gd  JSON -> objects (LevelLoader.load_level(world, root, path)); falls back to LevelData (embedded copy)
-scripts/game/level_data.gd    AUTO-GENERATED by tools/build_levels.py - never edit by hand
-tools/                   build_levels.py (+leveldsl.py, check_levels.py), check_gd.py (+gdtypes.py), check_shaders.py, check_schema.py, make_audio.py
-scripts/game/game_world.gd    GameWorld: rules + API used by objects
-scripts/game/objects/    platforms, collectibles, zones, hazards, enemies, boss
-shaders/*.gdshader       sky_space platform neon ghost coin blob_shadow ring_fx portal beam chevron abyss trail deco ...
-```
-
-## Conventions
-- Tabs. No lambdas, no multi-pattern match. Avoid `:=` when RHS is Variant (dict/get/untyped array) -> explicit types.
-- Objects hold `var world: Node` (untyped dynamic calls) to avoid cyclic class_name deps.
-- Heading convention: level JSON `yaw`/`dir` = heading in DEGREES, 0 = -Z (north), 90 = +X. Direction (sin h, 0, -cos h).
-  Camera/player yaw (radians) = -deg2rad(heading). JSON `ry` on boxes is Godot rotation.y in degrees.
-- Zones poll `overlaps_body(player)` every physics frame (no enter/exit counters).
-- "hittable" group: nodes with `hit_radius` and `hit(by, kind) -> bool` (kind: spin / dash / stomp).
-
-## GameWorld API (called by objects/player)
-`player, rig, goal, time, add_coins(n,at), collect_bot(i,at), set_checkpoint(pos,yaw_deg), activate_switch(id,dur),
-is_switch_on(id), switch_left(id), unlock_goal(), hint(txt), toast(txt,col), shake(a), hitstop(sec), boss_hud(ratio,vis),
-complete(), on_back()`
-
-## Level JSON schema (objects use key "t")
-Top: `{id,name,theme,spawn:[x,y,z],yaw,kill_y,par,bots_total,cam:{dist,pitch}?,objects:[...]}`
-- box `{p:top-centre, s:[w,th,d], ry, c}`, cyl `{p,r,th,c}`
-- move `{p,s | r+th, off, per, ph, c}` (AnimatableBody3D), spin `{p,len,th,w,speed,ph,c}` (sweeper bar)
-- crumble `{p,s,delay,respawn,c}`, ghost `{p,s,on,off,ph,c}` or `{mode:"switch",id,...}`
-- bounce `{p,pow,r,c}`, spad `{p,dir,len,w,spd,c}`, updraft `{p,r,h,spd,c}`, zerog `{p,r,c}`, conv `{p,s,ry,dir,spd,c}`
-- coins `{pts:[[x,y,z],...]}`, bot `{p,i}`, crate `{p,n}`, check `{p,yaw}`, goal `{p,locked}`, hint `{p,r,txt}`
-- drone `{p,off,per,ph}`, turret `{p,range,every,ph}`, spikes `{p,s:[w,d],per,ph,out}`, saw `{p,off,per,ph,r}`,
-  laser `{a,b,on,off,ph}`, bumper `{p,r,pow,c}`, boss `{p,r}`, switch `{p,id,dur,c}`
-Player jump budget: single jump reach ~6.3 m, double ~9 m, hover > 10 m. Easy gaps <= 4.5, medium <= 5.6, hard <= 9.
+## Next steps (suggested)
+1. Full play-test of each level on a phone; tune timings (retract on/off, crusher per, meteor rate) and battery drain.
+2. Performance pass on low-end phones (quality 0 already drops landmarks/props/particles; consider HLOD for dressing).
+3. Robot skins unlocked by rescued friends; a hub world.

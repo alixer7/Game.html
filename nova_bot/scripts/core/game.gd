@@ -4,7 +4,7 @@ extends Node
 signal settings_changed
 
 const SAVE_PATH := "user://nova_bot_save.json"
-const VERSION := "0.1.0"
+const VERSION := "0.2.0"
 
 var main = null                  # the Main node (set by Main)
 var settings: Dictionary = {}
@@ -27,21 +27,25 @@ func _ready() -> void:
 func _build_catalogue() -> void:
 	LEVELS = [
 		{"id": 1, "file": "res://levels/level_1.json", "theme": "launch", "boss": false,
-			"name": "محطة الانطلاق", "desc": "تعلّم الحركات واكتشف أول الأصدقاء",
+			"name": "محطة الإطلاق", "desc": "أقراص دوّارة وجسور منزلقة ومصعد الصاروخ",
 			"a": Color(0.2, 0.85, 1.0), "b": Color(0.15, 0.3, 0.9), "atmo": Color(0.5, 0.95, 1.0),
 			"ring": 0.0, "seed": 1.3, "music": "music_world1"},
 		{"id": 2, "file": "res://levels/level_2.json", "theme": "crystal", "boss": false,
-			"name": "حدائق الكريستال", "desc": "كريستالات متهاوية ومنصات أشباح ومفاتيح",
+			"name": "حدائق الكريستال", "desc": "كريستالات متهاوية وبندولات وألغاز الأعمدة",
 			"a": Color(1.0, 0.35, 0.85), "b": Color(0.45, 0.2, 0.9), "atmo": Color(1.0, 0.6, 0.95),
 			"ring": 1.0, "seed": 4.1, "music": "music_world2"},
 		{"id": 3, "file": "res://levels/level_3.json", "theme": "foundry", "boss": false,
-			"name": "مصنع الجاذبية", "desc": "تيارات هوائية وليزر وسيور متحركة",
+			"name": "مصنع الجاذبية", "desc": "مكابس وسيور وليزر وصندوق ثقيل",
 			"a": Color(1.0, 0.55, 0.15), "b": Color(0.8, 0.15, 0.2), "atmo": Color(1.0, 0.75, 0.4),
 			"ring": 0.0, "seed": 7.7, "music": "music_world3"},
-		{"id": 4, "file": "res://levels/level_4.json", "theme": "core", "boss": true,
-			"name": "قلب المجرة", "desc": "واجه الحارس العملاق وأنقذ المجرة",
+		{"id": 4, "file": "res://levels/level_4.json", "theme": "ice", "boss": false,
+			"name": "المذنّب الجليدي", "desc": "جليد زلق ورياح عاصفة ونوافير بخار",
+			"a": Color(0.55, 0.85, 1.0), "b": Color(0.3, 0.45, 0.95), "atmo": Color(0.8, 0.95, 1.0),
+			"ring": 1.0, "seed": 9.3, "music": "music_world4"},
+		{"id": 5, "file": "res://levels/level_5.json", "theme": "core", "boss": true,
+			"name": "قلب المجرة", "desc": "منصات تتبدّل ونيازك... ثم الحارس العملاق",
 			"a": Color(1.0, 0.85, 0.3), "b": Color(0.55, 0.3, 1.0), "atmo": Color(1.0, 0.95, 0.6),
-			"ring": 1.0, "seed": 2.6, "music": "music_boss"},
+			"ring": 1.0, "seed": 2.6, "music": "music_world5"},
 	]
 
 
