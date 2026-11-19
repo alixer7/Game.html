@@ -10,6 +10,7 @@ var _dots: Label
 var _busy: bool = false
 var _menu_page: String = "main"
 var _t: float = 0.0
+var _dev_args: Dictionary = {}
 
 
 func _ready() -> void:
@@ -18,7 +19,25 @@ func _ready() -> void:
 	Game.apply_display(get_viewport())
 	Game.settings_changed.connect(_on_settings)
 	_build_overlay()
-	_swap(_make_menu, true)
+	_dev_args = DevTools.parse_args()
+	if _dev_args.has("model"):
+		var studio := DevTools.ModelStudio.new()
+		if str(_dev_args["model"]) != "1":
+			studio.poses = str(_dev_args["model"]).split(",", false)
+		add_child(studio)
+		_attach_dev(null)
+		_fade.color.a = 0.0
+		return
+	if _dev_args.has("file"):
+		Game.dev_file = str(_dev_args["file"])
+		Game.dev_theme = str(_dev_args.get("theme", ""))
+	if _dev_args.has("level"):
+		Game.current_level = clampi(int(_dev_args["level"]), 1, Game.level_count())
+		_swap(_make_world, true)
+	else:
+		_swap(_make_menu, true)
+		if not _dev_args.is_empty():
+			_attach_dev(null)
 
 
 func _process(delta: float) -> void:
@@ -79,7 +98,19 @@ func _make_menu() -> Node:
 func _make_world() -> Node:
 	var w := GameWorld.new()
 	w.level_id = Game.current_level
+	if not _dev_args.is_empty():
+		_attach_dev(w)
 	return w
+
+
+func _attach_dev(w: Node) -> void:
+	var d := DevTools.new()
+	d.world = w
+	d.args = _dev_args
+	if w != null:
+		w.add_child(d)
+	else:
+		add_child(d)
 
 
 func _swap(builder: Callable, instant: bool = false) -> void:

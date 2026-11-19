@@ -19,6 +19,8 @@ var _toast_panel: Panel
 var _toast_label: Label
 var _toast_tw: Tween
 var _boss_bar: BossBar
+var _battery: BatteryGauge
+var _reserve_label: Label
 var _vig_mat: ShaderMaterial
 var _flash_amt: float = 0.0
 var _flash_col: Color = Color(1.0, 0.1, 0.1)
@@ -75,6 +77,13 @@ func _build_stats() -> void:
 	_fps_label = UIKit.label_ltr("", 26, UIKit.COL_DIM, HORIZONTAL_ALIGNMENT_RIGHT, 5)
 	UIKit.place(_fps_label, Vector2(1.0, 0.0), Vector2(-260.0 - mar.z, 140.0 + mar.y), Vector2(200.0, 36.0))
 	_root.add_child(_fps_label)
+	_battery = BatteryGauge.new()
+	UIKit.place(_battery, Vector2.ZERO, Vector2(28.0 + mar.x + 416.0, 22.0 + mar.y), Vector2(360.0, 96.0))
+	_root.add_child(_battery)
+	_reserve_label = UIKit.label("", 52, Color(1.0, 0.4, 0.35), HORIZONTAL_ALIGNMENT_CENTER, 10)
+	UIKit.place(_reserve_label, Vector2(0.5, 0.0), Vector2(-500.0, 250.0), Vector2(1000.0, 80.0))
+	_reserve_label.modulate.a = 0.0
+	_root.add_child(_reserve_label)
 
 
 func _build_toasts() -> void:
@@ -133,6 +142,22 @@ func set_hp(n: int, mx: int = 3) -> void:
 	_stats.hp = n
 	_stats.max_hp = mx
 	_stats.queue_redraw()
+
+
+func set_battery(v: float, mx: float = 100.0) -> void:
+	var r: float = clampf(v / maxf(mx, 0.001), 0.0, 1.0)
+	if r > _battery.ratio + 0.05:
+		_battery.charge_fx = 1.0
+	_battery.ratio = r
+
+
+func set_reserve(active: bool, left: float) -> void:
+	_battery.reserve = active
+	if active:
+		_reserve_label.text = "طاقة احتياطية: %d" % int(ceil(left))
+		_reserve_label.modulate.a = 0.75 + 0.25 * sin(_t * 10.0)
+	else:
+		_reserve_label.modulate.a = 0.0
 
 
 func set_time(t: float) -> void:
@@ -457,6 +482,61 @@ class Stats extends Control:
 				UIIcons.draw(self, "hex", c2, 17.0, UIKit.COL_GREEN)
 			else:
 				UIIcons.draw(self, "hex", c2, 17.0, Color(0.25, 0.3, 0.42, 0.7))
+
+
+## Battery gauge: cell outline with 10 segments, percentage and a bolt icon. Blinks red when low.
+class BatteryGauge extends Control:
+	var ratio: float = 1.0
+	var shown: float = 1.0
+	var reserve: bool = false
+	var charge_fx: float = 0.0
+	var _t: float = 0.0
+	var _box: StyleBoxFlat
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_box = UIKit.panel_style(Color(0.03, 0.06, 0.16, 0.62), Color(0.35, 1.0, 0.6, 0.45), 26, 2, 10)
+
+	func _process(delta: float) -> void:
+		_t += delta
+		shown = move_toward(shown, ratio, delta * (0.8 if ratio > shown else 2.5))
+		charge_fx = maxf(charge_fx - delta * 0.8, 0.0)
+		queue_redraw()
+
+	func _col() -> Color:
+		if reserve or shown < 0.2:
+			return Color(1.0, 0.3, 0.25)
+		if shown < 0.45:
+			return Color(1.0, 0.8, 0.25)
+		return Color(0.35, 1.0, 0.6)
+
+	func _draw() -> void:
+		var col: Color = _col()
+		var blink: bool = (reserve or shown < 0.2) and int(_t * 4.0) % 2 == 0
+		_box.border_color = Color(col.r, col.g, col.b, 0.75 if blink else 0.45)
+		draw_style_box(_box, Rect2(Vector2.ZERO, size))
+		UIIcons.draw(self, "bolt", Vector2(44.0, size.y * 0.5), 24.0, col if not blink else col.darkened(0.5))
+		var bx := Rect2(Vector2(82.0, 24.0), Vector2(190.0, size.y - 48.0))
+		draw_rect(bx, Color(0.0, 0.0, 0.0, 0.35))
+		draw_rect(bx, Color(col.r, col.g, col.b, 0.85), false, 3.0)
+		draw_rect(Rect2(bx.position + Vector2(bx.size.x, bx.size.y * 0.3), Vector2(8.0, bx.size.y * 0.4)), Color(col.r, col.g, col.b, 0.85))
+		var segs: int = 10
+		var gap: float = 3.0
+		var sw: float = (bx.size.x - 8.0 - gap * float(segs - 1)) / float(segs)
+		for i in range(segs):
+			var f: float = clampf(shown * float(segs) - float(i), 0.0, 1.0)
+			if f <= 0.0:
+				continue
+			var r := Rect2(bx.position + Vector2(4.0 + float(i) * (sw + gap), 4.0), Vector2(sw * f, bx.size.y - 8.0))
+			var c: Color = col
+			if charge_fx > 0.0:
+				var w: float = fposmod(_t * 3.0, 1.4) * float(segs)
+				c = c.lerp(Color(1, 1, 1), clampf(1.0 - absf(float(i) - w) * 0.5, 0.0, 1.0) * charge_fx)
+			draw_rect(r, c)
+		var txt: String = str(int(round(shown * 100.0))) + "%"
+		var f2: Font = UIKit.font()
+		draw_string_outline(f2, Vector2(288.0, size.y * 0.5 + 13.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 36, 6, Color(0.02, 0.04, 0.12, 0.9))
+		draw_string(f2, Vector2(288.0, size.y * 0.5 + 13.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 36, col.lightened(0.3))
 
 
 class BossBar extends Control:

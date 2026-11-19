@@ -36,7 +36,11 @@ var _hitstop_until: int = 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
-	_meta = Game.level_meta(level_id)
+	_meta = Game.level_meta(level_id).duplicate()
+	if Game.dev_file != "":
+		_meta["file"] = Game.dev_file
+		if Game.dev_theme != "":
+			_meta["theme"] = Game.dev_theme
 	var theme_id: String = str(_meta.get("theme", "launch"))
 	Mats.clear()
 	Mats.theme = EnvBuilder.theme(theme_id)
@@ -89,6 +93,9 @@ func _ready() -> void:
 	_hud.set_hp(player.hp, player.max_hp)
 	player.hp_changed.connect(_hud.set_hp)
 	player.died.connect(_on_died)
+	player.battery_changed.connect(_hud.set_battery)
+	player.reserve_changed.connect(_hud.set_reserve)
+	_hud.set_battery(player.battery, Player.BAT_MAX)
 
 	var touch_layer := CanvasLayer.new()
 	touch_layer.layer = 5
@@ -137,6 +144,8 @@ func _process(_delta: float) -> void:
 	_hud.set_time(_run_time)
 	_touch.hover_ratio = player.hover_ratio()
 	_touch.dash_ratio = player.dash_ratio()
+	_touch.battery_ratio = 0.0 if player.is_reserve() else 1.0
+	_touch.charge_ratio = player.charge_ratio()
 	EnvBuilder.follow_abyss(_abyss, rig.cam.global_position)
 	if Engine.time_scale < 1.0 and Time.get_ticks_msec() >= _hitstop_until:
 		Engine.time_scale = 1.0
@@ -261,6 +270,29 @@ func hint(txt: String) -> void:
 
 func toast(txt: String, col: Color = Color(0.25, 0.9, 1.0)) -> void:
 	_hud.toast(txt, col)
+
+
+func hud_flash(col: Color, amount: float = 0.3) -> void:
+	_hud.flash(col, amount)
+
+
+func level_root() -> Node3D:
+	return _level_root
+
+
+## Dev: jump to the n-th checkpoint of the level (1-based, 0 = spawn).
+func dev_goto_checkpoint(n: int) -> void:
+	var k: int = 0
+	for c in _level_root.get_children():
+		if c is Zones.Checkpoint:
+			k += 1
+			if k == n:
+				var cp: Node3D = c
+				var yaw: float = -deg_to_rad(float(cp.get("_yaw")))
+				player.respawn(cp.global_position + Vector3(0.0, 0.3, 0.0), yaw)
+				rig.yaw = yaw
+				rig.snap()
+				return
 
 
 func shake(amount: float) -> void:

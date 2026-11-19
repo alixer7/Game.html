@@ -121,3 +121,51 @@ static func flat(color: Color) -> StandardMaterial3D:
 	m.albedo_color = color
 	_cache[key] = m
 	return m
+
+
+## Glossy toy-plastic (clear-coated, soft rim light). Cached.
+static func plastic(color: Color, rough: float = 0.3, emis: Color = Color(0, 0, 0, 0), emis_energy: float = 1.0, rim: float = 0.25) -> StandardMaterial3D:
+	var key: String = "pl%s_%.2f_%s_%.2f_%.2f" % [color.to_html(true), rough, emis.to_html(true), emis_energy, rim]
+	if _cache.has(key):
+		return _cache[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.metallic = 0.0
+	m.metallic_specular = 0.6
+	m.roughness = rough
+	m.clearcoat_enabled = true
+	m.clearcoat = 0.8
+	m.clearcoat_roughness = 0.12
+	if rim > 0.0:
+		m.rim_enabled = true
+		m.rim = rim
+		m.rim_tint = 0.4
+	if emis.a > 0.0:
+		m.emission_enabled = true
+		m.emission = emis
+		m.emission_energy_multiplier = emis_energy
+	_cache[key] = m
+	return m
+
+
+## Brushed metal / painted metal.
+static func metal(color: Color, rough: float = 0.35, metallic: float = 0.85, emis: Color = Color(0, 0, 0, 0), emis_energy: float = 1.0) -> StandardMaterial3D:
+	return std(color, metallic, rough, emis, emis_energy)
+
+
+## Emissive unshaded glow with an HDR colour (k = brightness multiplier). Cached.
+static func glow(color: Color, k: float = 2.0) -> StandardMaterial3D:
+	return flat(Color(color.r * k, color.g * k, color.b * k, 1.0))
+
+
+static func face() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = shader("res://shaders/face.gdshader")
+	return m
+
+
+static func battery(level: float = 1.0) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = shader("res://shaders/battery.gdshader")
+	m.set_shader_parameter("level", level)
+	return m

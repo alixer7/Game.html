@@ -1,7 +1,7 @@
 class_name TouchControls
 extends Control
 ## Floating joystick, action buttons and a camera-drag zone for phones, drawn from code.
-## It drives the InputMap actions (move_*, jump, spin, dash), so the Player is identical for
+## It drives the InputMap actions (move_*, jump, attack, dash), so the Player is identical for
 ## touch, keyboard and gamepad. Every finger keeps the role it started with.
 
 signal pause_pressed
@@ -9,10 +9,12 @@ signal camera_drag(delta: Vector2)
 
 const STICK_R := 104.0
 const DEADZONE := 0.10
-const BUTTONS := ["jump", "spin", "dash"]
+const BUTTONS := ["jump", "attack", "dash"]
 
 var hover_ratio: float = 1.0   # hover fuel left (0..1), shown as an arc around the jump button
 var dash_ratio: float = 1.0    # 1 = dash ready
+var battery_ratio: float = 1.0 # 0..1, dims the ability buttons when the battery is empty
+var charge_ratio: float = 0.0  # held-attack charge (ring around the attack button)
 var active: bool = true
 
 var _roles: Dictionary = {}    # finger index -> role
@@ -22,9 +24,9 @@ var _stick_off := Vector2.ZERO
 var _cam_id: int = -1
 var _cam_last := Vector2.ZERO
 var _pause_id: int = -1
-var _down: Dictionary = {"jump": false, "spin": false, "dash": false}
-var _finger: Dictionary = {"jump": -1, "spin": -1, "dash": -1}
-var _glow: Dictionary = {"jump": 0.0, "spin": 0.0, "dash": 0.0}
+var _down: Dictionary = {"jump": false, "attack": false, "dash": false}
+var _finger: Dictionary = {"jump": -1, "attack": -1, "dash": -1}
+var _glow: Dictionary = {"jump": 0.0, "attack": 0.0, "dash": 0.0}
 var _mar := Vector4.ZERO
 
 
@@ -57,7 +59,7 @@ func _btn_scale() -> float:
 func btn_center(b: String) -> Vector2:
 	var sc: float = _btn_scale()
 	var j := Vector2(size.x - 70.0 - _mar.z - 100.0 * sc, size.y - 60.0 - _mar.w - 100.0 * sc)
-	if b == "spin":
+	if b == "attack":
 		return j + Vector2(-196.0, 40.0) * sc
 	if b == "dash":
 		return j + Vector2(-130.0, -168.0) * sc
@@ -68,7 +70,7 @@ func btn_radius(b: String) -> float:
 	var sc: float = _btn_scale()
 	if b == "jump":
 		return 100.0 * sc
-	if b == "spin":
+	if b == "attack":
 		return 72.0 * sc
 	return 66.0 * sc
 
@@ -76,7 +78,7 @@ func btn_radius(b: String) -> float:
 func _btn_color(b: String) -> Color:
 	if b == "jump":
 		return UIKit.COL_CYAN
-	if b == "spin":
+	if b == "attack":
 		return UIKit.COL_PINK
 	return UIKit.COL_GOLD
 
@@ -312,6 +314,10 @@ func _draw_button(b: String, a: float) -> void:
 	UIIcons.draw(self, b, c, r * 0.4, Color(1.0, 1.0, 1.0, 0.96 * a))
 	if b == "jump" and hover_ratio < 0.995:
 		draw_arc(c, r * 1.2, -PI * 0.5, -PI * 0.5 + TAU * clampf(hover_ratio, 0.0, 1.0), 40, Color(0.45, 1.0, 0.7, 0.95 * a), 6.0, true)
+	if b == "attack" and charge_ratio > 0.01:
+		draw_arc(c, r * 1.2, -PI * 0.5, -PI * 0.5 + TAU * clampf(charge_ratio, 0.0, 1.0), 40, Color(0.6, 0.95, 1.0, 0.95 * a), 7.0, true)
+	if battery_ratio <= 0.0 and b != "jump":
+		draw_circle(c, r * 0.98, Color(0.0, 0.0, 0.0, 0.45 * a))
 	if b == "dash" and dash_ratio < 0.995:
 		draw_circle(c, r * 0.98, Color(0.0, 0.0, 0.0, 0.35 * a))
 		draw_arc(c, r * 1.2, -PI * 0.5, -PI * 0.5 + TAU * clampf(dash_ratio, 0.0, 1.0), 40, Color(col.r, col.g, col.b, 0.95 * a), 6.0, true)

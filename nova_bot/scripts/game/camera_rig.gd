@@ -22,6 +22,24 @@ var _pitch_cur: float = 0.42
 var _fov: float = 64.0
 var _trauma: float = 0.0
 var _manual_t: float = 10.0
+var _cine_on: bool = false
+var _cine_blend: float = 0.0
+var _cine_speed: float = 2.0
+var _cine_pos := Vector3.ZERO
+var _cine_look := Vector3.ZERO
+
+
+## Blend to a fixed cinematic shot (battery swap etc.) over `dur` seconds.
+func cinematic(pos: Vector3, look: Vector3, dur: float = 0.5) -> void:
+	_cine_on = true
+	_cine_pos = pos
+	_cine_look = look
+	_cine_speed = 1.0 / maxf(dur, 0.05)
+
+
+func cinematic_off(dur: float = 0.5) -> void:
+	_cine_on = false
+	_cine_speed = 1.0 / maxf(dur, 0.05)
 
 
 func _ready() -> void:
@@ -122,6 +140,12 @@ func _apply(delta: float, smooth: bool) -> void:
 		_dist_eff = lerpf(_dist_eff, allowed, 1.0 - exp(-4.0 * delta))
 	global_position = _focus + back * _dist_eff
 	look_at(_focus, Vector3.UP)
+	_cine_blend = move_toward(_cine_blend, 1.0 if _cine_on else 0.0, delta * _cine_speed)
+	if _cine_blend > 0.0:
+		var e: float = smoothstep(0.0, 1.0, _cine_blend)
+		var follow_pos: Vector3 = global_position
+		global_position = follow_pos.lerp(_cine_pos, e)
+		look_at(_focus.lerp(_cine_look, e), Vector3.UP)
 
 	# FOV kick with speed / dash
 	var hspeed: float = Vector2(player.velocity.x, player.velocity.z).length()

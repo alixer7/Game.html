@@ -183,13 +183,18 @@ class RescueBot extends Area3D:
 
 
 # ------------------------------------------------------------------ crate
-## p = floor position under the crate, n = coins inside. Break it with spin / dash / by landing on it.
+## p = floor position under the crate, n = gems inside. Break it with punch / spin / dash / by landing on it.
+## It bursts into its frame bars and panels (real rigid bodies) and the gems spray out physically.
 class Crate extends StaticBody3D:
 	var world: Node = null
 	var coins: int = 5
 	var hit_radius: float = 0.9
 	var _area: Area3D
 	var _broken: bool = false
+	var _vis: Node3D
+	var _wob: float = 0.0
+	var _frame_mat: Material
+	var _panel_mat: Material
 
 	func setup(o: Dictionary) -> void:
 		collision_layer = 1
@@ -197,42 +202,169 @@ class Crate extends StaticBody3D:
 		coins = int(o.get("n", 5))
 		position = LevelLoader.vec(o.get("p")) + Vector3(0.0, 0.5, 0.0)
 		rotation_degrees.y = float(o.get("ry", 0.0))
-		Platforms.add_box(self, Vector3(1.0, 1.0, 1.0), 1)
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = Vector3(1.0, 1.0, 1.0)
+		cs.shape = bs
+		add_child(cs)
+		_vis = Node3D.new()
+		add_child(_vis)
+		var acc: Color = Mats.accent(1)
+		_frame_mat = Mats.metal(Color(0.85, 0.55, 0.15), 0.4, 0.6)
+		_panel_mat = Mats.plastic(Color(0.14, 0.17, 0.26), 0.35, acc, 0.25)
+		var e: float = 1.0
+		var bar: float = 0.14
+		var h: float = 0.5
+		for ax in range(3):
+			for sa in [-1.0, 1.0]:
+				for sb in [-1.0, 1.0]:
+					var p := Vector3.ZERO
+					var sz := Vector3(bar, bar, bar)
+					sz[ax] = e
+					p[(ax + 1) % 3] = float(sa) * (h - bar * 0.5)
+					p[(ax + 2) % 3] = float(sb) * (h - bar * 0.5)
+					Geo.put(_vis, Geo.box(sz), _frame_mat, p)
+		Geo.put(_vis, Geo.box(Vector3(e - 0.06, e - 0.06, e - 0.06)), _panel_mat)
+		for ax2 in range(3):
+			for sg in [-1.0, 1.0]:
+				var rot := Vector3.ZERO
+				var pp := Vector3.ZERO
+				pp[ax2] = float(sg) * 0.475
+				if ax2 == 0:
+					rot = Vector3(0.0, 0.0, 90.0)
+				elif ax2 == 2:
+					rot = Vector3(90.0, 0.0, 0.0)
+				Geo.put(_vis, Geo.cyl(0.13, 0.13, 0.02, 6), Mats.glow(Color(1.0, 0.8, 0.3), 1.8), pp, rot, Vector3.ONE, false)
 		add_to_group("hittable")
 		_area = Area3D.new()
 		_area.collision_layer = 0
 		_area.collision_mask = 2
-		var cs := CollisionShape3D.new()
-		var bs := BoxShape3D.new()
-		bs.size = Vector3(1.0, 0.5, 1.0)
-		cs.shape = bs
-		cs.position = Vector3(0.0, 0.8, 0.0)
-		_area.add_child(cs)
+		var acs := CollisionShape3D.new()
+		var abs_ := BoxShape3D.new()
+		abs_.size = Vector3(1.0, 0.5, 1.0)
+		acs.shape = abs_
+		acs.position = Vector3(0.0, 0.8, 0.0)
+		_area.add_child(acs)
 		add_child(_area)
 
-	func _physics_process(_delta: float) -> void:
+	func _physics_process(delta: float) -> void:
 		if _broken or world == null:
 			return
+		_wob = move_toward(_wob, 0.0, delta * 3.0)
+		_vis.rotation = Vector3(sin(_wob * 30.0) * _wob * 0.15, 0.0, cos(_wob * 26.0) * _wob * 0.15)
 		var pl: Player = world.player
 		if pl != null and is_instance_valid(pl) and pl.alive and pl.velocity.y < -2.0 and _area.overlaps_body(pl):
 			pl.stomp_bounce()
-			_break()
+			_break(pl.global_position + Vector3(0.0, 1.5, 0.0))
 
-	func hit(_by: Node, _kind: String) -> bool:
+	func hit(by: Node, _kind: String) -> bool:
 		if _broken:
 			return false
-		_break()
+		var from: Vector3 = global_position + Vector3(0.0, 0.0, 1.0)
+		if by is Node3D:
+			from = (by as Node3D).global_position + Vector3(0.0, 0.5, 0.0)
+		_break(from)
 		return true
 
-	func _break() -> void:
+	func _break(from: Vector3) -> void:
 		_broken = true
 		remove_from_group("hittable")
 		var p: Vector3 = global_position
 		Sfx.play("crate")
 		Game.vibrate(30)
 		var parent: Node = get_parent()
-		Fx.burst(parent, p, Color(1.0, 0.7, 0.3), 16, 6.0, 0.35, 0.7, -10.0)
-		Fx.burst(parent, p, Color(1.0, 0.85, 0.3), 10, 5.0, 0.3, 0.6, -6.0)
-		Fx.ring(parent, p - Vector3(0.0, 0.5, 0.0), Color(1.0, 0.8, 0.4), 3.0, 0.4)
-		world.add_coins(coins, p)
+		Debris.crate_break(parent, global_transform, 1.0, _frame_mat, _panel_mat, from, 6.5)
+		Fx.burst(parent, p, Color(1.0, 0.8, 0.4), 10, 5.0, 0.35, 0.5, -8.0)
+		Fx.burst(parent, p, Color(0.6, 0.6, 0.7, 0.5), 6, 2.0, 0.7, 0.8, 1.0)
+		Debris.spray(parent, world, p, coins, "gem", 1.0, 5.5)
 		queue_free()
+
+
+# ------------------------------------------------------------ battery cell
+## Spare battery on a holographic pedestal (usually somewhere hard to reach). Touch it to swap your drained
+## cell for this one (full recharge, cinematic swap). One use. p = floor position under it.
+class BatteryCell extends Area3D:
+	var world: Node = null
+	var _cell: MeshInstance3D
+	var _holder: Node3D
+	var _ring_mat: ShaderMaterial
+	var _beam: MeshInstance3D
+	var _t: float = 0.0
+	var _used: bool = false
+	var _msg_cd: float = 0.0
+
+	func setup(o: Dictionary) -> void:
+		position = LevelLoader.vec(o.get("p"))
+		collision_layer = 0
+		collision_mask = 2
+		var cs := CollisionShape3D.new()
+		var sp := SphereShape3D.new()
+		sp.radius = 1.15
+		cs.shape = sp
+		cs.position = Vector3(0.0, 1.0, 0.0)
+		add_child(cs)
+		var green := Color(0.35, 1.0, 0.55)
+		Geo.put(self, Geo.lathe(PackedVector2Array([Vector2(0.0, 0.0), Vector2(0.62, 0.0), Vector2(0.66, 0.08), Vector2(0.5, 0.16), Vector2(0.42, 0.22), Vector2(0.0, 0.22)]), 28, "bat_pedestal"), Mats.metal(Color(0.18, 0.2, 0.26), 0.3, 0.7))
+		Geo.put(self, Geo.torus(0.48, 0.56, 32, 5), Mats.glow(green, 2.2), Vector3(0.0, 0.17, 0.0), Vector3.ZERO, Vector3.ONE, false)
+		_holder = Node3D.new()
+		_holder.position = Vector3(0.0, 1.05, 0.0)
+		add_child(_holder)
+		_ring_mat = Mats.neon_unique(green, 1.6, 1.2, 0.5)
+		for i in range(2):
+			var r := Geo.put(_holder, Geo.torus(0.5 + 0.12 * float(i), 0.55 + 0.12 * float(i), 36, 5), _ring_mat, Vector3.ZERO, Vector3(70.0 if i == 0 else -70.0, 0.0, 0.0), Vector3.ONE, false)
+			r.name = "ring%d" % i
+		_cell = RobotModel.make_battery_mesh(1.0)
+		_cell.scale = Vector3.ONE * 2.2
+		_cell.position = Vector3(0.0, -0.3, 0.0)
+		_holder.add_child(_cell)
+		var bh: float = 7.0
+		var bm := CylinderMesh.new()
+		bm.top_radius = 0.55
+		bm.bottom_radius = 0.55
+		bm.height = bh
+		bm.cap_top = false
+		bm.cap_bottom = false
+		bm.radial_segments = 16
+		_beam = MeshInstance3D.new()
+		_beam.mesh = bm
+		_beam.material_override = Mats.beam(green, bh, 1.2, false, 0.6)
+		_beam.position = Vector3(0.0, bh * 0.5 + 0.2, 0.0)
+		_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_beam)
+		var l := OmniLight3D.new()
+		l.light_color = green
+		l.light_energy = 1.2
+		l.omni_range = 4.0
+		l.position = Vector3(0.0, 1.2, 0.0)
+		add_child(l)
+
+	func _physics_process(delta: float) -> void:
+		_t += delta
+		_msg_cd = maxf(_msg_cd - delta, 0.0)
+		if _used:
+			return
+		_holder.position.y = 1.05 + sin(_t * 2.0) * 0.12
+		_holder.rotation.y += delta * 1.2
+		for c in _holder.get_children():
+			if c.name.begins_with("ring"):
+				(c as Node3D).rotate_object_local(Vector3.UP, delta * 2.5)
+		var pl: Player = Zones.player_of(world)
+		if pl == null or not overlaps_body(pl) or pl.frozen:
+			return
+		if pl.battery >= Player.BAT_MAX - 2.0:
+			if _msg_cd <= 0.0:
+				_msg_cd = 3.0
+				world.toast("بطاريتك ممتلئة، عُد إليها لاحقاً", Color(0.4, 1.0, 0.6))
+			return
+		_take(pl)
+
+	func _take(pl: Player) -> void:
+		_used = true
+		var gt: Transform3D = _cell.global_transform
+		_holder.remove_child(_cell)
+		get_parent().add_child(_cell)
+		_cell.global_transform = gt
+		_beam.visible = false
+		_ring_mat.set_shader_parameter("energy", 0.3)
+		BatterySwap.begin(world, pl, _cell)
+		_cell = null

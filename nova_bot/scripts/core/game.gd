@@ -11,6 +11,8 @@ var settings: Dictionary = {}
 var progress: Dictionary = {}
 var current_level: int = 1
 var LEVELS: Array = []
+var dev_file: String = ""     # dev harness: load this level file instead of the catalogue one
+var dev_theme: String = ""
 
 
 func _ready() -> void:
@@ -183,7 +185,7 @@ func _setup_input() -> void:
 	_act("move_forward", [KEY_W, KEY_UP], [], [[JOY_AXIS_LEFT_Y, -1.0]])
 	_act("move_back", [KEY_S, KEY_DOWN], [], [[JOY_AXIS_LEFT_Y, 1.0]])
 	_act("jump", [KEY_SPACE], [JOY_BUTTON_A], [])
-	_act("spin", [KEY_J, KEY_X], [JOY_BUTTON_X], [])
+	_act("attack", [KEY_J, KEY_X], [JOY_BUTTON_X], [])
 	_act("dash", [KEY_K, KEY_C, KEY_SHIFT], [JOY_BUTTON_B, JOY_BUTTON_RIGHT_SHOULDER], [])
 	_act("pause", [KEY_ESCAPE, KEY_P], [JOY_BUTTON_START], [])
 	_act("cam_left", [KEY_Q], [], [[JOY_AXIS_RIGHT_X, -1.0]])

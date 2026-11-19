@@ -29,6 +29,20 @@ static func draw(ci: CanvasItem, kind: String, c: Vector2, s: float, col: Color)
 		var q: Vector2 = c + Vector2(cos(b2), sin(b2)) * s * 0.7
 		_head(ci, q, Vector2(-sin(b2), cos(b2)), s * 0.52, col)
 		ci.draw_circle(c, s * 0.14, col)
+	elif kind == "attack":
+		# fist: rounded block of knuckles + thumb + motion lines
+		var fc: Vector2 = c + Vector2(s * 0.12, 0.0)
+		ci.draw_rect(Rect2(fc + Vector2(-s * 0.55, -s * 0.5), Vector2(s * 1.0, s * 1.0)), col)
+		for i in range(4):
+			ci.draw_circle(fc + Vector2(s * 0.45, -s * 0.38 + s * 0.25 * i), s * 0.16, col)
+		ci.draw_circle(fc + Vector2(-s * 0.55, 0.0), s * 0.5, col)
+		ci.draw_line(fc + Vector2(-s * 0.15, s * 0.1), fc + Vector2(s * 0.3, s * 0.1), Color(0, 0, 0, 0.35), maxf(1.5, s * 0.1))
+		ci.draw_line(c + Vector2(-s * 1.0, -s * 0.55), c + Vector2(-s * 0.7, -s * 0.55), col, maxf(1.5, s * 0.12))
+		ci.draw_line(c + Vector2(-s * 1.05, s * 0.55), c + Vector2(-s * 0.75, s * 0.55), col, maxf(1.5, s * 0.12))
+	elif kind == "battery":
+		ci.draw_rect(Rect2(c + Vector2(-s * 0.9, -s * 0.5), Vector2(s * 1.7, s * 1.0)), col, false, maxf(2.0, s * 0.16))
+		ci.draw_rect(Rect2(c + Vector2(s * 0.8, -s * 0.22), Vector2(s * 0.2, s * 0.44)), col)
+		ci.draw_rect(Rect2(c + Vector2(-s * 0.72, -s * 0.32), Vector2(s * 1.0, s * 0.64)), col)
 	elif kind == "home":
 		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-s, -s * 0.05), c + Vector2(0.0, -s * 0.95), c + Vector2(s, -s * 0.05)]), col)
 		ci.draw_rect(Rect2(c + Vector2(-s * 0.68, -s * 0.05), Vector2(s * 1.36, s * 0.95)), col)

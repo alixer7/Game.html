@@ -65,8 +65,12 @@ static func load_level(world: Node, root: Node3D, path: String) -> Dictionary:
 			bots += 1
 		elif t == "drone":
 			coin_total += 2
-		elif t == "turret":
+		elif t == "turret" or t == "spider" or t == "snowbot":
 			coin_total += 3
+		elif t == "hopper":
+			coin_total += 2
+		elif t == "shield":
+			coin_total += 4
 		elif t == "boss":
 			coin_total += 25
 		var n: Node3D = _make(t)
@@ -137,4 +141,14 @@ static func _make(t: String) -> Node3D:
 		return Hazards.Bumper.new()
 	if t == "boss":
 		return Boss.new()
+	if t == "battery":
+		return Collectibles.BatteryCell.new()
+	if t == "hopper":
+		return Enemies.Hopper.new()
+	if t == "shield":
+		return Enemies.ShieldBot.new()
+	if t == "spider":
+		return Enemies.Spider.new()
+	if t == "snowbot":
+		return Enemies.SnowBot.new()
 	return null

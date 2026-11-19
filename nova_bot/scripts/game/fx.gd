@@ -130,6 +130,22 @@ static func popup(parent: Node, pos: Vector3, text: String, color: Color = Color
 	tw.chain().tween_callback(l.queue_free)
 
 
+## Short bright point-light flash (explosions, impacts). Skipped on low quality.
+static func flash(parent: Node, pos: Vector3, color: Color, rng: float = 6.0, dur: float = 0.25, energy: float = 4.0) -> void:
+	if parent == null or not parent.is_inside_tree() or Game.quality() == 0:
+		return
+	var l := OmniLight3D.new()
+	l.light_color = color
+	l.light_energy = energy
+	l.omni_range = rng
+	l.shadow_enabled = false
+	parent.add_child(l)
+	l.global_position = pos
+	var tw := l.create_tween()
+	tw.tween_property(l, "light_energy", 0.0, dur).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(l.queue_free)
+
+
 # ------------------------------------------------------------ inner nodes
 class RingFx extends MeshInstance3D:
 	var dur: float = 0.5
