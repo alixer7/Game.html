@@ -13,17 +13,17 @@ static func theme(id: String) -> Dictionary:
 	if id == "crystal":
 		return {
 			"sky": {
-				"top_color": Color(0.04, 0.01, 0.12), "mid_color": Color(0.22, 0.06, 0.36), "horizon_color": Color(0.85, 0.35, 0.62),
+				"top_color": Color(0.03, 0.01, 0.1), "mid_color": Color(0.16, 0.05, 0.3), "horizon_color": Color(0.75, 0.3, 0.58),
 				"bottom_color": Color(0.12, 0.04, 0.2), "nebula_a": Color(0.95, 0.3, 0.8), "nebula_b": Color(0.35, 0.55, 1.0),
 				"nebula_amount": 1.0, "star_amount": 1.0, "sun_dir": Vector3(0.5, 0.35, -0.7), "sun_color": Color(1.0, 0.8, 0.9),
 				"planet_dir": Vector3(0.65, 0.32, -0.7), "planet_size": 0.16, "planet_color": Color(0.95, 0.45, 0.8),
 				"planet_color2": Color(0.45, 0.3, 1.0), "seed": 7.0,
 			},
 			"accents": [Color(1.0, 0.35, 0.85), Color(0.65, 0.45, 1.0), Color(0.3, 0.9, 1.0), Color(1.0, 0.6, 0.3)],
-			"surf": {"style": 1, "base": Color(0.36, 0.3, 0.44), "top": Color(0.6, 0.54, 0.68), "trim": Color(1.0, 0.7, 0.9)},
+			"surf": {"style": 1, "base": Color(0.3, 0.26, 0.4), "top": Color(0.66, 0.62, 0.74), "trim": Color(1.0, 0.7, 0.9)},
 			"rock": {"style": 1, "a": Color(0.36, 0.28, 0.44), "b": Color(0.16, 0.11, 0.22), "vein": Color(1.0, 0.35, 0.9), "amount": 0.8},
-			"sea": {"mode": 0, "a": Color(0.62, 0.38, 0.72), "b": Color(0.16, 0.06, 0.26), "glow": Color(1.0, 0.6, 0.9)},
-			"fog": Color(0.38, 0.2, 0.48), "fog_density": 0.0014, "fog_height_density": 0.05,
+			"sea": {"mode": 0, "a": Color(0.5, 0.32, 0.62), "b": Color(0.09, 0.04, 0.18), "glow": Color(0.95, 0.55, 0.85)},
+			"fog": Color(0.3, 0.16, 0.42), "fog_density": 0.0012, "fog_height_density": 0.045,
 			"ambient": Color(0.75, 0.62, 0.92), "ambient_energy": 0.5,
 			"sun_color": Color(1.0, 0.88, 0.95), "sun_energy": 1.25, "sun_rot": Vector3(-42.0, 150.0, 0.0),
 			"mote": "pollen", "mote_color": Color(1.0, 0.65, 0.95, 0.6),

@@ -670,9 +670,9 @@ func _impact(at: Vector3, kind: String) -> void:
 
 func _laser_scan() -> void:
 	var feet: Vector3 = global_position
-	for n in get_tree().get_nodes_in_group("hittable"):
+	for n in get_tree().get_nodes_in_group("enemy"):
 		var node: Node3D = n as Node3D
-		if node == null or not is_instance_valid(node) or not node.is_inside_tree():
+		if node == null or not is_instance_valid(node) or not node.is_inside_tree() or not node.is_in_group("hittable"):
 			continue
 		var hrv: Variant = node.get("hit_radius")
 		var hr: float = 0.6 if hrv == null else float(hrv)

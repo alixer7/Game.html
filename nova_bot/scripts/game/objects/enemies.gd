@@ -130,9 +130,9 @@ class Projectile extends Node3D:
 		global_position = to
 		_vis.rotate_x(delta * 6.0)
 		if _reflected:
-			for n in get_tree().get_nodes_in_group("hittable"):
+			for n in get_tree().get_nodes_in_group("enemy"):
 				var e: Node3D = n as Node3D
-				if e == null or not is_instance_valid(e) or e is Collectibles.Crate:
+				if e == null or not is_instance_valid(e) or not e.is_in_group("hittable"):
 					continue
 				if e.global_position.distance_to(global_position) < 1.3:
 					e.call("hit", self, "reflect")
@@ -238,6 +238,7 @@ class Drone extends Area3D:
 		Geo.put(_gfx, Geo.cyl(0.06, 0.14, 0.3, 12), Enemies.body_mat(), Vector3(0.0, -0.5, 0.0))
 		Geo.put(_gfx, Geo.sphere(0.08, 10), Mats.glow(Color(1.0, 0.55, 0.3), 3.0), Vector3(0.0, -0.66, 0.0), Vector3.ZERO, Vector3.ONE, false)
 		add_to_group("hittable")
+		add_to_group("enemy")
 
 	func _physics_process(delta: float) -> void:
 		if _dead or world == null:
@@ -359,6 +360,7 @@ class Turret extends StaticBody3D:
 		_area.add_child(acs)
 		add_child(_area)
 		add_to_group("hittable")
+		add_to_group("enemy")
 
 	func _physics_process(delta: float) -> void:
 		if _dead or world == null:
@@ -487,6 +489,7 @@ class Hopper extends Area3D:
 			Geo.put(_body, Geo.cyl(0.03, 0.05, 0.3, 8), Enemies.body_mat(), Vector3(0.18 * float(sx), 0.5, 0.0), Vector3(0.0, 0.0, -20.0 * float(sx)))
 			Geo.put(_body, Geo.sphere(0.06, 10), Mats.glow(Enemies.GLOW, 2.0), Vector3(0.24 * float(sx), 0.66, 0.0), Vector3.ZERO, Vector3.ONE, false)
 		add_to_group("hittable")
+		add_to_group("enemy")
 
 	func _physics_process(delta: float) -> void:
 		if _dead or world == null:
@@ -592,6 +595,7 @@ class ShieldBot extends Area3D:
 	var _block_cd: float = 0.0
 	var _dead: bool = false
 	var _chase: bool = false
+	var _toast_cd: float = 0.0
 
 	func setup(o: Dictionary) -> void:
 		_a = LevelLoader.vec(o.get("a", o.get("p")))
@@ -632,6 +636,7 @@ class ShieldBot extends Area3D:
 		Geo.put(_shield, hexm, _shield_mat, Vector3.ZERO, Vector3(90.0, 0.0, 30.0), Vector3.ONE, false)
 		Geo.put(_shield, Geo.torus(0.88, 0.98, 6, 4), Mats.glow(Color(1.0, 0.5, 0.25), 2.2), Vector3.ZERO, Vector3(90.0, 0.0, 30.0), Vector3.ONE, false)
 		add_to_group("hittable")
+		add_to_group("enemy")
 
 	func _forward() -> Vector3:
 		return Vector3(-sin(_yaw), 0.0, -cos(_yaw))
@@ -641,6 +646,7 @@ class ShieldBot extends Area3D:
 			return
 		_stun = maxf(_stun - delta, 0.0)
 		_block_cd = maxf(_block_cd - delta, 0.0)
+		_toast_cd = maxf(_toast_cd - delta, 0.0)
 		var pl: Player = Zones.player_of(world)
 		var spd: float = 0.0
 		var want_yaw: float = _yaw
@@ -717,7 +723,8 @@ class ShieldBot extends Area3D:
 				var away: Vector3 = (p.global_position - global_position)
 				away.y = 0.0
 				p.launch(away.normalized() * 8.0 + Vector3(0.0, 4.0, 0.0))
-			if world != null:
+			if world != null and _toast_cd <= 0.0:
+				_toast_cd = 6.0
 				world.toast("الدرع يصدّ الضربات من الأمام! التفّ حوله أو استخدم الدوران", Color(1.0, 0.6, 0.3))
 		return false
 
@@ -801,6 +808,7 @@ class Spider extends Area3D:
 			_gfx.add_child(lo)
 			_legs.append({"root": root, "rest": rest, "foot": Vector3.ZERO, "from": Vector3.ZERO, "t": 1.0, "up": up, "lo": lo, "grp": (i + k) % 2})
 		add_to_group("hittable")
+		add_to_group("enemy")
 
 	func _ready() -> void:
 		for l in _legs:
@@ -986,6 +994,7 @@ class SnowBot extends StaticBody3D:
 		_area.add_child(acs)
 		add_child(_area)
 		add_to_group("hittable")
+		add_to_group("enemy")
 
 	func _physics_process(delta: float) -> void:
 		if _dead or world == null:
