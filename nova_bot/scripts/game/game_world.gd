@@ -12,6 +12,7 @@ var player: Player
 var rig: CameraRig
 var goal: Node = null           # GoalPortal registers itself here
 var time: float = 0.0           # world clock for animated objects (keeps running at the result screen)
+var toggle_state: int = 0       # jump-switch platforms: flips on every jump
 
 var _meta: Dictionary = {}
 var _data: Dictionary = {}
@@ -36,6 +37,7 @@ var _hitstop_until: int = 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_to_group("world")
 	_meta = Game.level_meta(level_id).duplicate()
 	if Game.dev_file != "":
 		_meta["file"] = Game.dev_file
@@ -61,8 +63,11 @@ func _ready() -> void:
 
 	var center: Vector3 = _data.get("_center", Vector3.ZERO)
 	var extent: float = float(_data.get("_extent", 60.0))
-	var env: Dictionary = EnvBuilder.build(self, theme_id, center, _kill_y, extent)
+	var mn: Vector3 = _data.get("_min", center)
+	var mx: Vector3 = _data.get("_max", center)
+	var env: Dictionary = EnvBuilder.build(self, theme_id, center, _kill_y, extent, mn, mx)
 	_abyss = env["abyss"]
+	EnvBuilder.dress(_level_root, theme_id, _data.get("_plats", []), _data.get("_avoid", PackedVector3Array()))
 
 	player = Player.new()
 	player.world = self
@@ -94,6 +99,8 @@ func _ready() -> void:
 	player.hp_changed.connect(_hud.set_hp)
 	player.died.connect(_on_died)
 	player.battery_changed.connect(_hud.set_battery)
+	if int(_data.get("_toggles", 0)) > 0:
+		player.jumped.connect(_on_player_jumped)
 	player.reserve_changed.connect(_hud.set_reserve)
 	_hud.set_battery(player.battery, Player.BAT_MAX)
 
@@ -200,6 +207,11 @@ func _next() -> void:
 		Game.main.start_level(level_id + 1)
 	else:
 		Game.main.go_menu("levels")
+
+
+func _on_player_jumped(_kind: String) -> void:
+	toggle_state = 1 - toggle_state
+	Sfx.play("toggle", -8.0, 1.0 if toggle_state == 0 else 1.2)
 
 
 # ------------------------------------------------------- death / respawn

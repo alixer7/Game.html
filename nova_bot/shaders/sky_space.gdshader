@@ -17,6 +17,14 @@ uniform float planet_size : hint_range(0.0, 0.5) = 0.16;
 uniform vec4 planet_color : source_color = vec4(0.2, 0.6, 1.0, 1.0);
 uniform vec4 planet_color2 : source_color = vec4(0.8, 0.3, 0.9, 1.0);
 uniform float seed = 1.0;
+uniform float aurora = 0.0;
+uniform vec4 aurora_a : source_color = vec4(0.2, 1.0, 0.6, 1.0);
+uniform vec4 aurora_b : source_color = vec4(0.5, 0.3, 1.0, 1.0);
+uniform float hole = 0.0;
+uniform vec3 hole_dir = vec3(0.3, 0.25, -0.9);
+uniform float hole_size = 0.08;
+uniform vec4 disk_a : source_color = vec4(1.0, 0.7, 0.35, 1.0);
+uniform vec4 disk_b : source_color = vec4(0.6, 0.3, 1.0, 1.0);
 uniform float quality : hint_range(0.0, 1.0) = 1.0;
 
 float hash13(vec3 p) {
@@ -96,6 +104,40 @@ void sky() {
 			} else {
 				col += planet_color.rgb * exp(-(ang - planet_size) * 28.0) * 0.35;
 			}
+		}
+	}
+
+	// aurora curtains (static)
+	if (aurora > 0.0) {
+		float az = atan(d.x, d.z);
+		float h2 = clamp(d.y, 0.0, 1.0);
+		float curtain = 0.5 + 0.5 * sin(az * 5.0 + sin(az * 11.0 + seed) * 1.2);
+		float streak = 0.6 + 0.4 * sin(az * 90.0 + sin(az * 23.0) * 4.0);
+		float band = smoothstep(0.04, 0.16, h2) * (1.0 - smoothstep(0.25, 0.62, h2 - curtain * 0.12));
+		vec3 ac = mix(aurora_a.rgb, aurora_b.rgb, smoothstep(0.1, 0.5, h2));
+		col += ac * band * curtain * streak * aurora * 0.9;
+	}
+	// black hole with photon ring and accretion disk (static)
+	if (hole > 0.0) {
+		vec3 hd = normalize(hole_dir);
+		vec3 hr = normalize(cross(vec3(0.0, 1.0, 0.0), hd));
+		vec3 hu = cross(hd, hr);
+		vec2 q = vec2(dot(d, hr), dot(d, hu));
+		float fwd = dot(d, hd);
+		if (fwd > 0.0) {
+			float rr = length(q);
+			// tilted disk: ellipse in the sky
+			vec2 qd = vec2(q.x, q.y * 3.2 + q.x * 0.35);
+			float rd = length(qd);
+			float disk = smoothstep(hole_size * 1.3, hole_size * 1.7, rd) * (1.0 - smoothstep(hole_size * 3.2, hole_size * 4.6, rd));
+			float swirl = 0.6 + 0.4 * sin(atan(qd.y, qd.x) * 7.0 + rd * 90.0);
+			vec3 dc = mix(disk_a.rgb, disk_b.rgb, smoothstep(hole_size * 1.5, hole_size * 4.0, rd)) * 2.2;
+			float behind = (q.y + q.x * 0.1 > 0.0 || rr > hole_size) ? 1.0 : 0.0;
+			col += dc * disk * swirl * hole * behind;
+			float ring = exp(-abs(rr - hole_size * 1.08) / (hole_size * 0.06));
+			col += disk_a.rgb * ring * 2.0 * hole;
+			col += disk_b.rgb * exp(-max(rr - hole_size, 0.0) / (hole_size * 1.5)) * 0.35 * hole;
+			col = mix(col, vec3(0.0), smoothstep(hole_size, hole_size * 0.94, rr) * hole);
 		}
 	}
 

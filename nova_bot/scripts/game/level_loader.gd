@@ -44,6 +44,9 @@ static func load_level(world: Node, root: Node3D, path: String) -> Dictionary:
 	var box: Array = [Vector3(1.0e9, 1.0e9, 1.0e9), Vector3(-1.0e9, -1.0e9, -1.0e9)]
 	_grow(box, vec(data.get("spawn")))
 	var objs: Array = data.get("objects", [])
+	var plats: Array = []
+	var avoid := PackedVector3Array()
+	var toggles: int = 0
 	for item in objs:
 		var o: Dictionary = item
 		var t: String = str(o.get("t", ""))
@@ -53,12 +56,25 @@ static func load_level(world: Node, root: Node3D, path: String) -> Dictionary:
 				_grow(box, pv)
 				if key == "p" and o.has("off"):
 					_grow(box, pv + vec(o["off"]))
+				if t != "box" and t != "cyl":
+					avoid.append(pv)
+		if t == "pylons" or t == "targets":
+			for pp in o.get("pts", []):
+				avoid.append(vec(pp))
+		if t == "toggle":
+			toggles += 1
 		if t == "coins":
 			var pts: Array = o.get("pts", [])
 			for cp in pts:
 				_grow(box, vec(cp))
+				avoid.append(vec(cp) - Vector3(0.0, 1.2, 0.0))
 			coin_pts.append_array(pts)
 			continue
+		if (t == "box" or t == "cyl") and not bool(o.get("bare", false)):
+			if t == "cyl":
+				plats.append({"p": vec(o.get("p")), "cyl": true, "r": float(o.get("r", 3.0)), "th": float(o.get("th", 0.8))})
+			else:
+				plats.append({"p": vec(o.get("p")), "s": vec(o.get("s"), Vector3(4.0, 0.8, 4.0)), "ry": float(o.get("ry", 0.0))})
 		if t == "crate":
 			coin_total += int(o.get("n", 5))
 		elif t == "bot":
@@ -87,6 +103,11 @@ static func load_level(world: Node, root: Node3D, path: String) -> Dictionary:
 		root.add_child(cf)
 	var mn: Vector3 = box[0]
 	var mx: Vector3 = box[1]
+	data["_plats"] = plats
+	data["_toggles"] = toggles
+	data["_avoid"] = avoid
+	data["_min"] = mn
+	data["_max"] = mx
 	data["_center"] = (mn + mx) * 0.5
 	data["_extent"] = maxf(maxf(mx.x - mn.x, mx.z - mn.z) * 0.5, 20.0)
 	data["_coin_total"] = coin_total + coin_pts.size()
@@ -143,6 +164,46 @@ static func _make(t: String) -> Node3D:
 		return Boss.new()
 	if t == "battery":
 		return Collectibles.BatteryCell.new()
+	if t == "turn":
+		return Platforms.Turntable.new()
+	if t == "retract":
+		return Platforms.Retract.new()
+	if t == "pend":
+		return Platforms.Pendulum.new()
+	if t == "drum":
+		return Platforms.Drum.new()
+	if t == "toggle":
+		return Platforms.Toggle.new()
+	if t == "lift":
+		return Platforms.Lift.new()
+	if t == "crusher":
+		return Platforms.Crusher.new()
+	if t == "sweep":
+		return Hazards.SweepLaser.new()
+	if t == "icicle":
+		return Hazards.Icicle.new()
+	if t == "wind":
+		return Hazards.Wind.new()
+	if t == "geyser":
+		return Hazards.Geyser.new()
+	if t == "meteors":
+		return Hazards.Meteors.new()
+	if t == "elec":
+		return Hazards.ElecFloor.new()
+	if t == "swing":
+		return Hazards.SwingHazard.new()
+	if t == "pylons":
+		return Puzzles.Pylons.new()
+	if t == "block":
+		return Puzzles.PushBlock.new()
+	if t == "plate":
+		return Puzzles.Plate.new()
+	if t == "gate":
+		return Puzzles.Gate.new()
+	if t == "targets":
+		return Puzzles.Targets.new()
+	if t == "wall":
+		return Puzzles.Wall.new()
 	if t == "hopper":
 		return Enemies.Hopper.new()
 	if t == "shield":

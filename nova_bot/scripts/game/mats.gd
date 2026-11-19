@@ -22,19 +22,43 @@ static func accent(i: int) -> Color:
 	return a[absi(i) % a.size()]
 
 
-## Tech platform material. half = half extents (for cylinders: x = radius, y = half thickness).
-static func platform(half: Vector3, c: int = 0, is_cyl: bool = false) -> ShaderMaterial:
-	var key: String = "p%d_%d_%.2f_%.2f_%.2f" % [c, 1 if is_cyl else 0, half.x, half.y, half.z]
+## Platform surface material (style per world, see shaders/surface.gdshader). half = half extents
+## (for cylinders: x = radius, y = half thickness).
+static func platform(half: Vector3, c: int = 0, is_cyl: bool = false, crack: float = 0.0, ice: bool = false) -> ShaderMaterial:
+	var key: String = "p%d_%d_%.2f_%.2f_%.2f_%.1f_%d" % [c, 1 if is_cyl else 0, half.x, half.y, half.z, crack, 1 if ice else 0]
 	if _cache.has(key):
 		return _cache[key]
+	var sf: Dictionary = theme.get("surf", {})
+	if ice:
+		sf = {"style": 3, "base": Color(0.3, 0.6, 0.85), "top": Color(0.7, 0.85, 0.98), "trim": Color(0.8, 0.95, 1.0)}
 	var m := ShaderMaterial.new()
-	m.shader = shader("res://shaders/platform.gdshader")
+	m.shader = shader("res://shaders/surface.gdshader")
 	m.set_shader_parameter("half_size", half)
-	m.set_shader_parameter("base_color", theme.get("base", Color(0.05, 0.07, 0.13)))
-	m.set_shader_parameter("top_color", theme.get("top", Color(0.09, 0.12, 0.21)))
+	m.set_shader_parameter("style", int(sf.get("style", 0)))
+	m.set_shader_parameter("base_color", sf.get("base", Color(0.36, 0.4, 0.48)))
+	m.set_shader_parameter("top_color", sf.get("top", Color(0.7, 0.74, 0.8)))
+	m.set_shader_parameter("trim_color", sf.get("trim", Color(1.0, 0.72, 0.12)))
 	m.set_shader_parameter("edge_color", accent(c))
 	m.set_shader_parameter("cyl", 1.0 if is_cyl else 0.0)
+	m.set_shader_parameter("crack", crack)
+	m.set_shader_parameter("detail", 1.0 if Game.quality() >= 1 else 0.0)
 	_cache[key] = m
+	return m
+
+
+## Theme rock / hull material for island undersides and scenery.
+static func rock() -> ShaderMaterial:
+	if _cache.has("rock"):
+		return _cache["rock"]
+	var rk: Dictionary = theme.get("rock", {})
+	var m := ShaderMaterial.new()
+	m.shader = shader("res://shaders/rock.gdshader")
+	m.set_shader_parameter("style", int(rk.get("style", 1)))
+	m.set_shader_parameter("rock_a", rk.get("a", Color(0.4, 0.35, 0.45)))
+	m.set_shader_parameter("rock_b", rk.get("b", Color(0.18, 0.15, 0.22)))
+	m.set_shader_parameter("vein_color", rk.get("vein", Color(1.0, 0.4, 0.9)))
+	m.set_shader_parameter("vein_amount", float(rk.get("amount", 1.0)))
+	_cache["rock"] = m
 	return m
 
 
