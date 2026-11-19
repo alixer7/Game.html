@@ -1030,11 +1030,20 @@ def route_from_waypoints(roads, graph, wps, closed, avoid_types=("alley",)):
             p = p[1:]
         seq += p
     pts = []
+    hw_flag = []
     for k in seq:
         rid, i = nodes[k]
         r = roads[rid]
         pts.append([r.xz[i, 0], r.h[i], r.xz[i, 1], r.width])
+        hw_flag.append(1.0 if r.type == "highway" else 0.0)
     pts = np.array(pts)
+    # keep right on divided highways: shift the race line onto the travel carriageway
+    hw_flag = gaussian_filter1d(np.array(hw_flag), 3.0)
+    tang = np.gradient(pts[:, [0, 2]], axis=0)
+    tang /= np.linalg.norm(tang, axis=1, keepdims=True) + 1e-9
+    right = np.stack([-tang[:, 1], tang[:, 0]], -1)
+    pts[:, 0] += right[:, 0] * 5.2 * hw_flag
+    pts[:, 2] += right[:, 1] * 5.2 * hw_flag
     # remove duplicates / tiny steps
     keep = [0]
     for i in range(1, len(pts)):

@@ -16,6 +16,9 @@ var obj_grid := {}                    # Vector2i(64 m cell) -> PackedInt32Array 
 var roads: Array = []
 var events: Array = []
 var road_grid := {}                   # Vector2i(32 m cell) -> Array of [road_idx, sample_idx]
+var river_pts := PackedVector3Array()
+var river_hw := PackedFloat32Array()
+var river_grid := {}
 
 
 func load_all() -> void:
@@ -55,6 +58,14 @@ func load_all() -> void:
 			if not road_grid.has(key):
 				road_grid[key] = []
 			road_grid[key].append(Vector2i(ri, k))
+	var rp: Array = json.river.pts
+	for k in rp.size() / 3:
+		river_pts.append(Vector3(rp[k * 3], rp[k * 3 + 1], rp[k * 3 + 2]))
+		river_hw.append(float(json.river.hw[k]))
+		var key := Vector2i(floori(rp[k * 3] / 64.0), floori(rp[k * 3 + 2] / 64.0))
+		if not river_grid.has(key):
+			river_grid[key] = PackedInt32Array()
+		river_grid[key].append(k)
 	print("[world] data loaded in %d ms (%d objects, %d roads)" % [Time.get_ticks_msec() - t0, object_count, roads.size()])
 
 
@@ -169,3 +180,25 @@ func region_name(p: Vector3) -> String:
 	if absf(x - 200) < 260:
 		return "region_valley"
 	return "region_countryside"
+
+
+## water surface height at a position (or -1000 if dry land)
+func water_level(p: Vector3) -> float:
+	var lvl := -1000.0
+	if height(p.x, p.z) < 0.0:
+		lvl = 0.0
+	var L: Dictionary = json.lake
+	if Vector2(p.x - L.x, p.z - L.z).length() < float(L.r):
+		lvl = maxf(lvl, float(L.h))
+	var cx := floori(p.x / 64.0)
+	var cz := floori(p.z / 64.0)
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var key := Vector2i(cx + dx, cz + dz)
+			if not river_grid.has(key):
+				continue
+			for k in river_grid[key]:
+				var q := river_pts[k]
+				if Vector2(q.x - p.x, q.z - p.z).length() < river_hw[k] + 1.0:
+					lvl = maxf(lvl, q.y)
+	return lvl

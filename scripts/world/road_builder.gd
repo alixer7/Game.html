@@ -120,6 +120,15 @@ func _build_road(ri: int) -> void:
 			k1 -= 1
 	if k1 - k0 < 1:
 		return
+	# samples close to junctions: no median barrier there so cars can turn across
+	var near_junction := {}
+	if r.rail or is_highway:
+		for j in wd.json.junctions:
+			for l in j.links:
+				if int(l[0]) == ri:
+					var kk := int(l[1])
+					for o in range(-8, 9):
+						near_junction[posmod(kk + o, n)] = true
 	var road_mat := Mats.road(style, layer, w)
 	var conc := Mats.concrete()
 	var metal := Mats.metal()
@@ -177,10 +186,10 @@ func _build_road(ri: int) -> void:
 					cmesh.quad(a, b, c, d, nn)
 			if is_tunnel:
 				_tunnel_piece(cmesh, glow, col, p0, p1, r0, r1, hw, dist[k], dist[k + 1], k)
-			if is_highway:
+			if is_highway and not near_junction.has(k % n):
 				_median_piece(cmesh, col, p0, p1, r0, r1, dist[k], dist[k + 1])
 			# guard rails
-			if r.rail and not is_bridge and not is_tunnel:
+			if r.rail and not is_bridge and not is_tunnel and not near_junction.has(k % n):
 				for side: float in [-1.0, 1.0]:
 					var need := is_highway
 					if not need:

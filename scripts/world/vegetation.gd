@@ -3,7 +3,7 @@ extends Node3D
 ## Procedural trees, bushes, cacti and rocks placed from the baked object list,
 ## drawn with chunked MultiMeshes (2 LODs) plus a pool of proximity colliders.
 
-const TILE := 512.0
+const TILE := 128.0
 enum { PINE, BROAD, BIRCH, PALM, BUSH, CACTUS, ROCK, DEAD, CYPRESS }
 
 var wd: WorldData
@@ -32,10 +32,10 @@ func build(data: WorldData, q: int, view: float) -> void:
 	_materials()
 	meshes[PINE] = [_pine(), _cone_lod(11.5, 2.6, 2.0, Color(0.13, 0.22, 0.11))]
 	meshes[CYPRESS] = [_cypress(), _cone_lod(11.0, 1.1, 1.0, Color(0.14, 0.22, 0.1))]
-	meshes[BROAD] = [_broadleaf(Color(1, 1, 1), 1.0), _blob_lod(Vector3(0, 6.2, 0), Vector3(3.6, 3.0, 3.6), Color(0.2, 0.3, 0.1), 7.0)]
-	meshes[BIRCH] = [_birch(), _blob_lod(Vector3(0, 7.0, 0), Vector3(2.4, 3.2, 2.4), Color(0.32, 0.4, 0.14), 7.5)]
+	meshes[BROAD] = [_broadleaf(Color(1, 1, 1), 1.0), _card_lod(Vector3(0, 6.3, 0), Vector3(3.4, 2.8, 3.4), 5.5, bark_mat)]
+	meshes[BIRCH] = [_birch(), _card_lod(Vector3(0, 7.0, 0), Vector3(2.2, 3.0, 2.2), 6.0, birch_mat)]
 	meshes[PALM] = [_palm(), _palm()]
-	meshes[BUSH] = [_bush(), _blob_lod(Vector3(0, 0.9, 0), Vector3(1.5, 1.0, 1.5), Color(0.2, 0.28, 0.1), 0.0)]
+	meshes[BUSH] = [_bush(), _card_lod(Vector3(0, 0.85, 0), Vector3(1.4, 0.9, 1.4), 0.0, null)]
 	meshes[CACTUS] = [_cactus(), _cactus()]
 	meshes[ROCK] = [_rock(1), _rock(0)]
 	meshes[DEAD] = [_dead(), _dead()]
@@ -148,6 +148,8 @@ func _populate() -> void:
 				mmi.visibility_range_begin = rg[0]
 				mmi.visibility_range_end = rg[1]
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if li == 0 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.visibility_range_end_margin = 25.0
+			mmi.visibility_range_begin_margin = 25.0
 			add_child(mmi)
 
 
@@ -444,6 +446,24 @@ func _rock(detail: int) -> ArrayMesh:
 		var c: Vector3 = (disp[f[0]] + disp[f[1]] + disp[f[2]]) / 3.0
 		m.tri(ids[f[0]], ids[f[1]], ids[f[2]], c)
 	return m.to_mesh(rock_mat)
+
+
+## far LOD: a few big crossed leaf cards (keeps the leafy silhouette, ~16 triangles)
+func _card_lod(center: Vector3, radii: Vector3, trunk_h: float, trunk_mat: Material) -> ArrayMesh:
+	var f := MeshAcc.new()
+	for k in 3:
+		var a := PI * k / 3.0
+		var right := Vector3(cos(a), 0, sin(a))
+		var nrm := right.cross(Vector3.UP)
+		_card(f, center, right, Vector3.UP, nrm, radii.x * 2.1, radii.y * 2.1, 0.95)
+	_card(f, center + Vector3(0, radii.y * 0.3, 0), Vector3.RIGHT, Vector3.BACK, Vector3.UP, radii.x * 1.8, radii.z * 1.8, 1.05)
+	var mesh := ArrayMesh.new()
+	if trunk_h > 0.0 and trunk_mat != null:
+		var t := MeshAcc.new()
+		_trunk(t, 0.3, 0.18, trunk_h, 5, Color(0.85, 0.8, 0.75, 0.0))
+		t.to_mesh(trunk_mat, mesh)
+	f.to_mesh(leaf_mat, mesh)
+	return mesh
 
 
 func _cone_lod(h: float, r: float, y0: float, color: Color) -> ArrayMesh:
