@@ -105,7 +105,7 @@ func _people() -> void:
 		for k in d["known_traits"]:
 			var v: float = d["traits"][k]
 			if v > 0.62 or v < 0.38:
-				tr.append(AIManager.TRAIT_NAMES[k][1 if v > 0.5 else 0])
+				tr.append(AIManager.trait_name(d, k))
 		var rels := []
 		for key in ai.known_rel:
 			var parts: PackedStringArray = key.split("|")

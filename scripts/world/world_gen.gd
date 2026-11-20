@@ -244,6 +244,8 @@ func build_chunk(cx: int, cz: int, grass_mult: float, with_grass: bool) -> Dicti
 		if roll > float(ResDB.scatter[bio]["n"]) / CAND:
 			continue
 		var tp := ResDB.pick(bio, roll2)
+		if (tp == "palm" or tp == "cactus") and s2.y < 0.5:
+			tp = "dead_tree" if s2.y > 0.3 else "pine"
 		var td := ResDB.get_type(tp)
 		if td.is_empty():
 			continue

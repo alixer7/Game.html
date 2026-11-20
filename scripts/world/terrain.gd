@@ -6,6 +6,7 @@ const CHUNK := 64.0
 const L_WORLD := 1
 const L_RES_BLOCK := 8
 const L_RES_SOFT := 16
+const LOD_TYPES := ["oak", "big_oak", "birch", "pine"]
 
 var gen: WorldGen
 var world: Node
@@ -165,6 +166,12 @@ func _refresh() -> void:
 func _update_lod(k: Vector2i) -> void:
 	var ch: Dictionary = chunks[k]
 	var ring := maxi(absi(k.x - center.x), absi(k.y - center.y))
+	var lod := 0 if ring <= 1 else 1
+	if ch.get("lod", -1) != lod:
+		ch["lod"] = lod
+		for tp in ch["types"]:
+			if tp in LOD_TYPES:
+				ch["types"][tp]["mm"].mesh = MeshFactory.get_mesh(ResDB.get_type(tp)["mesh"] + ("_lod" if lod == 1 else ""))
 	if ring <= body_radius and ch["bodies"] == null:
 		_build_bodies(k)
 	elif ring > body_radius + 1 and ch["bodies"] != null:
@@ -221,7 +228,7 @@ func _apply_chunk(d: Dictionary) -> void:
 		var list: Array = by_type[tp]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = MeshFactory.get_mesh(td["mesh"])
+		mm.mesh = MeshFactory.get_mesh(td["mesh"] + ("_lod" if tp in LOD_TYPES else ""))
 		mm.instance_count = list.size()
 		for j in range(list.size()):
 			var si: int = list[j]

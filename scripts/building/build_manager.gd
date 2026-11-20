@@ -683,6 +683,15 @@ func shelter_quality(pos: Vector3) -> float:
 				insul_sum += h2["collider"].def.get("insul", 0.5)
 	return clampf(0.35 * roof_insul + 0.65 * (insul_sum / 4.0), 0.0, 1.0)
 
+func base_center() -> Vector3:
+	var s := player_storages()
+	if s.is_empty():
+		return Vector3.INF
+	var c := Vector3.ZERO
+	for p in s:
+		c += p.global_position
+	return c / s.size()
+
 func in_claim(pos: Vector3) -> bool:
 	for p in pieces:
 		if is_instance_valid(p) and p.def.has("claim") and p.global_position.distance_to(pos) < p.def["claim"]:
@@ -736,6 +745,9 @@ func tick(dt: float) -> void:
 	for p in get_children():
 		if not (p is BuildPiece):
 			continue
+		if p.inventory != null and p.owner_id == "player":
+			var cold: bool = world.temperature_at(p.global_position) < 6.0
+			p.inventory.age_items(dh, 0.25 if cold else 0.55)
 		if p.def.get("farm", false):
 			var before: float = p.get_meta("crop_g", 0.0)
 			p.farm_tick(dh, raining)

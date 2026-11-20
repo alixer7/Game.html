@@ -90,7 +90,7 @@ func setup(w: Node, pos: Vector3) -> void:
 	cam_yaw.add_child(cam_pitch)
 	spring = SpringArm3D.new()
 	spring.spring_length = 3.2
-	spring.collision_mask = 1 | 32
+	spring.collision_mask = 1 | 8 | 32
 	spring.margin = 0.2
 	var sph := SphereShape3D.new()
 	sph.radius = 0.2

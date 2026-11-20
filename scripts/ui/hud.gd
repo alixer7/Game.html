@@ -31,6 +31,7 @@ var death_lbl: Label
 var minimap: Control
 var build_bar: PanelContainer
 var build_list: HBoxContainer
+var build_mats: Control
 var build_cat := "structure"
 var build_mat := "wood"
 var fps_lbl: Label
@@ -248,33 +249,46 @@ func _build_buttons() -> void:
 
 func _build_buildbar() -> void:
 	build_bar = PanelContainer.new()
-	build_bar.add_theme_stylebox_override("panel", UIKit.sb(Color(0.05, 0.05, 0.06, 0.85), 12, 1, Color(0.9, 0.75, 0.45, 0.3), 8))
-	var v := UIKit.vbox(6)
+	build_bar.add_theme_stylebox_override("panel", UIKit.sb(Color(0.05, 0.05, 0.06, 0.85), 12, 1, Color(0.9, 0.75, 0.45, 0.3), 6))
+	build_bar.clip_contents = true
+	var v := UIKit.vbox(5)
 	build_bar.add_child(v)
-	var cats := UIKit.hbox(6)
+	var cats := UIKit.hbox(5)
+	cats.alignment = BoxContainer.ALIGNMENT_END
 	v.add_child(cats)
 	for c in BuildDB.CATS:
-		var cb := UIKit.button(BuildDB.CAT_NAMES[c], func(): build_cat = c; _fill_build_list(), 16, 40)
+		var cb := UIKit.button(BuildDB.CAT_NAMES[c], func(): build_cat = c; _fill_build_list(), 15, 38)
+		cb.custom_minimum_size = Vector2(0, 38)
 		cats.add_child(cb)
-	var sep2 := VSeparator.new()
-	cats.add_child(sep2)
-	for m in ["thatch", "wood", "stone", "brick"]:
-		var mb := UIKit.button(BuildDB.MAT_NAMES[m], func(): build_mat = m; build_cat = "structure"; _fill_build_list(), 16, 40)
-		mb.modulate = Color(1, 0.9, 0.7)
-		cats.add_child(mb)
+	var row2 := UIKit.hbox(6)
+	v.add_child(row2)
 	var sc := ScrollContainer.new()
 	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	sc.custom_minimum_size = Vector2(0, 74)
+	sc.custom_minimum_size = Vector2(0, 70)
+	sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.scroll_deadzone = 12
-	v.add_child(sc)
+	row2.add_child(sc)
 	build_list = UIKit.hbox(6)
 	sc.add_child(build_list)
+	build_mats = UIKit.vbox(2)
+	var mg := GridContainer.new()
+	mg.columns = 2
+	mg.add_theme_constant_override("h_separation", 3)
+	mg.add_theme_constant_override("v_separation", 3)
+	build_mats.add_child(mg)
+	for m in ["wood", "thatch", "brick", "stone"]:
+		var mb := UIKit.button(BuildDB.MAT_NAMES[m], func(): build_mat = m; build_cat = "structure"; _fill_build_list(), 14, 32)
+		mb.custom_minimum_size = Vector2(56, 32)
+		mb.modulate = Color(1, 0.9, 0.7)
+		mg.add_child(mb)
+	row2.add_child(build_mats)
 	root.add_child(build_bar)
 	build_bar.visible = false
 	touch.blockers.append(build_bar)
 	_fill_build_list()
 
 func _fill_build_list() -> void:
+	build_mats.visible = build_cat == "structure"
 	for c in build_list.get_children():
 		c.queue_free()
 	for id in BuildDB.order:
@@ -284,8 +298,8 @@ func _fill_build_list() -> void:
 		if build_cat == "structure" and d.get("mat", "") != build_mat and d.get("slot", "") != "door":
 			continue
 		var can: bool = player.inventory.has_all(d["cost"])
-		var b := UIKit.button(d["name"], func(): player.build_id = id; player.build_rot = 0; _fill_build_list(), 16, 62)
-		b.custom_minimum_size = Vector2(130, 62)
+		var b := UIKit.button(d["name"], func(): player.build_id = id; player.build_rot = 0; _fill_build_list(), 15, 66)
+		b.custom_minimum_size = Vector2(112, 66)
 		b.tooltip_text = BuildDB.cost_text(id)
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		if not can:

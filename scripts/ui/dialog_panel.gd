@@ -64,7 +64,7 @@ func refresh() -> void:
 	for k in d["known_traits"]:
 		var v: float = d["traits"][k]
 		if v > 0.62 or v < 0.38:
-			traits.append(AIManager.TRAIT_NAMES[k][1 if v > 0.5 else 0])
+			traits.append(AIManager.trait_name(d, k))
 	info.text = "%s   |   علاقته بك: %s (%d)%s%s" % [s.get("name", "رحّال"), AIManager.rel_label(r), int(r),
 		("   |   صفاته: " + "، ".join(traits)) if not traits.is_empty() else "", "   |   رفيقك" if d["companion"] else ""]
 	rel_bar.value = r

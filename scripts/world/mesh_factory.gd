@@ -119,7 +119,7 @@ static func _nature(name: String) -> ShaderMaterial:
 	var p := {}
 	match name:
 		"bark": p = {"detail_strength": 0.4, "detail_scale": 2.2, "roughness_val": 0.95, "wind_strength": 0.12}
-		"leaves": p = {"detail_strength": 0.35, "detail_scale": 1.6, "roughness_val": 0.8, "wind_strength": 1.0, "backlight_val": 0.3, "hue_var": 0.28, "specular_val": 0.25}
+		"leaves": p = {"detail_strength": 0.45, "detail_scale": 2.2, "roughness_val": 0.8, "wind_strength": 1.0, "backlight_val": 0.32, "hue_var": 0.28, "specular_val": 0.22, "normal_jitter": 0.75}
 		"plant": p = {"detail_strength": 0.2, "detail_scale": 3.0, "roughness_val": 0.8, "wind_strength": 0.6, "backlight_val": 0.25, "hue_var": 0.2}
 		"rock": p = {"detail_strength": 0.5, "detail_scale": 0.9, "roughness_val": 0.9, "specular_val": 0.25}
 		"glossy": p = {"detail_strength": 0.25, "detail_scale": 1.5, "roughness_val": 0.18, "specular_val": 0.7}
@@ -162,10 +162,14 @@ static func get_mesh(key: String) -> Mesh:
 # ------------------------------------------------------------------
 static func _build(key: String) -> Mesh:
 	match key:
-		"oak": return _oak(1.0, 1)
-		"big_oak": return _oak(1.65, 7)
-		"birch": return _birch()
-		"pine": return _pine()
+		"oak": return _oak(1.0, 1, false)
+		"oak_lod": return _oak(1.0, 1, true)
+		"big_oak": return _oak(1.65, 7, false)
+		"big_oak_lod": return _oak(1.65, 7, true)
+		"birch": return _birch(false)
+		"birch_lod": return _birch(true)
+		"pine": return _pine(false)
+		"pine_lod": return _pine(true)
 		"palm": return _palm()
 		"dead_tree": return _dead_tree()
 		"bush": return _bush(false)
@@ -214,60 +218,69 @@ static func _vary(c: Color, r: RandomNumberGenerator, amt: float) -> Color:
 	var k := 1.0 + r.randf_range(-amt, amt)
 	return Color(clampf(c.r * k, 0, 1), clampf(c.g * k * (1.0 + r.randf_range(-amt, amt) * 0.5), 0, 1), clampf(c.b * k, 0, 1))
 
-static func _oak(k: float, s: int) -> Mesh:
+static func _canopy(leaf: MeshBuilder, r: RandomNumberGenerator, C: Vector3, R: Vector3, lc: Color, lc2: Color, count: int, bsize: float, lod: bool) -> void:
+	# حشوة داخلية داكنة تمنع رؤية ما خلفها
+	leaf.blob(C, R * (0.78 if not lod else 0.95), lc.darkened(0.35 if not lod else 0.1), 0.25, 1.0, 5 if lod else 6, 8 if lod else 10, r.randf() * 50.0, 1, lc2)
+	if lod:
+		for i in range(3):
+			var a := TAU * i / 3.0 + r.randf()
+			leaf.blob(C + Vector3(cos(a) * R.x * 0.45, R.y * 0.15, sin(a) * R.z * 0.45), R * 0.6, _vary(lc, r, 0.12), 0.25, 1.2, 4, 7, r.randf() * 50.0, 1, lc2)
+		return
+	for i in range(count):
+		var d := Vector3(r.randf_range(-1, 1), r.randf_range(-0.55, 1.0), r.randf_range(-1, 1)).normalized()
+		var pos := C + d * R * r.randf_range(0.62, 0.92)
+		var rad := bsize * r.randf_range(0.7, 1.15)
+		var ao := 0.72 + 0.28 * clampf((pos.y - (C.y - R.y)) / (2.0 * R.y), 0.0, 1.0)
+		var cc := _vary(lc, r, 0.14)
+		leaf.blob(pos, Vector3(rad, rad * 0.82, rad), Color(cc.r * ao, cc.g * ao, cc.b * ao), 0.38, 2.3, 6, 8, r.randf() * 100.0, 1, lc2)
+
+static func _oak(k: float, s: int, lod: bool) -> Mesh:
 	var bark := MeshBuilder.new()
 	var leaf := MeshBuilder.new()
 	var r := _rng(s)
 	var bc := Color(0.33, 0.24, 0.16)
 	var H := 3.0 * k
-	bark.tube(Vector3(0, -0.4, 0), Vector3(0.12 * k, H, 0.06 * k), 0.4 * k, 0.24 * k, bc.darkened(0.2), bc, 10, 5, 0.1, Vector3(0.14, 0, 0.08) * k, 6)
-	bark.tube(Vector3(0, -0.4, 0), Vector3(0, 0.6 * k, 0), 0.62 * k, 0.36 * k, bc.darkened(0.25), bc, 10, 2, 0.28, Vector3.ZERO, 6)
-	var tops := []
-	for i in range(5):
-		var ang := TAU * i / 5.0 + r.randf() * 0.5
-		var st := Vector3(0.1 * k, H * (0.72 + r.randf() * 0.25), 0.05 * k)
-		var en := st + Vector3(cos(ang) * 1.5 * k, (1.1 + r.randf() * 0.7) * k, sin(ang) * 1.5 * k)
-		bark.tube(st, en, 0.16 * k, 0.07 * k, bc, bc, 6, 2, 0.0, Vector3(0, 0.25 * k, 0), 6)
-		tops.append(en)
-	tops.append(Vector3(0.1 * k, H + 1.4 * k, 0))
-	var lc := Color(0.2, 0.36, 0.11)
-	var lc2 := Color(0.34, 0.45, 0.13)
-	for t in tops:
-		var rr := (1.25 + r.randf() * 0.45) * k
-		leaf.blob(t + Vector3(0, 0.2 * k, 0), Vector3(rr, rr * 0.78, rr), _vary(lc, r, 0.12), 0.3, 1.1, 7, 11, r.randf() * 100.0, 1, lc2)
-	leaf.blob(Vector3(0.1 * k, H + 0.9 * k, 0), Vector3(2.1, 1.5, 2.1) * k, lc, 0.25, 0.9, 7, 12, r.randf() * 100.0, 1, lc2)
+	bark.tube(Vector3(0, -0.4, 0), Vector3(0.12 * k, H + 0.6 * k, 0.06 * k), 0.4 * k, 0.2 * k, bc.darkened(0.2), bc, 6 if lod else 10, 2 if lod else 5, 0.1, Vector3(0.14, 0, 0.08) * k, 6)
+	if not lod:
+		bark.tube(Vector3(0, -0.4, 0), Vector3(0, 0.6 * k, 0), 0.62 * k, 0.36 * k, bc.darkened(0.25), bc, 10, 2, 0.28, Vector3.ZERO, 6)
+		for i in range(5):
+			var ang := TAU * i / 5.0 + r.randf() * 0.5
+			var st := Vector3(0.1 * k, H * (0.72 + r.randf() * 0.25), 0.05 * k)
+			var en := st + Vector3(cos(ang) * 1.6 * k, (1.0 + r.randf() * 0.7) * k, sin(ang) * 1.6 * k)
+			bark.tube(st, en, 0.16 * k, 0.06 * k, bc, bc, 6, 2, 0.0, Vector3(0, 0.25 * k, 0), 6)
+	var lc := Color(0.19, 0.34, 0.1)
+	_canopy(leaf, r, Vector3(0.1 * k, H + 1.5 * k, 0), Vector3(2.5, 1.85, 2.5) * k, lc, Color(0.36, 0.46, 0.13), int(20 * k), 0.85 * k, lod)
 	return MeshBuilder.commit([bark, leaf], [mat("bark"), mat("leaves")])
 
-static func _birch() -> Mesh:
+static func _birch(lod: bool) -> Mesh:
 	var bark := MeshBuilder.new()
 	var leaf := MeshBuilder.new()
 	var r := _rng(3)
 	var H := 5.5
-	bark.tube(Vector3(0, -0.3, 0), Vector3(0.15, H, 0.05), 0.22, 0.1, Color(0.88, 0.87, 0.82), Color(0.9, 0.9, 0.86), 8, 6, 0.05, Vector3(0.1, 0, 0), 5, Color(0.12, 0.12, 0.12))
-	var lc := Color(0.38, 0.52, 0.18)
-	for i in range(6):
-		var ang := TAU * i / 6.0 + r.randf()
-		var y := 3.2 + r.randf() * 3.0
-		var rad := 0.9 + r.randf() * 0.5
-		var p := Vector3(cos(ang) * 0.7, y, sin(ang) * 0.7)
-		bark.tube(Vector3(0.1, y - 0.8, 0), p, 0.06, 0.03, Color(0.86, 0.86, 0.82), Color(0.8, 0.8, 0.76), 5, 1)
-		leaf.blob(p, Vector3(rad, rad * 1.35, rad), _vary(lc, r, 0.1), 0.3, 1.3, 7, 10, r.randf() * 100.0, 1, Color(0.5, 0.58, 0.16))
-	leaf.blob(Vector3(0.15, H + 0.8, 0), Vector3(1.1, 1.6, 1.1), lc, 0.25, 1.2, 7, 10, 5.0, 1, Color(0.5, 0.58, 0.16))
+	bark.tube(Vector3(0, -0.3, 0), Vector3(0.15, H + 0.8, 0.05), 0.22, 0.08, Color(0.88, 0.87, 0.82), Color(0.9, 0.9, 0.86), 6 if lod else 8, 3 if lod else 6, 0.05, Vector3(0.1, 0, 0), 5, Color(0.12, 0.12, 0.12))
+	if not lod:
+		for i in range(6):
+			var ang := TAU * i / 6.0 + r.randf()
+			var y := 3.2 + r.randf() * 3.0
+			var p := Vector3(cos(ang) * 0.8, y + 0.4, sin(ang) * 0.8)
+			bark.tube(Vector3(0.1, y - 0.6, 0), p, 0.06, 0.03, Color(0.86, 0.86, 0.82), Color(0.8, 0.8, 0.76), 5, 1)
+	_canopy(leaf, r, Vector3(0.12, 5.1, 0), Vector3(1.55, 2.5, 1.55), Color(0.36, 0.5, 0.17), Color(0.52, 0.6, 0.16), 16, 0.7, lod)
 	return MeshBuilder.commit([bark, leaf], [mat("bark"), mat("leaves")])
 
-static func _pine() -> Mesh:
+static func _pine(lod: bool) -> Mesh:
 	var bark := MeshBuilder.new()
 	var leaf := MeshBuilder.new()
 	var r := _rng(5)
-	bark.tube(Vector3(0, -0.4, 0), Vector3(0, 8.2, 0), 0.34, 0.05, Color(0.32, 0.2, 0.13), Color(0.36, 0.24, 0.15), 8, 6, 0.06, Vector3.ZERO, 6)
-	var tiers := 6
+	bark.tube(Vector3(0, -0.4, 0), Vector3(0, 8.2, 0), 0.34, 0.05, Color(0.32, 0.2, 0.13), Color(0.36, 0.24, 0.15), 6 if lod else 8, 2 if lod else 6, 0.06, Vector3.ZERO, 6)
+	var tiers := 3 if lod else 7
 	for t in range(tiers):
 		var k := float(t) / (tiers - 1)
-		var y := 1.7 + t * 1.15
-		var rad := lerpf(2.5, 0.6, k) * (0.92 + r.randf() * 0.16)
+		var y := 1.6 + t * (6.9 / (tiers - 1)) * 0.92
+		var rad := lerpf(2.6, 0.6, k) * (0.92 + r.randf() * 0.16)
 		var col := _vary(Color(0.1, 0.22, 0.13), r, 0.1)
-		leaf.cone(Vector3(0, y, 0), 2.3 - k * 0.6, rad, col, Color(0.16, 0.3, 0.16), 14, 0.16, 7, 0.35)
-	leaf.cone(Vector3(0, 8.4, 0), 1.3, 0.45, Color(0.12, 0.25, 0.14), Color(0.18, 0.32, 0.18), 10, 0.1, 5, 0.1)
+		leaf.cone(Vector3(0, y, 0), (2.3 - k * 0.6) * (1.6 if lod else 1.0), rad, col, Color(0.16, 0.3, 0.16), 8 if lod else 16, 0.0 if lod else 0.2, 8, 0.35)
+	if not lod:
+		leaf.cone(Vector3(0, 8.4, 0), 1.3, 0.45, Color(0.12, 0.25, 0.14), Color(0.18, 0.32, 0.18), 10, 0.1, 5, 0.1)
 	return MeshBuilder.commit([bark, leaf], [mat("bark"), mat("leaves")])
 
 static func _palm() -> Mesh:

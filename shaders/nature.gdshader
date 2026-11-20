@@ -15,6 +15,7 @@ uniform float backlight_val = 0.0;
 uniform float hue_var = 0.0;
 uniform float wetness = 0.0;
 uniform float snow = 0.0;
+uniform float normal_jitter = 0.0;
 uniform float cold_z0 = 380.0;
 uniform float cold_z1 = 680.0;
 uniform sampler2D detail_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
@@ -51,6 +52,11 @@ void fragment() {
 	float cold = clamp(smoothstep(cold_z0, cold_z1, -wpos.z) + smoothstep(58.0, 74.0, wpos.y), 0.0, 1.0);
 	float sn = max(snow, cold * 0.85) * smoothstep(0.35, 0.8, wnrm.y);
 	col = mix(col, vec3(0.8, 0.82, 0.86), sn);
+	if (normal_jitter > 0.0) {
+		vec3 j = vec3(texture(detail_tex, wpos.xy * 1.7).r, texture(detail_tex, wpos.yz * 1.9).r, texture(detail_tex, wpos.zx * 1.6).r) - 0.5;
+		NORMAL = normalize(NORMAL + (VIEW_MATRIX * vec4(j, 0.0)).xyz * normal_jitter);
+		col *= 0.82 + j.x * 0.5;
+	}
 	ALBEDO = col * (1.0 - wetness * 0.22 * (1.0 - sn));
 	ROUGHNESS = mix(roughness_val, roughness_val * 0.45, wetness);
 	SPECULAR = specular_val + wetness * 0.2;

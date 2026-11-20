@@ -17,9 +17,9 @@ const SPECIES := {
 		"col": Color(0.78, 0.62, 0.4), "belly": Color(0.85, 0.72, 0.52), "drops": [["raw_meat", 4, 6], ["hide", 2, 3], ["fat", 1, 2], ["bone", 2, 2]], "group": [1, 3], "prey": true},
 	"boar": {"name": "خنزير بري", "hp": 70.0, "walk": 1.3, "run": 7.0, "dmg": 12.0, "aggro": 0.35, "detect": 14.0, "len": 0.95, "r": 0.3, "leg": 0.32, "neck": 0.08, "head": 0.21, "snout": 0.2, "ears": 0.1, "tail": 0.12, "tusks": true, "mane": true,
 		"col": Color(0.3, 0.24, 0.19), "belly": Color(0.38, 0.3, 0.24), "drops": [["raw_meat", 3, 4], ["hide", 1, 2], ["fat", 1, 2], ["bone", 1, 1]], "group": [1, 3]},
-	"wolf": {"name": "ذئب", "hp": 60.0, "walk": 2.0, "run": 9.5, "dmg": 11.0, "aggro": 0.75, "detect": 30.0, "len": 0.95, "r": 0.2, "leg": 0.52, "neck": 0.28, "head": 0.16, "snout": 0.17, "ears": 0.13, "tail": 0.45, "tail_r": 0.06,
+	"wolf": {"name": "ذئب", "hp": 60.0, "walk": 2.0, "run": 9.5, "dmg": 8.5, "aggro": 0.75, "detect": 30.0, "len": 0.95, "r": 0.2, "leg": 0.52, "neck": 0.28, "head": 0.16, "snout": 0.17, "ears": 0.13, "tail": 0.45, "tail_r": 0.06,
 		"col": Color(0.46, 0.44, 0.41), "belly": Color(0.72, 0.7, 0.66), "drops": [["raw_meat", 2, 3], ["fur", 1, 2], ["bone", 1, 2]], "group": [2, 4], "pred": true},
-	"bear": {"name": "دب بني", "hp": 220.0, "walk": 1.5, "run": 8.0, "dmg": 28.0, "aggro": 0.55, "detect": 18.0, "len": 1.55, "r": 0.48, "leg": 0.55, "neck": 0.22, "head": 0.28, "snout": 0.16, "ears": 0.07, "round_ears": true, "tail": 0.08, "leg_r": 0.13,
+	"bear": {"name": "دب بني", "hp": 220.0, "walk": 1.5, "run": 8.0, "dmg": 24.0, "aggro": 0.55, "detect": 18.0, "len": 1.55, "r": 0.48, "leg": 0.55, "neck": 0.22, "head": 0.28, "snout": 0.16, "ears": 0.07, "round_ears": true, "tail": 0.08, "leg_r": 0.13,
 		"col": Color(0.33, 0.22, 0.14), "belly": Color(0.36, 0.25, 0.16), "drops": [["raw_meat", 5, 7], ["fur", 2, 3], ["fat", 2, 3], ["bone", 2, 3]], "group": [1, 1], "pred": true, "territorial": true},
 	"polar_bear": {"name": "دب قطبي", "hp": 260.0, "walk": 1.5, "run": 8.0, "dmg": 32.0, "aggro": 0.7, "detect": 22.0, "len": 1.7, "r": 0.5, "leg": 0.58, "neck": 0.3, "head": 0.27, "snout": 0.2, "ears": 0.06, "round_ears": true, "tail": 0.07, "leg_r": 0.13,
 		"col": Color(0.92, 0.92, 0.88), "belly": Color(0.9, 0.9, 0.86), "drops": [["raw_meat", 5, 7], ["fur", 3, 4], ["fat", 3, 4], ["bone", 2, 3]], "group": [1, 1], "pred": true, "territorial": true},
@@ -201,12 +201,15 @@ func _physics_process(dt: float) -> void:
 			_face(global_position + dir, dt * 6.0)
 	velocity.x = lerpf(velocity.x, vel.x, dt * 6.0)
 	velocity.z = lerpf(velocity.z, vel.z, dt * 6.0)
-	if is_on_floor():
+	var float_y: float = -sp["leg"] - sp["r"] * 0.5
+	if global_position.y < float_y - 0.2:
+		velocity.y = lerpf(velocity.y, (float_y - global_position.y) * 3.0, dt * 3.0)
+		velocity.x *= 0.65
+		velocity.z *= 0.65
+	elif is_on_floor():
 		velocity.y = -1.0
 	else:
 		velocity.y -= _gravity * dt
-	if global_position.y < -0.6 and not sp.get("swims", false):
-		velocity.y = 2.0
 	move_and_slide()
 	var hv := Vector2(velocity.x, velocity.z).length()
 	model.speed = hv
@@ -226,10 +229,11 @@ func _physics_process(dt: float) -> void:
 func _avoid(dir: Vector3) -> Vector3:
 	var ahead := global_position + dir * 2.0
 	var h: float = world.gen.height_at(ahead.x, ahead.z)
-	if h < -0.2 and not sp.get("swims", false):
+	var limit := -7.0 if state in ["flee", "chase"] else -0.4
+	if h < limit and not sp.get("swims", false):
 		var alt := dir.rotated(Vector3.UP, 1.6)
 		ahead = global_position + alt * 2.0
-		if world.gen.height_at(ahead.x, ahead.z) > -0.2:
+		if world.gen.height_at(ahead.x, ahead.z) > limit:
 			return alt
 		return -dir
 	return dir

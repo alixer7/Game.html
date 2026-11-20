@@ -83,6 +83,8 @@ func start(new_game: bool, s: int, save: Dictionary, progress: Callable) -> void
 	var keys := ResDB.types.keys()
 	for i in range(keys.size()):
 		MeshFactory.get_mesh(ResDB.types[keys[i]]["mesh"])
+		if keys[i] in Terrain.LOD_TYPES:
+			MeshFactory.get_mesh(ResDB.types[keys[i]]["mesh"] + "_lod")
 		if i % 6 == 0:
 			progress.call(0.25 + 0.25 * float(i) / keys.size(), "تحضير المجسمات...")
 			await get_tree().process_frame

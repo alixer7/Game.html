@@ -10,6 +10,11 @@ const FEMALE := ["فاطمة", "مريم", "ليلى", "سارة", "نور", "ه
 const ROLE_NAMES := {"farmer": "مزارع", "hunter": "صياد", "woodcutter": "حطّاب", "miner": "عامل منجم", "trader": "تاجر", "guard": "حارس", "bandit": "قاطع طريق", "thief": "لص", "wanderer": "رحّالة", "healer": "معالج أعشاب", "elder": "شيخ", "smith": "حدّاد"}
 const ROLE_NAMES_F := {"farmer": "مزارعة", "hunter": "صيادة", "woodcutter": "حطّابة", "miner": "عاملة منجم", "trader": "تاجرة", "guard": "حارسة", "bandit": "قاطعة طريق", "thief": "لصّة", "wanderer": "رحّالة", "healer": "معالجة أعشاب", "elder": "شيخة", "smith": "حدّادة"}
 const TRAIT_NAMES := {"kind": ["قاسٍ", "طيب القلب"], "aggr": ["مسالم", "عدواني"], "greed": ["كريم", "جشع"], "honest": ["مخادع", "أمين"], "brave": ["جبان", "شجاع"], "social": ["انطوائي", "اجتماعي"]}
+const TRAIT_NAMES_F := {"kind": ["قاسية", "طيبة القلب"], "aggr": ["مسالمة", "عدوانية"], "greed": ["كريمة", "جشعة"], "honest": ["مخادعة", "أمينة"], "brave": ["جبانة", "شجاعة"], "social": ["انطوائية", "اجتماعية"]}
+
+static func trait_name(d: Dictionary, k: String) -> String:
+	var v: float = d["traits"][k]
+	return (TRAIT_NAMES_F if d.get("female", false) else TRAIT_NAMES)[k][1 if v > 0.5 else 0]
 
 var world: Node
 var npcs := {}
@@ -404,6 +409,14 @@ func _far_sim(dt: float) -> void:
 			continue
 		var home: Vector3 = d["home"]
 		var pos: Vector3 = d["pos"]
+		if d.get("raid", Vector3.INF) != Vector3.INF:
+			var rdir: Vector3 = d["raid"] - pos
+			rdir.y = 0
+			if rdir.length() > 15.0:
+				pos += rdir.normalized() * minf(rdir.length() - 14.0, 1.8 * dt)
+				pos.y = world.gen.height_at(pos.x, pos.z)
+				d["pos"] = pos
+			continue
 		if d["role"] in ["wanderer", "thief"] or (d["role"] == "trader" and d["faction"] == ""):
 			if d["travel_to"] == Vector3.INF or pos.distance_to(d["travel_to"]) < 8.0:
 				if settlements.size() > 0 and randf() < 0.3:
@@ -549,6 +562,29 @@ func _daily(d: int) -> void:
 			log_event("وصل وافد جديد إلى %s: %s" % [s["name"], nd["name"]])
 	# ملء صناديق المستوطنات
 	world.build.restock_settlements()
+	_maybe_raid(d)
+
+## غارة ليلية من قطاع الطرق على قاعدة اللاعب إن كانت سمعته عندهم سيئة
+func _maybe_raid(day_n: int) -> void:
+	if day_n < 3:
+		return
+	var base: Vector3 = world.build.base_center()
+	if base == Vector3.INF:
+		return
+	var raiders := []
+	for id in npcs:
+		var d: Dictionary = npcs[id]
+		if d["alive"] and d["role"] == "bandit" and not d["companion"] and get_rel(id, "player") < 0.0:
+			raiders.append(d)
+	if raiders.size() < 2 or randf() > 0.3:
+		return
+	raiders.shuffle()
+	for i in range(mini(3, raiders.size())):
+		raiders[i]["raid"] = base
+		raiders[i]["travel_to"] = base + Vector3(randf_range(-10, 10), 0, randf_range(-10, 10))
+	log_event("سمعت شائعات أن قطاع الطرق يخططون لغارة على منزلك...")
+	if world.build.in_claim(base):
+		Game.notify("راية الملكية: لاحظ أحدهم عصابة تتجه نحو أرضك! استعد", Color(1, 0.45, 0.35))
 
 func on_npc_killed(victim: Node, killer) -> void:
 	var vid: String = victim.npc_id
@@ -607,10 +643,10 @@ func greeting(d: Dictionary) -> String:
 		return ["ماذا تريد؟ لا أحب وجودك هنا.", "قل ما عندك بسرعة."][randi() % 2]
 	if first:
 		var s := settlement_of(d)
-		var place := ("من %s" % s["name"]) if not s.is_empty() else "رحّال لا أستقر في مكان"
+		var place := ("من %s" % s["name"]) if not s.is_empty() else "لا أستقر في مكان"
 		if d["role"] == "bandit":
 			return "من أنت؟ هذه أرضنا... ادفع أو ارحل."
-		return "مرحباً أيها الغريب. أنا %s، %s، %s." % [d["name"], role_name(d), place]
+		return "مرحباً أيها الغريب. أنا %s، %s %s." % [d["name"], role_name(d), place]
 	if r >= 60.0:
 		return ["صديقي! سعيد جداً برؤيتك!", "أهلاً بك! كنت أفكر فيك للتو."][randi() % 2]
 	if r >= 20.0:
@@ -643,7 +679,7 @@ func chat(d: Dictionary) -> String:
 				d["known_traits"].append(k)
 				var v: float = t[k]
 				if v > 0.62 or v < 0.38:
-					reveal = "\n(تلاحظ أنه %s)" % TRAIT_NAMES[k][1 if v > 0.5 else 0]
+					reveal = "\n(تلاحظ أن%s %s)" % ["ها" if d["female"] else "ه", trait_name(d, k)]
 				break
 	if d["talks"] > 3:
 		return "لقد تحدثنا كثيراً اليوم، لدي أعمال أقوم بها." + reveal

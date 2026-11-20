@@ -280,17 +280,22 @@ func _act(dt: float) -> void:
 						an.queue_free()
 					work_res = []
 					_go_deposit()
-	# الجاذبية والحركة
-	if is_on_floor():
+	# الجاذبية والحركة والسباحة
+	var swimming := global_position.y < -1.15
+	if swimming:
+		velocity.y = lerpf(velocity.y, (-global_position.y - 1.3) * 3.0, dt * 3.0)
+		velocity.x *= 0.6
+		velocity.z *= 0.6
+	elif is_on_floor():
 		velocity.y = -1.0
 	else:
 		velocity.y -= _gravity * dt
-	if global_position.y < -0.8:
-		velocity.y = 2.5
 	move_and_slide()
 	var hv := Vector2(velocity.x, velocity.z).length()
 	model.speed = hv
 	model.state = mstate if hv < 0.3 or mstate == "idle" else "idle"
+	if swimming:
+		model.state = "swim"
 	if state in ["sleep", "sit"]:
 		model.state = mstate
 	if hv < 0.2 and state in ["wander", "patrol", "travel", "go_home", "go_eat", "go_work", "deposit", "socialize", "steal", "greet"]:
@@ -432,8 +437,33 @@ func _think() -> void:
 	if state == "sleep":
 		state = "idle"
 		state_t = 0.0
-	# ---- اللص
+	# ---- اللص، أو قاطع طريق في غارة
 	if data["role"] == "thief" and _thief_think(p, pd):
+		return
+	if data.get("raid", Vector3.INF) != Vector3.INF:
+		var rp: Vector3 = data["raid"]
+		if state in ["steal", "stealing", "escape"]:
+			return
+		if global_position.distance_to(rp) > 12.0:
+			state = "travel"
+			dest = rp
+			return
+		var loot = null
+		for st in world.build.player_storages():
+			if is_instance_valid(st) and st.global_position.distance_to(rp) < 30.0 and not st.inventory.is_empty():
+				loot = st
+				break
+		if loot != null and steal_cd <= 0.0:
+			steal_target = loot
+			state = "steal"
+			state_t = 0.0
+			steal_cd = 60.0
+			say("فتشوا المكان!", 2.5)
+			return
+		data["raid"] = Vector3.INF
+		data["travel_to"] = data["home"]
+		dest = data["home"]
+		state = "travel"
 		return
 	if state in ["socialize", "chatting", "chatting_passive", "wait_social", "working", "farming", "go_work", "deposit", "steal", "stealing", "skin"]:
 		if state_t < 40.0:
@@ -495,8 +525,8 @@ func _check_obstacle() -> void:
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if not hit.is_empty():
 		_steer = 0.9 if randf() < 0.5 else -0.9
-	var ahead := global_position + fwd * 2.0
-	if world.gen.height_at(ahead.x, ahead.z) < -0.3:
+	var ahead := global_position + fwd * 3.0
+	if world.gen.height_at(ahead.x, ahead.z) < -7.0:
 		_steer = PI * 0.6
 
 func _nearest_threat(radius: float) -> Node3D:
@@ -744,6 +774,9 @@ func _do_steal() -> void:
 		state = "travel"
 		_pick_wander()
 		return
+	if is_player and data.get("raid", Vector3.INF) != Vector3.INF:
+		ai.log_event("قطاع الطرق نهبوا %s!" % st.display_name())
+		Game.notify("قطاع الطرق ينهبون %s!" % st.display_name(), Color(1, 0.35, 0.3))
 	if is_player:
 		for e in taken:
 			data["stolen"].append(e)
