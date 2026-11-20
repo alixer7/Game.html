@@ -72,6 +72,14 @@ static func _sph(r: float, hemi := false) -> SphereMesh:
 	_mesh_cache[key] = m
 	return m
 
+static func _cyl() -> CylinderMesh:
+	if not _mesh_cache.has("cyl"):
+		var m := CylinderMesh.new()
+		m.radial_segments = 12
+		m.rings = 1
+		_mesh_cache["cyl"] = m
+	return _mesh_cache["cyl"]
+
 static func _box(s: Vector3) -> BoxMesh:
 	var key := "box_%.3f_%.3f_%.3f" % [s.x, s.y, s.z]
 	if _mesh_cache.has(key):
@@ -118,6 +126,9 @@ func build(appearance: Dictionary) -> void:
 	if app.get("female", false):
 		_part(torso, "bust", _sph(0.075), shirt_m, Vector3(0, 0.36, -0.075), Vector3(2.1, 0.9, 0.9))
 	_part(torso, "neck", _cap(0.05, 0.16), _skin_mat, Vector3(0, 0.58, 0))
+	_part(torso, "collar", _cap(0.075, 0.16), shirt_m, Vector3(0, 0.52, 0), Vector3(1.2, 0.5, 1.0))
+	var belt := _part(hips, "belt", _cyl(), cmat(Color(0.18, 0.12, 0.08), 0.6), Vector3(0, 0.07, 0), Vector3(0.36 * bld, 0.05, 0.26))
+	belt.visibility_range_end = 30.0
 	head = _pivot(torso, Vector3(0, 0.64, 0))
 	_part(head, "head", _sph(0.115), _skin_mat, Vector3(0, 0.11, 0), Vector3(0.9, 1.05, 0.98))
 	var eye_m := cmat(Color(0.06, 0.05, 0.05), 0.3)
@@ -126,6 +137,16 @@ func build(appearance: Dictionary) -> void:
 		e.visibility_range_end = 25.0
 	var nose := _part(head, "nose", _box(Vector3(0.03, 0.045, 0.04)), _skin_mat, Vector3(0, 0.1, -0.11))
 	nose.visibility_range_end = 25.0
+	var brow_m := cmat(Color(app.get("hair", Color(0.15, 0.1, 0.06))).darkened(0.2), 0.8)
+	for sx in [-0.042, 0.042]:
+		var br := _part(head, "brow", _box(Vector3(0.038, 0.009, 0.012)), brow_m, Vector3(sx, 0.155, -0.1))
+		br.rotation.z = -sx * 4.0
+		br.visibility_range_end = 20.0
+	var mouth := _part(head, "mouth", _box(Vector3(0.045, 0.008, 0.01)), cmat(Color(0.45, 0.22, 0.2), 0.6), Vector3(0, 0.055, -0.103))
+	mouth.visibility_range_end = 20.0
+	for sx in [-0.112, 0.112]:
+		var ear := _part(head, "ear", _sph(0.025), _skin_mat, Vector3(sx, 0.11, 0.0), Vector3(0.5, 1.0, 0.8))
+		ear.visibility_range_end = 25.0
 	var hs: int = app.get("hair_style", 0)
 	if hs != 3:
 		_part(head, "hair", _sph(0.124, true), hair_m, Vector3(0, 0.13, 0.01), Vector3(0.95, 1.0, 1.02))
@@ -192,7 +213,7 @@ func set_equipment(eq: Dictionary) -> void:
 	if body != null:
 		var c: Color = ItemDB.get_item(body["id"])["color"]
 		shirt_m = cmat(c, 0.4 if "armor" in body["id"] else 0.85, 0.7 if "armor" in body["id"] else 0.0)
-	for p in ["chest", "uarm", "bust"]:
+	for p in ["chest", "uarm", "bust", "collar"]:
 		_recolor(p, shirt_m)
 	var legs = eq.get("legs")
 	var pm := cmat(ItemDB.get_item(legs["id"])["color"] if legs != null else base_pants, 0.85)

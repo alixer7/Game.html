@@ -353,7 +353,7 @@ static func _tall_grass() -> Mesh:
 static func _grass_clump() -> Mesh:
 	var g := MeshBuilder.new()
 	var r := _rng(29)
-	for i in range(6):
+	for i in range(5):
 		var a := r.randf() * TAU
 		var base := Vector3(cos(a), 0, sin(a)) * r.randf() * 0.18
 		var h := r.randf_range(0.28, 0.5)

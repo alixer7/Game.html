@@ -210,9 +210,68 @@ func _process(_dt: float) -> void:
 				step = 9
 				f = 0
 		9:
+			# --- الصناعة: اكتمال الطابور
+			if f == 1:
+				p.inventory.add("fiber", 9)
+				for r in RecipeDB.recipes:
+					if r["out"] == "rope" and r["needs"].has("fiber"):
+						set_meta("rope0", p.inventory.count("rope"))
+						ok(p.craft(r, 3), "queued rope x3")
+						break
+			if f == 900:
+				ok(p.inventory.count("rope") >= int(get_meta("rope0")) + 3, "crafting queue completed (rope=%d)" % p.inventory.count("rope"))
+				# --- الزراعة
+				var fp: Dictionary = w.build.plan("farm_plot", p.global_position + Vector3(4, 0, 0), Vector3.UP, 0.0, 0)
+				var farm = w.build.place("farm_plot", fp, "player", false)
+				if farm:
+					p.inventory.add("wheat_seed", 3)
+					farm.interact(p)
+					ok(not farm.crop.is_empty(), "planted seeds in farm plot")
+					farm.farm_tick(60.0, true)
+					ok(farm.crop["g"] >= 1.0, "crop grows with water over time")
+					var w0: int = p.inventory.count("wheat")
+					farm.interact(p)
+					ok(p.inventory.count("wheat") > w0, "harvested wheat")
+				# --- التجارة والرفاق
+				var npc = null
+				for id in w.ai.npcs:
+					var d: Dictionary = w.ai.npcs[id]
+					if d["alive"] and d["role"] in ["farmer", "hunter", "woodcutter", "healer"]:
+						npc = d
+						break
+				if npc:
+					w.ai.rel[npc["id"]]["player"] = 80.0
+					ok(w.ai.recruit(npc).length() > 0 and npc["companion"], "friend agrees to become companion")
+					npc["pos"] = p.global_position + Vector3(6, 0, 0)
+					set_meta("comp", npc["id"])
+					var pb: float = w.ai.price_mult(npc, true)
+					w.ai.rel[npc["id"]]["player"] = -50.0
+					var pw: float = w.ai.price_mult(npc, true)
+					ok(pw > pb, "prices worse when relationship is bad (%.2f vs %.2f)" % [pb, pw])
+					w.ai.rel[npc["id"]]["player"] = 80.0
+			if f == 2400:
+				var cid: String = get_meta("comp", "")
+				if cid != "":
+					var cn = w.ai.npcs[cid].get("_node")
+					ok(cn != null and is_instance_valid(cn) and cn.global_position.distance_to(p.global_position) < 15.0, "companion follows player (dist=%.1f)" % (cn.global_position.distance_to(p.global_position) if cn != null and is_instance_valid(cn) else -1.0))
+				# --- الموت والإحياء
+				p.inventory.add("gold_coin", 7)
+				p.stats.damage(500.0, "اختبار")
+				ok(p.stats.dead, "player can die")
+				ok(p.inventory.count("gold_coin") == 0, "inventory dropped on death")
+				var bags := 0
+				for c in w._loot_root.get_children():
+					if c is LootBag and c.title.begins_with("متاعك"):
+						bags += 1
+				ok(bags == 1, "death loot bag spawned")
+				w.hud._respawn()
+				ok(not p.stats.dead and p.stats.health > 0.0, "respawned")
+				step = 10
+				f = 0
+		10:
 			# --- محاكاة طويلة للتأكد من الاستقرار
 			w.time_scale = 30.0
-			if f == 1200:
+			if f == 2500:
 				w.time_scale = 1.0
 				var fights = 0
 				for e in w.ai.journal:

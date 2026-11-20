@@ -39,7 +39,7 @@ func setup(g: WorldGen, w: Node, quality: int) -> void:
 	gen = g
 	world = w
 	view_radius = [2, 3, 4][quality]
-	grass_mult = [0.25, 0.55, 1.0][quality]
+	grass_mult = [0.2, 0.45, 0.85][quality]
 	grass_radius = 1
 	body_radius = 2
 	terrain_mat = MeshFactory.mat("terrain")

@@ -82,7 +82,8 @@ tests/        اختبارات آلية (لا تُصدَّر مع اللعبة)
 ## الاختبارات
 ```
 godot --headless --path . res://tests/smoke_test.tscn     # يبدأ لعبة، يلعب، يحفظ، يحمّل
-godot --headless --path . res://tests/systems_test.tscn   # الحصاد، البناء والانهيار، اللصوص، الذئاب، النوم
+godot --headless --path . res://tests/systems_test.tscn   # الحصاد، البناء والانهيار، اللصوص، الذئاب، النوم، الزراعة، الرفاق، الموت
+
 ```
 
 ## ملاحظات

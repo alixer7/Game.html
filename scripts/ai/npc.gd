@@ -63,8 +63,8 @@ func setup(w: Node, d: Dictionary, pos: Vector3) -> void:
 		model.set_held(d["weapon"])
 	label = Label3D.new()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.pixel_size = 0.0035
-	label.font_size = 36
+	label.pixel_size = 0.0045
+	label.font_size = 40
 	label.outline_size = 10
 	label.position = Vector3(0, 2.15 * float(d["app"].get("height", 1.0)), 0)
 	label.visibility_range_end = 22.0
@@ -72,13 +72,13 @@ func setup(w: Node, d: Dictionary, pos: Vector3) -> void:
 	add_child(label)
 	bubble = Label3D.new()
 	bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	bubble.pixel_size = 0.0032
-	bubble.font_size = 34
+	bubble.pixel_size = 0.0048
+	bubble.font_size = 40
 	bubble.outline_size = 12
 	bubble.modulate = Color(1, 1, 0.92)
 	bubble.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	bubble.width = 620.0
-	bubble.position = Vector3(0, 2.55, 0)
+	bubble.width = 560.0
+	bubble.position = Vector3(0, 2.75, 0)
 	bubble.visibility_range_end = 28.0
 	bubble.visible = false
 	add_child(bubble)
