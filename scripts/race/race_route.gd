@@ -9,6 +9,7 @@ var tangents := PackedVector3Array()
 var rights := PackedVector3Array()
 var v_allow := PackedFloat32Array()
 var curv := PackedFloat32Array()
+var grip := PackedFloat32Array()
 var closed := false
 var length := 0.0
 var is_open := false
@@ -22,6 +23,9 @@ static func from_event(e: Dictionary) -> RaceRoute:
 	for k in n:
 		r.pts.append(Vector3(raw[k * 4], raw[k * 4 + 1], raw[k * 4 + 2]))
 		r.widths.append(float(raw[k * 4 + 3]))
+	var g: Array = e.get("grip", [])
+	for k in n:
+		r.grip.append(float(g[k]) if k < g.size() else 1.0)
 	r.closed = e.closed
 	r.is_open = e.get("open", false)
 	r._prepare()
@@ -77,7 +81,7 @@ func _prepare() -> void:
 	var mu_g := 9.81 * 1.05
 	for i in n:
 		var k := absf(curv[i])
-		v_allow[i] = minf(sqrt(mu_g / maxf(k, 1e-4)), 95.0)
+		v_allow[i] = minf(sqrt(mu_g * grip[i] / maxf(k, 1e-4)), 95.0 * sqrt(grip[i]))
 		# slopes / crests: be a little careful over sharp vertical changes
 		var dy := absf((_p(i + 2).y - _p(i).y) - (_p(i).y - _p(i - 2).y))
 		if dy > 0.6:

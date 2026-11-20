@@ -152,7 +152,25 @@ func show_message(text: String, color: Color, big: bool) -> void:
 		_small_t = 3.2
 
 
+func _layout() -> void:
+	var vp := root.get_viewport_rect().size
+	root.position = Vector2.ZERO
+	root.size = vp
+	speedo.position = Vector2(vp.x * 0.5 - speedo.size.x * 0.5, vp.y - speedo.size.y - 6.0)
+	minimap.position = Vector2(14, 84)
+	race_box.position = Vector2(vp.x * 0.5 - race_box.size.x * 0.5, 8)
+	msg_big.position = Vector2(vp.x * 0.5 - msg_big.size.x * 0.5, vp.y * 0.28)
+	msg_small.position = Vector2(vp.x * 0.5 - msg_small.size.x * 0.5, vp.y * 0.2)
+	wrong_label.position = Vector2(vp.x * 0.5 - wrong_label.size.x * 0.5, vp.y * 0.4)
+	heat_box.position = Vector2(vp.x - heat_box.size.x - 24.0, 110)
+	prompt_btn.position = Vector2(vp.x * 0.5 - prompt_btn.size.x * 0.5, vp.y - 250.0)
+	region_label.position = Vector2(vp.x * 0.5 - region_label.size.x * 0.5, 96)
+	challenge_label.position = Vector2(vp.x * 0.5 - challenge_label.size.x * 0.5, 20)
+	fps_label.position = Vector2(8, vp.y - 26)
+
+
 func _process(delta: float) -> void:
+	_layout()
 	var real := delta / maxf(Engine.time_scale, 0.05)
 	_big_t -= real
 	_small_t -= real

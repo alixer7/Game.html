@@ -35,7 +35,7 @@ func drive(car: Car, dt: float) -> void:
 	var tv := target.linear_velocity
 	var dist := pos.distance_to(tp)
 	var aim: Vector3
-	var v_target := 92.0
+	var v_target := 80.0
 	if route and dist > 70.0:
 		idx = route.nearest(pos, idx, 8, 50)
 		var look := clampf(8.0 + spd * 0.55, 10.0, 50.0)
@@ -52,7 +52,7 @@ func drive(car: Car, dt: float) -> void:
 		var closing := maxf(spd - tv.dot((tp - pos).normalized()), 8.0)
 		var t := clampf(dist / closing, 0.0, 1.2)
 		aim = tp + tv * t
-		v_target = tv.length() + clampf(dist * 0.4, 4.0, 25.0) * aggression
+		v_target = tv.length() + clampf(dist * 0.3, 2.0, 16.0) * aggression
 	var loc := car.to_local(aim)
 	var alpha := atan2(loc.x, -loc.z)
 	var ld := maxf(loc.length(), 1.0)

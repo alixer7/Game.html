@@ -75,6 +75,10 @@ func _ready() -> void:
 
 
 func _dev(args: PackedStringArray) -> bool:
+	if args.has("--ui-test"):
+		get_tree().create_timer(600.0).timeout.connect(func(): get_tree().quit(3))
+		add_child(load("res://scripts/dev/ui_test.gd").new())
+		return false
 	if args.has("--game-test"):
 		get_tree().create_timer(900.0).timeout.connect(func(): get_tree().quit(3))
 		add_child(load("res://scripts/dev/game_test.gd").new())

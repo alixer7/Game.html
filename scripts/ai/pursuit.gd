@@ -33,7 +33,7 @@ func start(w: World, r: RaceRoute, all_racers: Array) -> void:
 	bust_meter = 0.0
 	evade_t = 0.0
 	cooldown = 0.0
-	spawn_cd = 22.0
+	spawn_cd = 30.0
 	roadblock_done = false
 	racer_bust.clear()
 
@@ -50,7 +50,7 @@ func stop() -> void:
 
 
 func max_units() -> int:
-	return [0, 2, 3, 5][clampi(heat, 0, 3)]
+	return [0, 1, 2, 4][clampi(heat, 0, 3)]
 
 
 func _physics_process(dt: float) -> void:
@@ -143,7 +143,7 @@ func _spawn_unit(player: Car) -> void:
 		return
 	var pi := route.nearest_global(player.global_position)
 	# spawn behind (chase) or ahead (intercept), out of immediate sight
-	var ahead := randf() < 0.45
+	var ahead := randf() < 0.3
 	var off := randf_range(170.0, 240.0) * (1.0 if ahead else -1.0)
 	var si := route.advance(pi, off)
 	var p := route.pts[si]
@@ -156,6 +156,7 @@ func _spawn_unit(player: Car) -> void:
 	c.linear_velocity = t * (20.0 if not ahead else 5.0)
 	var ai := PoliceAI.new(route, player)
 	ai.idx = si
+	ai.aggression = [0.6, 0.6, 0.85, 1.1][clampi(heat, 0, 3)]
 	c.controller = ai
 	units.append(c)
 

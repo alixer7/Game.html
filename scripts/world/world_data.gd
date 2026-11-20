@@ -86,10 +86,10 @@ func height(x: float, z: float) -> float:
 	var h10 := h_at(i + 1, j)
 	var h01 := h_at(i, j + 1)
 	var h11 := h_at(i + 1, j + 1)
-	# match the mesh triangulation (diagonal from (i,j) to (i+1,j+1))
-	if fx > fz:
-		return h00 + (h10 - h00) * fx + (h11 - h10) * fz
-	return h00 + (h11 - h01) * fx + (h01 - h00) * fz
+	# match the mesh / physics triangulation (diagonal from (i+1,j) to (i,j+1))
+	if fx + fz < 1.0:
+		return h00 + (h10 - h00) * fx + (h01 - h00) * fz
+	return h11 + (h01 - h11) * (1.0 - fx) + (h10 - h11) * (1.0 - fz)
 
 
 func normal(x: float, z: float) -> Vector3:

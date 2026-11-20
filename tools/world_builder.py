@@ -321,6 +321,7 @@ def roads_layout():
     return R
 
 
+RUINS_PLACED = []
 RUINS = [
     # type, x, z, yaw(deg), scale
     ("temple", -200, 1440, 10, 1.0),
@@ -1031,10 +1032,11 @@ def route_from_waypoints(roads, graph, wps, closed, avoid_types=("alley",)):
         seq += p
     pts = []
     hw_flag = []
+    grip_of = {"dirt": 0.72, "alley": 0.72, "cobble": 0.86}
     for k in seq:
         rid, i = nodes[k]
         r = roads[rid]
-        pts.append([r.xz[i, 0], r.h[i], r.xz[i, 1], r.width])
+        pts.append([r.xz[i, 0], r.h[i], r.xz[i, 1], r.width, grip_of.get(r.type, 1.0)])
         hw_flag.append(1.0 if r.type == "highway" else 0.0)
     pts = np.array(pts)
     # keep right on divided highways: shift the race line onto the travel carriageway
@@ -1060,7 +1062,7 @@ def route_open(H, wps, closed):
     dense = catmull_rom(wps, closed, 0.5)
     pts = resample(dense, STEP, closed)
     y = sample_grid(H, pts[:, 0], pts[:, 1])
-    return np.column_stack([pts[:, 0], y, pts[:, 1], np.full(len(pts), 40.0)])
+    return np.column_stack([pts[:, 0], y, pts[:, 1], np.full(len(pts), 40.0), np.full(len(pts), 0.62)])
 
 
 def place_checkpoints(route, closed, spacing, shortcuts_spans, length):
@@ -1144,7 +1146,8 @@ def build_events(roads, junctions, H):
         E.append(dict(id=eid, kind=kind, name_ar=name_ar, name_en=name_en, desc_ar=desc_ar, desc_en=desc_en,
                       closed=closed, laps=laps, police=police, traffic=traffic, open=open_route,
                       length=round(float(length), 1),
-                      route=np.round(route[:, :4], 2).ravel().tolist(), checkpoints=cps, shortcuts=alts))
+                      route=np.round(route[:, :4], 2).ravel().tolist(), grip=np.round(route[:, 4], 2).tolist(),
+                      checkpoints=cps, shortcuts=alts))
         log("  %-18s %-8s len=%6.0fm cps=%d shortcuts=%d" % (eid, kind, length, len(cps), len(alts)))
 
     ev("city_sprint", "sprint", "سباق وسط المدينة", "Downtown Sprint",
@@ -1209,20 +1212,32 @@ def build_events(roads, junctions, H):
     return E
 
 
-def ramps(roads, H):
+def ramps(roads, H, avoid_pts=()):
     out = []
     spec = [("D2", 0.12, 1.6), ("D2", 0.38, 2.0), ("D2", 0.62, 1.8), ("D2", 0.86, 2.2),
-            ("D1", 0.18, 1.5), ("D1", 0.55, 1.7), ("S1", 0.5, 1.5), ("S2", 0.5, 1.4),
+            ("D1", 0.3, 1.5), ("D1", 0.62, 1.7), ("S1", 0.5, 1.5), ("S2", 0.5, 1.4),
             ("S4", 0.45, 1.6)]
+    avoid = np.array(avoid_pts) if len(avoid_pts) else np.zeros((0, 2))
     for name, frac, hgt in spec:
-        if hgt <= 0:
-            continue
         r = [q for q in roads if q.name == name][0]
-        i = int(r.n * frac)
+        i0 = int(r.n * frac)
+        best = None
+        for i in range(max(i0 - 60, 6), min(i0 + 60, r.n - 6)):
+            # flat stretch (both before and after) and away from race grids
+            g = max(abs(r.h[i + 4] - r.h[i]), abs(r.h[i] - r.h[i - 4])) / 16.0
+            if len(avoid) and np.min(np.hypot(avoid[:, 0] - r.xz[i, 0], avoid[:, 1] - r.xz[i, 1])) < 140:
+                continue
+            if r.bridge[i - 4:i + 5].any():
+                continue
+            if best is None or g < best[0]:
+                best = (g, i)
+        if best is None or best[0] > 0.07:
+            continue
+        i = best[1]
         t = r.xz[min(i + 2, r.n - 1)] - r.xz[max(i - 2, 0)]
         yaw = math.atan2(t[0], t[1])
         out.append(dict(pos=[round(float(r.xz[i, 0]), 2), round(float(r.h[i]), 2), round(float(r.xz[i, 1]), 2)],
-                        yaw=round(yaw, 4), length=hgt * 6.5, width=min(r.width - 1, 7.0), height=hgt))
+                        yaw=round(yaw, 4), length=hgt * 7.5, width=min(r.width - 1, 7.0), height=hgt))
     # free-standing ramps on the open desert rally line
     wps = np.array(DESERT_LOOP, float)
     line = resample(catmull_rom(wps, True, 0.5), STEP, True)
@@ -1231,7 +1246,7 @@ def ramps(roads, H):
         t = line[i + 2] - line[i - 2]
         x, z = line[i]
         out.append(dict(pos=[round(float(x), 2), round(sample_grid(H, x, z), 2), round(float(z), 2)],
-                        yaw=round(math.atan2(t[0], t[1]), 4), length=hgt * 6.5, width=8.0, height=hgt))
+                        yaw=round(math.atan2(t[0], t[1]), 4), length=hgt * 7.5, width=8.0, height=hgt))
     return out
 
 
@@ -1310,8 +1325,41 @@ def main():
             pickle.dump(dict(H=H, roads=[dict(name=r.name, type=r.type, xz=r.xz, h=r.h, g=r.ground,
                                               bridge=r.bridge, tunnel=r.tunnel) for r in roads]), f)
     H, road_dist, caps = flatten_for_roads(H, roads, river_dist)
+    # move structures off the roads (the triumphal arch is placed over the road instead)
+    all_pts = np.vstack([r.xz for r in roads])
+    all_w = np.concatenate([np.full(r.n, r.width * 0.5) for r in roads])
+    all_t = np.vstack([np.gradient(r.xz, axis=0) for r in roads])
+    rtree = cKDTree(all_pts)
+    foot = {"temple": 27, "amphitheater": 52, "colonnade": 27, "ziggurat": 28, "obelisk": 4, "wall": 27,
+            "broken": 16, "lighthouse": 6, "castle": 40, "windmill": 6, "aqueduct": 0}
+    placed = []
+    for (t, x, z, yaw, sc) in RUINS:
+        if t == "arch":
+            d, i = rtree.query([x, z])
+            tx, tz = all_t[i] / (np.linalg.norm(all_t[i]) + 1e-9)
+            placed.append((t, float(all_pts[i, 0]), float(all_pts[i, 1]), math.degrees(math.atan2(tx, tz)), sc,
+                           float(all_w[i] * 2 + 3.0)))
+            continue
+        rad = foot.get(t, 10) * sc
+        best = (x, z)
+        if rad > 0:
+            for ring in range(0, 30):
+                ok = False
+                for k in range(max(1, ring * 6)):
+                    a = 2 * math.pi * k / max(1, ring * 6)
+                    cx, cz = x + math.cos(a) * ring * 8.0, z + math.sin(a) * ring * 8.0
+                    nb = rtree.query_ball_point([cx, cz], rad + 14.0)
+                    clear = all(math.hypot(all_pts[q, 0] - cx, all_pts[q, 1] - cz) > rad + all_w[q] + 3.0 for q in nb)
+                    if clear and sample_grid(H, cx, cz) > 1.5:
+                        best = (cx, cz)
+                        ok = True
+                        break
+                if ok:
+                    break
+        placed.append((t, best[0], best[1], yaw, sc, 7.0))
+    RUINS_PLACED[:] = placed
     # flatten pads for ruins structures
-    for (t, x, z, yaw, s) in RUINS:
+    for (t, x, z, yaw, s, _span) in RUINS_PLACED:
         rad = {"temple": 46, "amphitheater": 60, "ziggurat": 40, "castle": 50, "aqueduct": 0}.get(t, 14)
         if rad <= 0:
             continue
@@ -1329,9 +1377,20 @@ def main():
         x0, z0, x1, z1 = b["rect"]
         inside = (objs[:, 1] > x0 - 6) & (objs[:, 1] < x1 + 6) & (objs[:, 3] > z0 - 6) & (objs[:, 3] < z1 + 6)
         keep &= ~inside
-    for (t, x, z, yaw, s) in RUINS:
+    for (t, x, z, yaw, s, _span) in RUINS_PLACED:
         rad = {"temple": 50, "amphitheater": 66, "ziggurat": 45, "castle": 56, "aqueduct": 0}.get(t, 16)
         keep &= np.hypot(objs[:, 1] - x, objs[:, 3] - z) > rad
+    objs = objs[keep]
+    # rocks keep clear of roads by their radius; nothing under bridge decks
+    gi = np.clip(((objs[:, 1] + HALF) / CELL).astype(int), 0, N - 1)
+    gj = np.clip(((objs[:, 3] + HALF) / CELL).astype(int), 0, N - 1)
+    rd_obj = road_dist[gj, gi]
+    is_rock = objs[:, 0] == 6
+    keep = ~(is_rock & (rd_obj < 2.5 + objs[:, 5] * 1.4)) & (rd_obj > 3.5)
+    bridge_pts = np.vstack([r.xz[r.bridge] for r in roads if r.bridge.any()])
+    if len(bridge_pts):
+        bd, _ = cKDTree(bridge_pts).query(objs[:, [1, 3]])
+        keep &= bd > 16.0
     objs = objs[keep]
     # city park trees
     extra = []
@@ -1348,10 +1407,26 @@ def main():
         objs = np.vstack([objs, np.array(extra, np.float32)])
 
     events = build_events(roads, junctions, H)
-    ramp_list = ramps(roads, H)
+    # keep a clear corridor along open (off-road) race lines
+    for e in events:
+        if e.get("open"):
+            rp = np.array(e["route"]).reshape(-1, 4)[:, [0, 2]]
+            tr = cKDTree(rp)
+            d, _ = tr.query(objs[:, [1, 3]])
+            objs = objs[d > 22.0]
+    grid_pts = []
+    for e in events:
+        if "route" in e:
+            rr = np.array(e["route"]).reshape(-1, 4)
+            grid_pts.append(rr[0, [0, 2]])
+            grid_pts.append(rr[min(10, len(rr) - 1), [0, 2]])
+            grid_pts.append(rr[-1, [0, 2]])
+            grid_pts.append(rr[max(len(rr) - 12, 0), [0, 2]])
+    ramp_list = ramps(roads, H, grid_pts)
     ruins = []
-    for (t, x, z, yaw, s) in RUINS:
-        ruins.append(dict(type=t, pos=[x, round(float(sample_grid(H, x, z)), 2), z], yaw=math.radians(yaw), scale=s))
+    for (t, x, z, yaw, s, span) in RUINS_PLACED:
+        ruins.append(dict(type=t, pos=[round(x, 2), round(float(sample_grid(H, x, z)), 2), round(z, 2)],
+                          yaw=math.radians(yaw), scale=s, span=span))
     # aqueduct follows a line
     for r in ruins:
         if r["type"] == "aqueduct":

@@ -198,6 +198,10 @@ func _drag(n: String, p: Vector2) -> void:
 
 
 func _process(_d: float) -> void:
+	var vp := get_viewport_rect().size
+	if size != vp:
+		position = Vector2.ZERO
+		size = vp
 	if Game.controls.steer_mode == "tilt" and not editing and visible:
 		var acc := Input.get_accelerometer()
 		var orient := DisplayServer.screen_get_orientation()

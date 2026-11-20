@@ -397,9 +397,14 @@ func _track(r: Dictionary, _dt: float) -> void:
 		var lat := absf((mid - c).dot(right))
 		if lat < float(cp.width) * 0.5 + 4.0 and absf(mid.y - c.y) < 16.0:
 			_passed(r)
+	elif not r.is_player and cur.distance_to(c) < float(cp.width) * 0.5 + 25.0 and s1 > 0.0:
+		# opponents get a lenient gate (they may be bumped wide of it)
+		_passed(r)
 	r.prev = cur
+	if r.done:
+		return
 	# progress estimate for ranking
-	var to_next: float = cur.distance_to(cps[r.cp].pos)
+	var to_next: float = cur.distance_to(cps[mini(r.cp, cps.size() - 1)].pos)
 	r.progress = (r.lap * cps.size() + r.cp) * 100000.0 - to_next
 
 

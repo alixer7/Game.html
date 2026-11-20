@@ -21,7 +21,7 @@ func build(data: WorldData) -> void:
 			"temple": _temple(xf)
 			"colonnade": _colonnade(xf)
 			"amphitheater": _amphitheater(xf)
-			"arch": _arch(xf)
+			"arch": _arch(xf, float(r.get("span", 7.0)))
 			"ziggurat": _ziggurat(xf)
 			"obelisk": _obelisk(xf)
 			"wall": _wall(xf)
@@ -159,9 +159,8 @@ func _amphitheater(xf: Transform3D) -> void:
 	_commit(m, stone)
 
 
-func _arch(xf: Transform3D) -> void:
+func _arch(xf: Transform3D, span := 7.0) -> void:
 	var m := MeshAcc.new()
-	var span := 7.0
 	for s: float in [-1.0, 1.0]:
 		m.box(xf * Transform3D(Basis(), Vector3(s * (span * 0.5 + 2.0), 5.5, 0)), Vector3(4.0, 11.0, 5.0))
 	var segs := 10
@@ -172,8 +171,9 @@ func _arch(xf: Transform3D) -> void:
 		var am := (a0 + a1) * 0.5
 		var p := Vector3(cos(am) * (rr + 0.7), 7.0 + sin(am) * (rr + 0.7), 0)
 		m.box(xf * Transform3D(Basis(Vector3.BACK, am - PI * 0.5), p), Vector3((a1 - a0) * (rr + 0.7) + 0.1, 1.4, 5.0))
-	m.box(xf * Transform3D(Basis(), Vector3(0, 13.0, 0)), Vector3(span + 8.0, 3.6, 5.2))
-	m.box(xf * Transform3D(Basis(), Vector3(0, 15.2, 0)), Vector3(span + 8.6, 0.8, 5.8))
+	var top := 7.0 + rr + 2.4
+	m.box(xf * Transform3D(Basis(), Vector3(0, top, 0)), Vector3(span + 8.0, 3.6, 5.2))
+	m.box(xf * Transform3D(Basis(), Vector3(0, top + 2.2, 0)), Vector3(span + 8.6, 0.8, 5.8))
 	_commit(m, stone)
 
 

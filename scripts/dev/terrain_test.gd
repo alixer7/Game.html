@@ -30,6 +30,11 @@ func _ready():
 		["ruins", Vector3(-120, 0, 1300), Vector3(-200, 0, 1440), 6],
 		["forest", Vector3(-1350, 0, -1210), Vector3(-1550, 0, -1400), 2.5],
 		["bridge", Vector3(150, 0, 60), Vector3(70, 0, 0), 3],
+		["forest_start", Vector3(-1270, 0, -1180), Vector3(-1350, 0, -1208), 4.0],
+		["forest_start2", Vector3(-1370, 0, -1225), Vector3(-1300, 0, -1195), 4.0],
+		["tunnel_w", Vector3(-420, 0, -1664), Vector3(-350, 0, -1663), 1.6],
+		["tunnel_e", Vector3(-330, 0, -1661), Vector3(-400, 0, -1666), 1.6],
+		["tunnel_out", Vector3(-560, 0, -1640), Vector3(-450, 0, -1660), 3.0],
 	]
 	for s in all:
 		if only == "" or only.split(",").has(s[0]):

@@ -14,6 +14,7 @@ var hit100 := -1.0
 var vmax := 0.0
 var brake_start := 0.0
 var brake_v := 0.0
+var phase_mode := ""
 
 
 func _ready():
@@ -87,12 +88,25 @@ func _physics_test():
 		id = "falcon"
 	car.setup(id, Color(0.8, 0.1, 0.05), world, true)
 	world.register_vehicle(car)
-	# highway start: H1 sample near the west straight
+	# highway start: H1 sample near the west straight (or CAR_AT=x,z)
 	var r: Dictionary = world.data.roads[0]
 	var k := int(r.pv.size() * 0.62)
+	var ri := 0
+	if OS.get_environment("CAR_AT") != "":
+		var xz := OS.get_environment("CAR_AT").split(",")
+		var nr := world.data.nearest_road(Vector3(float(xz[0]), 0, float(xz[1])), 50.0)
+		ri = nr.road
+		k = nr.idx
+		r = world.data.roads[ri]
+		phase_mode = "trace"
 	var p: Vector3 = r.pv[k]
-	var tdir := world.data.road_tangent(0, k)
-	car.place(p + tdir.cross(Vector3.UP).normalized() * -5.0 + Vector3(0, 0.3, 0), atan2(-tdir.x, -tdir.z))
+	var tdir := world.data.road_tangent(ri, k)
+	if OS.get_environment("CAR_REV") != "":
+		tdir = -tdir
+	var lat := -5.0 if phase_mode == "" else 2.0
+	car.place(p + tdir.cross(Vector3.UP).normalized() * lat + Vector3(0, 0.3, 0), atan2(-tdir.x, -tdir.z))
+	if phase_mode == "trace":
+		car.linear_velocity = tdir * 15.0
 	cam = ChaseCamera.new()
 	add_child(cam)
 	cam.current = true
@@ -109,6 +123,17 @@ func _physics_process(dt):
 	if Engine.get_physics_frames() % 60 == 0:
 		print("[cartest] phase=%d t=%.1f kmh=%.0f gear=%d rpm=%.0f grounded=%d surf=%s pos=%s up=%.2f thr=%.1f" % [phase, t, kmh, car.gear, car.rpm, car.grounded, car.surface, str(car.global_position.round()), car.global_transform.basis.y.y, car.throttle])
 	vmax = maxf(vmax, kmh)
+	if phase_mode == "trace":
+		car.throttle = 1.0
+		car.steer_in = 0.0
+		if Engine.get_physics_frames() % 10 == 0:
+			var info := ""
+			for w in car.wheels:
+				info += " [c=%s len=%.2f load=%.0f sl=%.2f sf=%s]" % [str(w.contact), w.len, w.load, w.slip_lat, w.surface]
+			print("[trace] t=%.2f kmh=%.1f gear=%d rpm=%.0f pos=%s vel=%s up=%.2f contacts=%d %s" % [t, kmh, car.gear, car.rpm, str(car.global_position), str(car.linear_velocity.round()), car.global_transform.basis.y.y, car.get_contact_count(), info])
+		if t > 5.0:
+			get_tree().quit()
+		return
 	match phase:
 		1:
 			# settle

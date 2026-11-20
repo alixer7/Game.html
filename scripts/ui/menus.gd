@@ -142,9 +142,8 @@ func show_main() -> void:
 	grad.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	s.add_child(grad)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	box.position = Vector2(70, -260)
-	box.add_theme_constant_override("separation", 12)
+	box.position = Vector2(70, maxf(s.get_viewport_rect().size.y * 0.5 - 300.0, 16.0))
+	box.add_theme_constant_override("separation", 10)
 	s.add_child(box)
 	var title := UITheme.label(Game.t("title"), 76, 800, UITheme.ACCENT)
 	box.add_child(title)
@@ -418,15 +417,21 @@ func _toggle(parent: Control, label: String, value: bool, cb: Callable) -> void:
 
 func _scroll_panel(s: Control, title: String) -> VBoxContainer:
 	var vp := s.get_viewport_rect().size
-	var panel := _panel(s, Control.PRESET_CENTER, Vector2(minf(720, vp.x - 40), vp.y - 60))
-	panel.position = -panel.custom_minimum_size * 0.5
+	var psize := Vector2(minf(720, vp.x - 40), vp.y - 50)
+	var panel := PanelContainer.new()
+	panel.position = (vp - psize) * 0.5
+	panel.size = psize
+	panel.custom_minimum_size = psize
+	s.add_child(panel)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 10)
 	panel.add_child(outer)
 	outer.add_child(UITheme.label(title, 34, 800, UITheme.ACCENT))
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(psize.x - 50, psize.y - 110)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	outer.add_child(scroll)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
@@ -514,8 +519,10 @@ func open_layout_editor(back_to: String) -> void:
 	touch.visible = true
 	touch.selected = ""
 	layout_editing.emit(true)
-	edit_panel = _panel(root, Control.PRESET_CENTER_TOP, Vector2(560, 0))
-	edit_panel.position = Vector2(-280, 70)
+	edit_panel = PanelContainer.new()
+	edit_panel.custom_minimum_size = Vector2(560, 0)
+	edit_panel.position = Vector2(root.get_viewport_rect().size.x * 0.5 - 280, 60)
+	root.add_child(edit_panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	edit_panel.add_child(box)
@@ -570,8 +577,10 @@ func show_pause() -> void:
 
 func show_results(list: Array, busted: bool) -> void:
 	var s := _new_screen("results", 0.65)
-	var panel := _panel(s, Control.PRESET_CENTER, Vector2(640, 0))
-	panel.position = Vector2(-320, -300)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(640, 0)
+	panel.position = Vector2(s.get_viewport_rect().size.x * 0.5 - 320, 40)
+	s.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	panel.add_child(box)

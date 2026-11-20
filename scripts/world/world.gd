@@ -73,35 +73,48 @@ func _build_ramps() -> void:
 		var W: float = r.width
 		var H: float = r.height
 		var p := Vector3(r.pos[0], r.pos[1], r.pos[2])
-		var basis := Basis(Vector3.UP, float(r.yaw))
+		var yaw := float(r.yaw)
+		var fwd := Vector3(sin(yaw), 0, cos(yaw))
+		var right := fwd.cross(Vector3.UP).normalized()
+		var lo := p - fwd * L * 0.5
+		var hi := p + fwd * L * 0.5
+		# follow the ground at both ends so there is never a lip to hit
+		var y_lo := data.ground_height(lo) - 0.03
+		var y_hi := data.ground_height(hi)
+		var top_hi := y_hi + H
+		var bottom := minf(y_lo, y_hi) - 2.5
+		var c := [lo - right * W * 0.5, lo + right * W * 0.5, hi + right * W * 0.5, hi - right * W * 0.5]
+		var top := [Vector3(c[0].x, y_lo, c[0].z), Vector3(c[1].x, y_lo, c[1].z), Vector3(c[2].x, top_hi, c[2].z), Vector3(c[3].x, top_hi, c[3].z)]
+		var bot := [Vector3(c[0].x, bottom, c[0].z), Vector3(c[1].x, bottom, c[1].z), Vector3(c[2].x, bottom, c[2].z), Vector3(c[3].x, bottom, c[3].z)]
 		var m := MeshAcc.new()
-		# wedge: rises along +Z (direction of travel = basis.z)
-		var pts := [Vector3(-W * 0.5, 0, -L * 0.5), Vector3(W * 0.5, 0, -L * 0.5), Vector3(W * 0.5, H, L * 0.5), Vector3(-W * 0.5, H, L * 0.5),
-			Vector3(-W * 0.5, -0.6, L * 0.5), Vector3(W * 0.5, -0.6, L * 0.5), Vector3(-W * 0.5, -0.6, -L * 0.5), Vector3(W * 0.5, -0.6, -L * 0.5)]
-		var up := Vector3(0, L, -H).normalized()
+		var up: Vector3 = (top[1] - top[0]).cross(top[3] - top[0]).normalized()
+		if up.y < 0.0:
+			up = -up
 		var ids := []
-		for q in pts:
+		for q in top:
 			ids.append(m.v(q, up, Vector2(q.x, q.z)))
 		m.quad(ids[0], ids[1], ids[2], ids[3], up)
-		var back := Vector3.BACK
-		var b0 := m.v(pts[3], back); var b1 := m.v(pts[2], back); var b2 := m.v(pts[5], back); var b3 := m.v(pts[4], back)
-		m.quad(b0, b1, b2, b3, back)
-		for s: float in [-1.0, 1.0]:
-			var n := Vector3(s, 0, 0)
-			var xs: float = W * 0.5 * s
-			var a := m.v(Vector3(xs, -0.6, -L * 0.5), n); var b := m.v(Vector3(xs, 0, -L * 0.5), n)
-			var c := m.v(Vector3(xs, H, L * 0.5), n); var d := m.v(Vector3(xs, -0.6, L * 0.5), n)
-			m.quad(a, b, c, d, n)
+		# back face (drop) and the two sides
+		var faces := [[top[3], top[2], bot[2], bot[3], fwd], [top[0], top[3], bot[3], bot[0], -right], [top[1], top[2], bot[2], bot[1], right]]
+		for f in faces:
+			var nn: Vector3 = f[4]
+			var a0 := m.v(f[0], nn, Vector2(0, 0)); var a1 := m.v(f[1], nn, Vector2(1, 0))
+			var a2 := m.v(f[2], nn, Vector2(1, 1)); var a3 := m.v(f[3], nn, Vector2(0, 1))
+			m.quad(a0, a1, a2, a3, nn)
 		var body := StaticBody3D.new()
 		body.set_meta("surface", "concrete")
 		ramps_node.add_child(body)
-		body.global_transform = Transform3D(basis, p + Vector3(0, 0.02, 0))
 		var mi := MeshInstance3D.new()
 		mi.mesh = m.to_mesh(mat)
 		body.add_child(mi)
 		var cs := CollisionShape3D.new()
 		var sh := ConvexPolygonShape3D.new()
-		sh.points = PackedVector3Array(pts)
+		var allp := PackedVector3Array()
+		for q in top:
+			allp.append(q)
+		for q in bot:
+			allp.append(q)
+		sh.points = allp
 		cs.shape = sh
 		body.add_child(cs)
 

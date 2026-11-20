@@ -53,7 +53,7 @@ func drive(car: Car, dt: float) -> void:
 			var key := str(sc.enter)
 			var d_here := route.dist[idx]
 			if absf(d_here - float(sc.enter)) < 40.0 and not _sc_decided.has(key):
-				_sc_decided[key] = randf() < 0.45 + aggression * 0.3
+				_sc_decided[key] = randf() < 0.25 + aggression * 0.3
 				if _sc_decided[key]:
 					shortcut = sc
 					sc_idx = 0
@@ -74,10 +74,17 @@ func drive(car: Car, dt: float) -> void:
 		sc_idx = best
 		var ti := mini(sc_idx + int(look / 4.0), sp.size() - 1)
 		target = sp[ti]
-		v_target = 26.0
+		v_target = 24.0
 		if sc_idx >= sp.size() - 3:
 			idx = route.index_at_distance(float(shortcut.exit))
 			shortcut = {}
+		elif sqrt(bd) > 22.0:
+			# lost the shortcut: give up and rejoin the main line
+			off_route_t += dt
+			if off_route_t > 3.0:
+				shortcut = {}
+				respawn(car)
+				return
 	else:
 		var ti := route.advance(idx, look)
 		var w := route.widths[ti]

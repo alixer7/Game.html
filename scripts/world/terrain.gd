@@ -139,8 +139,9 @@ func _build_arrays(cx: int, cz: int, step: int) -> Array:
 			var b := a + 1
 			var c := a + m
 			var d := c + 1
-			idx[q] = a; idx[q + 1] = b; idx[q + 2] = d
-			idx[q + 3] = a; idx[q + 4] = d; idx[q + 5] = c
+			# split along b-c to match the physics heightfield triangulation
+			idx[q] = a; idx[q + 1] = b; idx[q + 2] = c
+			idx[q + 3] = b; idx[q + 4] = d; idx[q + 5] = c
 			q += 6
 	# skirts hide cracks between neighbouring LODs
 	var skirt := 2.0 + step * 1.5
