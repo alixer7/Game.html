@@ -68,7 +68,9 @@ func use(k: Kart) -> void:
 			if k.is_player:
 				Sfx.play("shield")
 			if not charged:
-				get_tree().create_timer(10.0, false).timeout.connect(func() -> void: k.shielded = false)
+				get_tree().create_timer(10.0, false).timeout.connect(func() -> void:
+					if is_instance_valid(k):
+						k.shielded = false)
 		"trap":
 			var tr := ThornTrap.make(charged)
 			world.add_child(tr)

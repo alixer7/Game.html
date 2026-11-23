@@ -190,8 +190,14 @@ func _punch_cave_holes() -> void:
 	for i in cave.size():
 		if cave.style[i] == "cave":
 			last = i
-	terrain.punch_holes_along(cave, 0, 10, 6.5, 7.0)
-	terrain.punch_holes_along(cave, maxi(last - 10, 0), last + 1, 6.5, 7.0)
+	var first := 0
+	while first < cave.size() - 1 and cave.style[first] != "cave":
+		first += 1
+	# holes start/end one radius inside the mouths, so no pit opens in front of the cave floor
+	var r := 5.0
+	var inset := int(ceil(r / cave.spacing))
+	terrain.punch_holes_along(cave, first + inset, first + inset + 8, r, 7.0)
+	terrain.punch_holes_along(cave, maxi(last - inset - 8, 0), last - inset + 1, r, 7.0)
 
 
 # ------------------------------------------------------------------ roads

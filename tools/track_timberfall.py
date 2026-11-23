@@ -335,8 +335,10 @@ def build_branches(t):
     # descend beside the falls on a rocky switch-path
     p, tng, rgt, w = m.at(mk["falls_land"]["dist"] + 14)
     right += [[round(p[0] + rgt[0] * 13, 3), round(p[1] + 0.4, 3), round(p[2] + rgt[1] * 13, 3), 7.0, 0.0, {"s": ROCK, "tag": "right_descent"}]]
-    p, tng, rgt, w = m.at(mk["bank_merge"]["dist"] + 8)
-    right += [[round(p[0] + rgt[0] * 3, 3), round(p[1] + 0.1, 3), round(p[2] + rgt[1] * 3, 3), 8.0, 0.0, {}]]
+    # run beside the road, then merge at a shallow angle (no crossing wedge at the join)
+    for dd, lat_ in ((10, 9.0), (26, 2.5)):
+        p, tng, rgt, w = m.at(mk["bank_merge"]["dist"] + dd)
+        right += [[round(p[0] + rgt[0] * lat_, 3), round(p[1] + 0.1, 3), round(p[2] + rgt[1] * lat_, 3), 8.0, 0.0, {"s": DIRT} if dd == 10 else {}]]
     br.append({"id": "right_bank", "style": "bank", "points": right, "spawn_items": False})
 
     # Left bank: the meadow trail. Wider, weaves away from the river through sweeping
@@ -352,8 +354,9 @@ def build_branches(t):
                          attrs={"s": DIRT, "style": "bank", "tm": "conform", "tag": "left_bank"})
     p, tng, rgt, w = m.at(mk["falls_land"]["dist"] + 10)
     left += [[round(p[0] - rgt[0] * 14, 3), round(p[1] + 0.6, 3), round(p[2] - rgt[1] * 14, 3), 8.0, 0.0, {"s": WOOD, "style": "boardwalk", "tag": "left_descent"}]]
-    p, tng, rgt, w = m.at(mk["bank_merge"]["dist"] + 8)
-    left += [[round(p[0] - rgt[0] * 3, 3), round(p[1] + 0.1, 3), round(p[2] - rgt[1] * 3, 3), 8.0, 0.0, {"s": DIRT, "style": "bank"}]]
+    for dd, lat_ in ((10, 9.0), (26, 2.5)):
+        p, tng, rgt, w = m.at(mk["bank_merge"]["dist"] + dd)
+        left += [[round(p[0] - rgt[0] * lat_, 3), round(p[1] + 0.1, 3), round(p[2] - rgt[1] * lat_, 3), 8.0, 0.0, {"s": DIRT, "style": "bank"} if dd == 10 else {}]]
     br.append({"id": "left_bank", "style": "bank", "points": left, "spawn_items": True})
 
     # ------------------------------------------------ gate lane (interaction shortcut)
@@ -370,7 +373,7 @@ def build_branches(t):
         [round(mid[0] - ra[0] * 13, 3), round(mid[1] + 0.3, 3), round(mid[2] - ra[1] * 13, 3), 6.0, 0.0, {}],
         [round(pb[0] - rb[0] * eb, 3), round(pb[1], 3), round(pb[2] - rb[1] * eb, 3), 7.0, 0.0, {}],
     ]
-    br.append({"id": "gate_lane", "style": "lane", "points": gate})
+    br.append({"id": "gate_lane", "style": "lane", "points": add_lead_in(m, gate)})
 
     # ------------------------------------------------ Giant's Log + Ridge (+ Shelf Rock jump)
     a = mk["log_entry"]
@@ -399,7 +402,7 @@ def build_branches(t):
         f = k / 3
         q = (lerp(pe[0] + ux * 64, px[0], f), lerp(pe[1] - 0.8, px[1], smooth(f)), lerp(pe[2] + uz * 64, px[2], f))
         log.append([round(q[0], 3), round(q[1], 3), round(q[2], 3), 9.0, 0.0, {}])
-    br.append({"id": "giants_log", "style": "ridge", "points": log})
+    br.append({"id": "giants_log", "style": "ridge", "points": add_lead_in(m, log)})
 
     # Shelf Rock: stage-2 jump off the ridge's left edge over the chicane into the hairpin exit
     hp = mk["root_hops"]
@@ -432,49 +435,146 @@ def build_branches(t):
     FL = math.hypot(fx, fz)
     fux, fuz = fx / FL, fz / FL
     y0 = pk[1]
+    # The kicker launches 20 deg off the road (a straight run-up, no swerve at the ramp
+    # foot); after the landing the flume bends toward the drop above the cave entry.
+    bx, bz = pk[0] + rk[0] * kick_off, pk[2] + rk[1] * kick_off
+    ang = math.radians(20.0) * (1 if (tk[0] * fuz - tk[1] * fux) > 0 else -1)
+    kax = tk[0] * math.cos(ang) - tk[1] * math.sin(ang)
+    kaz = tk[0] * math.sin(ang) + tk[1] * math.cos(ang)
+    if kax * fux + kaz * fuz < tk[0] * fux + tk[1] * fuz:   # rotated the wrong way
+        ang = -ang
+        kax = tk[0] * math.cos(ang) - tk[1] * math.sin(ang)
+        kaz = tk[0] * math.sin(ang) + tk[1] * math.cos(ang)
+    KL, KY, KG, KH = 8.6, 3.4, 27.0, 2.6     # lip station, lip height, gap length, deck above lip
+    deck = y0 + KY + KH
     def fl(s_, y, w, attrs=None):
-        return [round(pk[0] + fux * s_ + rk[0] * kick_off, 3), round(y, 3), round(pk[2] + fuz * s_ + rk[1] * kick_off, 3), w, 0.0, attrs or {}]
+        return [round(bx + kax * s_, 3), round(y, 3), round(bz + kaz * s_, 3), w, 0.0, attrs or {}]
     flume = [
-        fl(0, y0, 6.0, {"s": WOOD, "style": "kicker", "tm": "none", "tag": "flume_kicker"}),
-        fl(4, y0 + 1.0, 5.5),
-        fl(7.4, y0 + 2.6, 5.5, {"tag": "flume_kick_lip"}),
-        fl(9.0, y0 + 3.0, 5.5, {"style": "gap", "tag": "flume_gap"}),
-        fl(30, y0 + 4.0, 6.0, {"s": CURRENT, "style": "flume", "tag": "flume"}),
+        # the ramp's foot is stamped into the ground (no step to hit), the rest stands free
+        # big-air kicker: a curved ramp steepening to ~35 deg, so launch speed (Boost /
+        # Overdrive) matters more than a lip-hop; the flume deck sits KH above the lip
+        fl(0, y0 - 0.1, 6.0, {"s": WOOD, "style": "kicker", "tm": "conform", "tag": "flume_kicker"}),
+        fl(4, y0 + 0.8, 5.5, {"tm": "none"}),
+        fl(7, y0 + 2.2, 5.5),
+        fl(KL, y0 + KY, 5.5, {"tag": "flume_kick_lip"}),
+        fl(KL + 1.2, y0 + KY + 0.5, 5.5, {"style": "gap", "tag": "flume_gap"}),
+        fl(KL + KG, y0 + KY + KH, 6.0, {"s": CURRENT, "style": "flume", "tag": "flume"}),
     ]
-    steps = 4
-    for i in range(1, steps + 1):
-        s_ = lerp(30, FL - 26, i / steps)
-        flume.append(fl(s_, y0 + 4.0 - lerp(0, 1.0, i / steps), 6.0))
-    flume.append(fl(FL - 22, y0 + 3.0, 6.0, {"tag": "flume_lip"}))
-    flume.append(fl(FL - 19, y0 + 3.0, 6.0, {"style": "gap", "s": ROAD, "tag": "flume_drop"}))
+    # The channel curves (cubic Bezier) from the landing (heading ka) to its end E beside
+    # the main road, then an earth chute (stamped into the hillside, no gap) runs down
+    # onto the road at the cave entry, already aligned with the race direction.
     pl, tl, rl, wl = m.at(ce["dist"] + 2)
-    flume.append([round(pl[0] + rl[0] * 2, 3), round(pl[1] + 0.1, 3), round(pl[2] + rl[1] * 2, 3), 11.0, 0.0, {"style": "landing", "tm": "conform", "tag": "flume_land"}])
+    l2x, l2z = pl[0] + rl[0] * 2, pl[2] + rl[1] * 2
+    side = 1.0 if ((bx - pl[0]) * rl[0] + (bz - pl[2]) * rl[1]) > 0 else -1.0
+    ex = l2x - tl[0] * 16 + rl[0] * side * (wl / 2 + 4.5)
+    ez = l2z - tl[1] * 16 + rl[1] * side * (wl / 2 + 4.5)
+    ddx, ddz = l2x - ex, l2z - ez
+    ddl = math.hypot(ddx, ddz)
+    ddx, ddz = ddx / ddl, ddz / ddl
+    # straight run-out after the landing (an Overdrive + hop flight reaches ~40 m)
+    RO = 22.0
+    flume.append(fl(KL + KG + RO, deck - 0.15, 6.0))
+    lx, lz = bx + kax * (KL + KG + RO), bz + kaz * (KL + KG + RO)
+    span = math.hypot(ex - lx, ez - lz)
+    c1x, c1z = lx + kax * span * 0.4, lz + kaz * span * 0.4
+    c2x, c2z = ex - ddx * span * 0.4, ez - ddz * span * 0.4
+    ye = pl[1]
+    steps = 7
+    for i in range(1, steps + 1):
+        u = i / steps
+        bu = [(1 - u) ** 3, 3 * u * (1 - u) ** 2, 3 * u * u * (1 - u), u ** 3]
+        x = bu[0] * lx + bu[1] * c1x + bu[2] * c2x + bu[3] * ex
+        z = bu[0] * lz + bu[1] * c1z + bu[2] * c2z + bu[3] * ez
+        # water runs downhill toward the chute, which starts 1.6 m above the road
+        y = lerp(deck - 0.15, max(deck - 1.0, ye + 1.6), u)
+        attrs = {"tag": "flume_end"} if i == steps else {}
+        flume.append([round(x, 3), round(y, 3), round(z, 3), 6.0, 0.0, attrs])
+    flume.append([round(ex + ddx * 4, 3), round(ye + 1.35, 3), round(ez + ddz * 4, 3), 7.0, 0.0,
+                  {"style": "landing", "s": DIRT, "tm": "conform", "tag": "flume_chute"}])
+    flume.append([round(l2x, 3), round(ye + 0.1, 3), round(l2z, 3), 11.0, 0.0, {"tag": "flume_land"}])
     pl2, _, _, _ = m.at(ce["dist"] + 10)
     flume.append([round(pl2[0], 3), round(pl2[1], 3), round(pl2[2], 3), 11.0, 0.0, {}])
-    br.append({"id": "millrace_flume", "style": "flume", "points": flume})
+    br.append({"id": "millrace_flume", "style": "flume", "points": add_lead_in(m, flume, (55.0, 25.0))})
 
     # ------------------------------------------------ Rootway Cave (hidden shortcut)
     # Through the hill inside the climbing hairpin: entrance hidden behind vines on the
     # left wall of the hairpin approach, exit on the climb after the hairpin.
+    # Redesigned: the tunnel runs inside the hairpin, parallel to the outbound leg, then
+    # makes a tight root-lined U-turn (radius ~6 m: a hook-turn / tight-drift test) and
+    # rejoins the return leg. Shorter than the road, but only fast with good technique.
     ce = mk["cave_entry"]
-    pc, tc, rc, wc = m.at(ce["dist"] + 2)
     hx = mk["hairpin_exit"]
-    pf, tf, rf, wf = m.at(hx["dist"] + 12)
-    co = wc / 2 + 4.0
-    start = (pc[0] - rc[0] * co, pc[1] + 0.2, pc[2] - rc[1] * co)
-    cave = [[round(start[0], 3), round(start[1], 3), round(start[2], 3), 6.0, 0.0, {"s": ROCK, "style": "cave", "tm": "none", "tag": "cave"}]]
-    exit_pt = (pf[0] - rf[0] * (wf / 2 + 4.0), pf[1], pf[2] - rf[1] * (wf / 2 + 4.0))
-    for i in range(1, 5):
-        f = i / 5
-        q = (lerp(start[0], exit_pt[0], f), lerp(start[1], exit_pt[1], smooth(f)), lerp(start[2], exit_pt[2], f))
-        wob = math.sin(f * math.pi) * 5.0
-        cave.append([round(q[0] - tc[0] * wob, 3), round(q[1], 3), round(q[2] - tc[1] * wob, 3), 5.5, 0.0, {}])
-    eo = wf / 2 + 4.0
-    cave.append([round(pf[0] - rf[0] * eo, 3), round(pf[1] + 0.2, 3), round(pf[2] - rf[1] * eo, 3), 6.5, 0.0, {"tag": "cave_exit"}])
-    pf2, _, rf2, wf2 = m.at(hx["dist"] + 30)
-    cave.append([round(pf2[0] - rf2[0] * 2.0, 3), round(pf2[1], 3), round(pf2[2] - rf2[1] * 2.0, 3), 8.0, 0.0, {"style": "dirt", "s": DIRT, "tm": "conform", "tag": "cave_merge"}])
-    br.append({"id": "rootway_cave", "style": "cave", "points": cave})
+    pa, ta, ra, wa = m.at(ce["dist"] - 22)
+    pb, tb_, rb, wb = m.at(hx["dist"] + 12)
+    # n: unit normal from the outbound leg toward the return leg; R: half the leg spacing
+    sgn = 1.0 if (pb[0] - pa[0]) * ra[0] + (pb[2] - pa[2]) * ra[1] > 0 else -1.0
+    nx_, nz_ = ra[0] * sgn, ra[1] * sgn
+    R = ((pb[0] - pa[0]) * nx_ + (pb[2] - pa[2]) * nz_) / 2
+    far = max((((m.at(d)[0][0] - pa[0]) * ta[0] + (m.at(d)[0][2] - pa[2]) * ta[1]), d)
+              for d in range(int(ce["dist"]) - 22, int(hx["dist"]) + 12))[0]
+    along_c = far - R
+    cx, cz = pa[0] + nx_ * R + ta[0] * along_c, pa[2] + nz_ * R + ta[1] * along_c
+    cl = wa / 2 + 4.5
+    rc_ = R - cl
+    ent = (pa[0] + nx_ * cl, pa[2] + nz_ * cl)
+    ext = (pb[0] - nx_ * cl, pb[2] - nz_ * cl)
+    a0 = math.atan2(-nz_, -nx_)                    # centre -> outbound side
+    turn = -1.0 if (ta[0] * nz_ - ta[1] * nx_) < 0 else 1.0
+    xz = [ent]
+    for i in range(0, 7):
+        th = a0 + turn * math.pi * i / 6
+        xz.append((cx + math.cos(th) * rc_, cz + math.sin(th) * rc_))
+    # 5 m inside the mouth: from here on the terrain is carved away (tm none)
+    lgx, lgz = xz[1][0] - ent[0], xz[1][1] - ent[1]
+    lgl = math.hypot(lgx, lgz)
+    xz.insert(1, (ent[0] + lgx / lgl * 5.0, ent[1] + lgz / lgl * 5.0))
+    xz.append(ext)
+    ya, yb = pa[1] + 0.2, pb[1] + 0.2
+    acc = [0.0]
+    for i in range(1, len(xz)):
+        acc.append(acc[-1] + math.dist(xz[i - 1], xz[i]))
+    cave = []
+    for i, (x, z) in enumerate(xz):
+        y = lerp(ya, yb, smooth(acc[i] / acc[-1]))
+        w = 6.0 if 0 < i < len(xz) - 1 else 6.5
+        attrs = {}
+        if i == 0:
+            # the mouth is stamped into the ground (no step up onto the cave floor)
+            attrs = {"s": ROCK, "style": "cave", "tm": "conform", "tag": "cave"}
+        elif i == 1:
+            attrs = {"tm": "none"}
+        elif i == len(xz) - 1:
+            # the shell ends here: the ramp up to the road is open-air dirt
+            attrs = {"tag": "cave_exit", "style": "dirt", "s": DIRT, "tm": "conform"}
+        elif i == 5:
+            attrs = {"tag": "cave_turn"}
+        cave.append([round(x, 3), round(y, 3), round(z, 3), w, 0.0, attrs])
+    pf2, _, rf2, wf2 = m.at(hx["dist"] + 36)
+    cave.append([round(pf2[0] - nx_ * 2.5, 3), round(pf2[1], 3), round(pf2[2] - nz_ * 2.5, 3), 8.0, 0.0, {"style": "dirt", "s": DIRT, "tm": "conform", "tag": "cave_merge"}])
+    # a narrow mouth: the last guide point lines the kart up with it
+    br.append({"id": "rootway_cave", "style": "cave", "points": add_lead_in(m, cave, (34.0, 18.0, 7.0), (0.2, 0.6, 0.93))})
     return br
+
+
+def add_lead_in(main, branch_pts, back=(28.0, 13.0), fracs=(0.25, 0.65)):
+    # back: distances (m) before the entrance of the two guide points
+    """Two invisible guide points from the main road onto a side entrance (AI line + readability)."""
+    first = branch_pts[0]
+    best_d, best = 1e9, 0.0
+    for i in range(len(main.P)):
+        d = math.dist((main.P[i][0], main.P[i][2]), (first[0], first[2]))
+        if d < best_d:
+            best_d, best = d, main.D[i]
+    p0, t0, r0, w0 = main.at(best)
+    off = (first[0] - p0[0]) * r0[0] + (first[2] - p0[2]) * r0[1]
+    lead = []
+    for k, (b, f) in enumerate(zip(back, fracs)):
+        p, t, r, w = main.at(max(best - b, 0.0))
+        lat = off * f
+        attrs = {"style": "gap", "tm": "conform", "tag": "lead_in"} if k == 0 else {}
+        lead.append([round(p[0] + r[0] * lat, 3), round(p[1] + 0.05, 3), round(p[2] + r[1] * lat, 3), 4.0, 0.0, attrs])
+    branch_pts[0][5].setdefault("style", "dirt")
+    return lead + branch_pts
 
 
 def summarize(t):

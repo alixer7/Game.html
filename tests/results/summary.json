@@ -1,46 +1,509 @@
 {
-  "jumps": [
+  "ai": [
+    {
+      "detail": [
+        [
+          "Rusk",
+          63.93,
+          0,
+          0,
+          [
+            1,
+            3,
+            0
+          ]
+        ],
+        [
+          "Bandit",
+          68.12,
+          2,
+          1,
+          [
+            3,
+            3,
+            8
+          ]
+        ],
+        [
+          "Ribbo",
+          69.15,
+          0,
+          0,
+          [
+            1,
+            1,
+            1
+          ]
+        ],
+        [
+          "Bramble",
+          70.85,
+          0,
+          0,
+          [
+            3,
+            6,
+            11
+          ]
+        ],
+        [
+          "Hoots",
+          70.83,
+          0,
+          0,
+          [
+            0,
+            0,
+            6
+          ]
+        ],
+        [
+          "Clover",
+          67.97,
+          1,
+          1,
+          [
+            0,
+            7,
+            8
+          ]
+        ],
+        [
+          "Tusker",
+          68.27,
+          0,
+          0,
+          [
+            2,
+            3,
+            4
+          ]
+        ],
+        [
+          "Splash",
+          59.12,
+          2,
+          0,
+          [
+            1,
+            4,
+            3
+          ]
+        ]
+      ],
+      "ok": true,
+      "test": "Normal field: all 8 AI finish a lap"
+    },
+    {
+      "detail": [
+        [
+          "Rusk",
+          60.92,
+          0,
+          0,
+          [
+            2,
+            7,
+            5
+          ]
+        ],
+        [
+          "Bandit",
+          68.3,
+          0,
+          0,
+          [
+            6,
+            6,
+            9
+          ]
+        ],
+        [
+          "Ribbo",
+          58.47,
+          0,
+          0,
+          [
+            1,
+            5,
+            0
+          ]
+        ],
+        [
+          "Bramble",
+          62.83,
+          3,
+          2,
+          [
+            3,
+            1,
+            2
+          ]
+        ],
+        [
+          "Hoots",
+          65.7,
+          1,
+          0,
+          [
+            0,
+            8,
+            3
+          ]
+        ],
+        [
+          "Clover",
+          74.9,
+          2,
+          2,
+          [
+            2,
+            2,
+            9
+          ]
+        ],
+        [
+          "Tusker",
+          59.72,
+          0,
+          0,
+          [
+            4,
+            4,
+            0
+          ]
+        ],
+        [
+          "Splash",
+          60.33,
+          0,
+          0,
+          [
+            3,
+            3,
+            1
+          ]
+        ]
+      ],
+      "ok": true,
+      "test": "Expert field: all 8 AI finish a lap"
+    }
+  ],
+  "routes": [
     {
       "detail": {
-        "22": false,
-        "22+hop": true,
-        "26": true,
-        "26+hop": true,
-        "31": true,
-        "31+hop": true,
-        "36": true,
-        "36+hop": true
+        "boost_time": 12.8,
+        "impacts": [
+          2,
+          11,
+          13
+        ],
+        "lanes": {
+          "main": 1.0
+        },
+        "lap2": 75.27,
+        "od_time": 5.9,
+        "perfect": 5,
+        "sparks": 6
       },
       "ok": true,
-      "test": "Giant's Log: base speed or hop clears, slow+no hop fails"
+      "test": "route 'baseline (river lane)' completes"
     },
     {
       "detail": {
-        "22": false,
-        "22+hop": false,
-        "26": false,
-        "26+hop": false,
-        "31": true,
-        "31+hop": true,
-        "36": true,
-        "36+hop": true
+        "boost_time": 13.5,
+        "impacts": [
+          0,
+          4,
+          4
+        ],
+        "lanes": {
+          "left_bank": 0.98,
+          "main": 1.0
+        },
+        "lap2": 63.25,
+        "od_time": 5.9,
+        "perfect": 3,
+        "sparks": 4
       },
       "ok": true,
-      "test": "Flume: Boost/Overdrive speed clears, base speed (even with a hop) does not"
+      "test": "route 'left bank' completes"
     },
     {
       "detail": {
-        "22": false,
-        "22+hop": false,
-        "26": false,
-        "26+hop": true,
-        "31": true,
-        "31+hop": true,
-        "36": true,
-        "36+hop": true
+        "left_bank": 0.98,
+        "main": 1.0
       },
       "ok": true,
-      "test": "Shelf Rock: needs a lip-hop or Overdrive; slow+no hop fails"
+      "test": "route 'left bank': left_bank driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 12.9,
+        "impacts": [
+          1,
+          8,
+          3
+        ],
+        "lanes": {
+          "main": 1.0,
+          "right_bank": 0.99
+        },
+        "lap2": 60.68,
+        "od_time": 5.9,
+        "perfect": 4,
+        "sparks": 4
+      },
+      "ok": true,
+      "test": "route 'right bank' completes"
+    },
+    {
+      "detail": {
+        "main": 1.0,
+        "right_bank": 0.99
+      },
+      "ok": true,
+      "test": "route 'right bank': right_bank driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 12.0,
+        "impacts": [
+          2,
+          14,
+          14
+        ],
+        "lanes": {
+          "giants_log": 0.97,
+          "main": 1.0
+        },
+        "lap2": 64.1,
+        "od_time": 5.9,
+        "perfect": 3,
+        "sparks": 4
+      },
+      "ok": true,
+      "test": "route 'giants log' completes"
+    },
+    {
+      "detail": {
+        "giants_log": 0.97,
+        "main": 1.0
+      },
+      "ok": true,
+      "test": "route 'giants log': giants_log driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 18.6,
+        "impacts": [
+          1,
+          5,
+          2
+        ],
+        "lanes": {
+          "giants_log": 0.5,
+          "left_bank": 0.98,
+          "main": 1.0,
+          "shelf_rock": 0.97
+        },
+        "lap2": 56.38,
+        "od_time": 5.9,
+        "perfect": 2,
+        "sparks": 3
+      },
+      "ok": true,
+      "test": "route 'log + shelf' completes"
+    },
+    {
+      "detail": {
+        "giants_log": 0.5,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "shelf_rock": 0.97
+      },
+      "ok": true,
+      "test": "route 'log + shelf': left_bank driven to its end"
+    },
+    {
+      "detail": {
+        "giants_log": 0.5,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "shelf_rock": 0.97
+      },
+      "ok": true,
+      "test": "route 'log + shelf': shelf_rock driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 11.6,
+        "impacts": [
+          3,
+          14,
+          10
+        ],
+        "lanes": {
+          "main": 1.0,
+          "rootway_cave": 0.97
+        },
+        "lap2": 62.45,
+        "od_time": 5.9,
+        "perfect": 2,
+        "sparks": 2
+      },
+      "ok": true,
+      "test": "route 'cave' completes"
+    },
+    {
+      "detail": {
+        "main": 1.0,
+        "rootway_cave": 0.97
+      },
+      "ok": true,
+      "test": "route 'cave': rootway_cave driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 12.2,
+        "impacts": [
+          1,
+          16,
+          9
+        ],
+        "lanes": {
+          "main": 1.0,
+          "millrace_flume": 0.98
+        },
+        "lap2": 67.98,
+        "od_time": 5.9,
+        "perfect": 2,
+        "sparks": 2
+      },
+      "ok": true,
+      "test": "route 'flume' completes"
+    },
+    {
+      "detail": {
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": true,
+      "test": "route 'flume': millrace_flume driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 16.5,
+        "impacts": [
+          6,
+          9,
+          0
+        ],
+        "lanes": {
+          "gate_lane": 0.96,
+          "left_bank": 0.98,
+          "main": 1.0,
+          "millrace_flume": 0.98
+        },
+        "lap2": 60.65,
+        "od_time": 5.9,
+        "perfect": 3,
+        "sparks": 4
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (flume)' completes"
+    },
+    {
+      "detail": {
+        "gate_lane": 0.96,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (flume)': left_bank driven to its end"
+    },
+    {
+      "detail": {
+        "gate_lane": 0.96,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": false,
+      "test": "route 'all shortcuts (flume)': shelf_rock driven to its end"
+    },
+    {
+      "detail": {
+        "gate_lane": 0.96,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (flume)': millrace_flume driven to its end"
+    },
+    {
+      "detail": {
+        "gate_lane": 0.96,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (flume)': gate_lane driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 12.1,
+        "impacts": [
+          1,
+          15,
+          8
+        ],
+        "lanes": {
+          "giants_log": 0.97,
+          "main": 1.0,
+          "right_bank": 0.99,
+          "rootway_cave": 0.97
+        },
+        "lap2": 60.97,
+        "od_time": 5.9,
+        "perfect": 0,
+        "sparks": 0
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (cave)' completes"
+    },
+    {
+      "detail": {
+        "giants_log": 0.97,
+        "main": 1.0,
+        "right_bank": 0.99,
+        "rootway_cave": 0.97
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (cave)': right_bank driven to its end"
+    },
+    {
+      "detail": {
+        "giants_log": 0.97,
+        "main": 1.0,
+        "right_bank": 0.99,
+        "rootway_cave": 0.97
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (cave)': giants_log driven to its end"
+    },
+    {
+      "detail": {
+        "giants_log": 0.97,
+        "main": 1.0,
+        "right_bank": 0.99,
+        "rootway_cave": 0.97
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (cave)': rootway_cave driven to its end"
     }
   ]
 }

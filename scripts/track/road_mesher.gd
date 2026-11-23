@@ -109,7 +109,15 @@ static func _build_run(path: SplinePath, root: Node3D, name_prefix: String, styl
 	# Solid end faces where a run starts/ends at a jump gap: no paper-thin road
 	# edges to drive under, and the landing reads as a rock face.
 	var caps := MeshBuilder.new()
+	# a gap run that begins at the open start of a branch is only an invisible
+	# lead-in from the main road, not a jump: no wall in front of the run-up
 	var prev_gap := path.closed or i0 > 0
+	if prev_gap and path.style[(i0 - 1 + n) % n] == "gap":
+		var b := i0 - 1
+		while not path.closed and b > 0 and path.style[b] == "gap":
+			b -= 1
+		if not path.closed and b == 0 and path.style[0] == "gap":
+			prev_gap = false
 	if prev_gap and path.style[(i0 - 1 + n) % n] == "gap" or (not path.closed and i0 == 0 and style in ["ridge", "slab", "kicker", "log_ramp", "flume", "boardwalk"]):
 		_end_cap(caps, path, i0, prof, -1.0)
 	var nxt := (i1 + 1) % n
@@ -142,8 +150,13 @@ static func _build_run(path: SplinePath, root: Node3D, name_prefix: String, styl
 		while s1 + 1 < count - 1 and path.surface[(i0 + s1 + 1) % n] == sid:
 			s1 += 1
 		var faces := PackedVector3Array()
+		# outer skirt quads only hide the road/terrain seam: no collision there
+		# (the cave floor keeps them: they meet the shell walls, closing the floor)
+		var has_skirt: bool = def[0] in ["paved", "soft", "riverbed"] and style != "cave"
+		var c_from := 1 if has_skirt else 0
+		var c_to := cols - 2 if has_skirt else cols - 1
 		for s in range(s0, s1 + 1):
-			for c in cols - 1:
+			for c in range(c_from, c_to):
 				var a := s * cols + c
 				var b := a + 1
 				var d := a + cols

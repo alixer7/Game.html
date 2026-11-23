@@ -101,7 +101,11 @@ func _routes() -> void:
 		"log + shelf": {"left_bank": true, "right_bank": false, "giants_log": true, "shelf_rock": true, "millrace_flume": false, "rootway_cave": false, "gate_lane": false},
 		"cave": {"left_bank": false, "right_bank": false, "giants_log": false, "shelf_rock": false, "millrace_flume": false, "rootway_cave": true, "gate_lane": false},
 		"flume": {"left_bank": false, "right_bank": false, "giants_log": false, "shelf_rock": false, "millrace_flume": true, "rootway_cave": false, "gate_lane": false},
-		"all shortcuts": {"left_bank": true, "right_bank": false, "giants_log": true, "shelf_rock": true, "millrace_flume": true, "rootway_cave": true, "gate_lane": false},
+		# the flume lands past the cave entrance, so one lap can't take both
+		# (the gate lane bypasses the log entrance: gate and log/shelf are alternatives)
+		"gate + flume": {"left_bank": true, "right_bank": false, "giants_log": false, "shelf_rock": false, "millrace_flume": true, "rootway_cave": false, "gate_lane": true},
+		"log + shelf + flume": {"left_bank": true, "right_bank": false, "giants_log": true, "shelf_rock": true, "millrace_flume": true, "rootway_cave": false, "gate_lane": false},
+		"all shortcuts (cave)": {"left_bank": false, "right_bank": true, "giants_log": true, "shelf_rock": false, "millrace_flume": false, "rootway_cave": true, "gate_lane": false},
 	}
 	var out := {}
 	for name in cases:
@@ -116,15 +120,34 @@ func _routes() -> void:
 			await T.physics_frame
 			if race.state == "countdown":
 				k.in_throttle = 1.0
+			if cases[name].get("gate_lane", false):
+				# the gate lane opens only once the gate is smashed (by Overdrive or an item)
+				for g in T.get_nodes_in_group("breakables"):
+					if not g.get("broken"):
+						g.call("hit", (g as Node3D).global_position)
 			var ai: AIDriver = k.get_meta("ai")
-			lanes_seen[ai.lane] = true
+			# furthest fraction of each lane's line driven (1.0 = branch completed)
+			var ln: Dictionary = ai.lanes.get(ai.lane, {})
+			var frac := 0.0
+			if ln.has("line"):
+				frac = float(ai.idx) / maxf(float((ln["line"] as RacingLine).size() - 1), 1.0)
+			lanes_seen[ai.lane] = maxf(float(lanes_seen.get(ai.lane, 0.0)), snappedf(frac, 0.01))
 			if race.progress_of(k).finished:
 				break
 		var pr := race.progress_of(k)
 		var lap2: float = (pr.times as Array)[1] if (pr.times as Array).size() > 1 else -1.0
-		out[name] = {"lap2": snappedf(lap2, 0.01), "lanes": lanes_seen.keys(), "sparks": k.stat_sparks, "perfect": k.stat_perfect,
+		out[name] = {"lap2": snappedf(lap2, 0.01), "lanes": lanes_seen, "sparks": k.stat_sparks, "perfect": k.stat_perfect,
 			"impacts": k.stat_impacts, "boost_time": snappedf(k.stat_boost_time, 0.1), "od_time": snappedf(k.stat_overdrive_time, 0.1)}
 		R.check("routes", "route '%s' completes" % name, pr.finished, out[name])
+		# every forced shortcut must actually be driven end to end (not abandoned)
+		for b: String in cases[name]:
+			# (a branch that leads into another forced branch, e.g. log -> shelf, is left midway)
+			var child_forced := false
+			for c: String in cases[name]:
+				if cases[name][c] and c != b and str((w.lanes as Dictionary).get(c, {}).get("entry_lane", "")) == b:
+					child_forced = true
+			if cases[name][b] and not child_forced:
+				R.check("routes", "route '%s': %s driven to its end" % [name, b], float(lanes_seen.get(b, 0.0)) >= 0.9, lanes_seen)
 		(w.root as Node3D).queue_free()
 		await R.frames(3)
 	var f := FileAccess.open("res://tests/results/routes.json", FileAccess.WRITE)

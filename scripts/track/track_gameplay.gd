@@ -43,9 +43,19 @@ static func plan(tb: TrackBuilder) -> void:
 				tb.obstacles.append([p, r, "rock"])
 	var cave: SplinePath = tb.branches.get("rootway_cave")
 	if cave:
+		# stalagmites only on the straight entry leg (none in the lead-in or the U-turn)
+		var c0 := _first_real(cave)
+		var turn_k := cave.size() - 1
+		for k in cave.size():
+			if cave.tags[k] == "cave_turn":
+				turn_k = k
+				break
 		var side := 1.0
-		for k in range(8, cave.size() - 8, 7):
-			var p := at(cave, k, side * 1.1)
+		var step := maxi(int(7.0 / cave.spacing), 1)
+		for k in range(c0 + step, turn_k - int(14.0 / cave.spacing), step):
+			if cave.style[k] != "cave":
+				continue
+			var p := at(cave, k, side * 1.3)
 			tb.obstacles.append([p, 0.55, "stalagmite"])
 			side = -side
 
@@ -150,6 +160,13 @@ static func _amber_line(tb: TrackBuilder, root: Node3D, sp: SplinePath, i0: int,
 		root.add_child(a)
 
 
+static func _first_real(sp: SplinePath) -> int:
+	for i in sp.size():
+		if sp.style[i] != "gap":
+			return i
+	return 0
+
+
 static func _amber(tb: TrackBuilder, root: Node3D) -> void:
 	var sp := tb.main
 	var s := tb.mark_index("start_line")
@@ -159,10 +176,12 @@ static func _amber(tb: TrackBuilder, root: Node3D) -> void:
 		_amber_line(tb, root, lb, idx_u(lb, 0.4), idx_u(lb, 0.55), 4)
 	var lg: SplinePath = tb.branches.get("giants_log")
 	if lg:
-		_amber_line(tb, root, lg, 4, 20, 4)
+		var l0 := _first_real(lg)
+		_amber_line(tb, root, lg, l0 + 4, l0 + 18, 4)
 	var cave: SplinePath = tb.branches.get("rootway_cave")
 	if cave:
-		_amber_line(tb, root, cave, 6, cave.size() - 6, 6)
+		var c0 := _first_real(cave)
+		_amber_line(tb, root, cave, c0 + 6, cave.size() - 10, 6)
 	var fl: SplinePath = tb.branches.get("millrace_flume")
 	if fl:
 		var f0 := -1

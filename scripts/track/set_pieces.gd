@@ -626,9 +626,19 @@ static func _mill(tb: TrackBuilder, root: Node3D) -> void:
 	var fr := _style_range(sp, "flume")
 	if fr.x < 0:
 		return
+	# pick the spot beside the flume with the most clearance from every road
 	var km := fr.x + int((fr.y - fr.x) * 0.55)
-	var side := -1.0
-	var hp := sp.pos[km] + sp.right[km] * side * 9.0
+	var hp := sp.pos[km] + sp.right[km] * -9.0
+	var best := -1e9
+	for fi in 11:
+		var kk := fr.x + int((fr.y - fr.x) * lerpf(0.25, 0.85, float(fi) / 10.0))
+		for side2: float in [-1.0, 1.0]:
+			var cand := sp.pos[kk] + sp.right[kk] * side2 * 9.5
+			var clear := _road_clearance(tb, cand)
+			if clear > best:
+				best = clear
+				km = kk
+				hp = cand
 	hp.y = tb.ground_y(hp.x, hp.z)
 	var b := Basis.looking_at(sp.tan[km], Vector3.UP)
 	var house := MeshBuilder.new()
@@ -680,6 +690,20 @@ static func _mill(tb: TrackBuilder, root: Node3D) -> void:
 	EnvLife.chimney_smoke(node, hp + b * Vector3(2.2, 12.2, 2.5))
 
 
+## Distance (m) from p to the nearest road edge of the main line or any branch.
+static func _road_clearance(tb: TrackBuilder, p: Vector3) -> float:
+	var best := 1e9
+	var paths: Array = [tb.main]
+	paths.append_array(tb.branches.values())
+	for spx: SplinePath in paths:
+		var i := spx.nearest_index(p, 60.0)
+		if i < 0 or spx.style[i] == "gap":
+			continue
+		var d := Vector2(p.x - spx.pos[i].x, p.z - spx.pos[i].z).length() - spx.width[i] * 0.5
+		best = minf(best, d)
+	return best
+
+
 # =================================================================== Z7 cave
 static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	var sp: SplinePath = tb.branches.get("rootway_cave")
@@ -692,8 +716,11 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	var mb := MeshBuilder.new()
 	var ring := 14
 	var cr := _style_range(sp, "cave")
-	var n := cr.y + 1   # shell only over the cave section (the merge ramp stays open)
-	for k in n:
+	# shell only over the cave section (not the lead-in, not the merge ramp)
+	var k0 := maxi(cr.x, 0)
+	var n := cr.y - k0 + 1
+	for kl in n:
+		var k := k0 + kl
 		var hw := sp.width[k] * 0.5 + 1.3
 		for s in ring + 1:
 			var a := lerpf(-0.15, PI + 0.15, float(s) / ring)
@@ -701,7 +728,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 			var hh := sin(a) * 5.6
 			var p := sp.pos[k] + sp.right[k] * lat + Vector3.UP * (hh - 0.6)
 			var inward := (sp.pos[k] + Vector3.UP * 2.0 - p).normalized()
-			p += -inward * nz.get_noise_3dv(p * 1.3) * 0.9
+			p += -inward * absf(nz.get_noise_3dv(p * 1.3)) * 0.9   # bulges outward only
 			var c := Color(0.75, 0.72, 0.78, 0.3)
 			mb.add_vertex(p, inward, Vector2.ZERO, c)
 	for k in n - 1:
@@ -714,7 +741,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	tb.add_trimesh_collider(node, mb, Surfaces.ROCK)
 	# portal rocks framing both mouths
 	var rocks := MeshBuilder.new()
-	for end: int in [0, n - 1]:
+	for end: int in [k0, k0 + n - 1]:
 		var hw := sp.width[end] * 0.5 + 2.0
 		for i in 7:
 			var a := PI * float(i) / 6.0
@@ -725,7 +752,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	# glowing crystals (also light the way)
 	var crystals := MeshBuilder.new()
 	var crystals2 := MeshBuilder.new()
-	for k in range(3, n - 3, 3):
+	for k in range(k0 + 3, k0 + n - 3, 3):
 		for side: int in [-1, 1]:
 			if tb.rng.randf() < 0.4:
 				continue
@@ -740,7 +767,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	tb.add_static_mesh(node, crystals2, Mats.glow(Color(0.8, 0.45, 1.0), 2.5), "Crystals2", false)
 	# hanging vine curtain hides the entrance (subtle cue: it sways, light leaks through)
 	var vines := MeshBuilder.new()
-	var e := 1
+	var e := k0 + 1
 	var hw0 := sp.width[e] * 0.5 + 1.0
 	for i in 9:
 		var x := lerpf(-hw0, hw0, float(i) / 8.0)
@@ -748,9 +775,9 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 		var len := tb.rng.randf_range(3.2, 4.6)
 		MeshLib.card(vines, Transform3D(Basis.looking_at(-sp.tan[e], Vector3.UP), top + Vector3.DOWN * len), 1.3, len, Rect2(0.5, 0.5, 0.5, 0.5), Color(0.6, 0.85, 0.5, 1.0))
 	tb.add_static_mesh(node, vines, Mats.cards(Color(0.8, 1.0, 0.75), "vines"), "VineCurtain", false)
-	EnvLife.fireflies(node, sp.pos[0] + Vector3.UP * 1.5, 7.0, 24)
-	EnvLife.fireflies(node, sp.pos[n / 2] + Vector3.UP * 2.0, 6.0, 18)
-	tb.landmarks.append({"name": "rootway_cave", "pos": sp.pos[n / 2]})
+	EnvLife.fireflies(node, sp.pos[k0] + Vector3.UP * 1.5, 7.0, 24)
+	EnvLife.fireflies(node, sp.pos[k0 + n / 2] + Vector3.UP * 2.0, 6.0, 18)
+	tb.landmarks.append({"name": "rootway_cave", "pos": sp.pos[k0 + n / 2]})
 
 
 # =================================================================== landmarks

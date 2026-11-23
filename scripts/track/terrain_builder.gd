@@ -247,8 +247,9 @@ func finalize() -> void:
 				var rh := road_sum_h[id] / road_sum_k[id]
 				y = lerpf(base, rh, road_w[id])
 			# carve under elevated roads/gaps, but never through a road that is stamped here
+			# (road shoulders are carved; only the stamped road bed, weight ~1, is kept)
 			if carve[id] < y and road_w[id] < 0.95:
-				y = lerpf(carve[id], y, road_w[id])
+				y = lerpf(carve[id], y, smoothstep(0.7, 0.95, road_w[id]))
 			h[id] = y
 	_paint()
 

@@ -38,6 +38,9 @@ var _drift_decided := false
 var _drift_cool := 0.0
 var _stuck_sample_t := 0.0
 var _lost_t := 0.0
+var _best_prog := -1
+var _best_prog_lane := ""
+var _prog_t := 0.0
 var _stuck_last_pos := Vector3.ZERO
 var _tap_target := 0.8
 var _stuck_t := 0.0
@@ -217,7 +220,7 @@ func _physics_process(dt: float) -> void:
 	# rotation rate the corner asks for; a slide can't rotate slower than ~0.5 rad/s
 	var need_start := absf(turn_ahead) / (50.0 / maxf(spd, 10.0))
 	var corner_dir := 0
-	if absf(turn_ahead) > deg_to_rad(30.0) and need_start >= 0.45:
+	if absf(turn_ahead) > deg_to_rad(24.0) and need_start >= 0.36:
 		corner_dir = -1 if turn_ahead > 0.0 else 1
 	_drift_cool = maxf(_drift_cool - dt, 0.0)
 	var drift := false
@@ -288,6 +291,19 @@ func _physics_process(dt: float) -> void:
 	if _lost_t > 4.0:
 		_stuck_t = 4.0
 		_lost_t = 0.0
+	# progress watchdog: the furthest lane index must keep advancing
+	if lane != _best_prog_lane:
+		_best_prog_lane = lane
+		_best_prog = idx
+		_prog_t = 0.0
+	elif idx > _best_prog or (rl.closed and idx < _best_prog - n / 2):
+		_best_prog = idx
+		_prog_t = 0.0
+	else:
+		_prog_t += dt
+	if _prog_t > 5.0:
+		_prog_t = 0.0
+		_stuck_t = 4.0
 	if _stuck_t >= 4.0 and race:
 		race.call("respawn_kart", kart)
 		_stuck_t = 0.0

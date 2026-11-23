@@ -136,6 +136,20 @@ func _ready() -> void:
 
 
 # ------------------------------------------------------------------ helpers
+## The body only yaws; the long capsule is pitched/rolled to the ground so its
+## nose doesn't dig into steep ramps (which would read as a wall hit).
+func _tilt_shape() -> void:
+	var cs := get_node_or_null("Shape") as CollisionShape3D
+	if cs == null:
+		return
+	var n_local := (global_transform.basis.inverse() * smooth_normal).normalized()
+	var tilt := Basis.IDENTITY
+	var axis := Vector3.UP.cross(n_local)
+	if axis.length() > 1e-4:
+		tilt = Basis(axis.normalized(), Vector3.UP.angle_to(n_local))
+	cs.transform = Transform3D(tilt * Basis(Vector3.RIGHT, PI * 0.5), n_local * 0.52)
+
+
 func heading() -> Vector3:
 	return Vector3(-sin(yaw), 0.0, -cos(yaw))
 
@@ -251,6 +265,7 @@ func _physics_process(dt: float) -> void:
 		_air_motion(dt)
 	var v_before := velocity
 	rotation = Vector3(0.0, yaw, 0.0)
+	_tilt_shape()
 	move_and_slide()
 	_handle_impacts(v_before, dt)
 	_post_move(v_before, dt)

@@ -1,0 +1,151 @@
+{
+  "all shortcuts (cave)": {
+    "boost_time": 12.1,
+    "impacts": [
+      1,
+      15,
+      8
+    ],
+    "lanes": {
+      "giants_log": 0.97,
+      "main": 1.0,
+      "right_bank": 0.99,
+      "rootway_cave": 0.97
+    },
+    "lap2": 60.97,
+    "od_time": 5.9,
+    "perfect": 0,
+    "sparks": 0
+  },
+  "all shortcuts (flume)": {
+    "boost_time": 16.5,
+    "impacts": [
+      6,
+      9,
+      0
+    ],
+    "lanes": {
+      "gate_lane": 0.96,
+      "left_bank": 0.98,
+      "main": 1.0,
+      "millrace_flume": 0.98
+    },
+    "lap2": 60.65,
+    "od_time": 5.9,
+    "perfect": 3,
+    "sparks": 4
+  },
+  "baseline (river lane)": {
+    "boost_time": 12.8,
+    "impacts": [
+      2,
+      11,
+      13
+    ],
+    "lanes": {
+      "main": 1.0
+    },
+    "lap2": 75.27,
+    "od_time": 5.9,
+    "perfect": 5,
+    "sparks": 6
+  },
+  "cave": {
+    "boost_time": 11.6,
+    "impacts": [
+      3,
+      14,
+      10
+    ],
+    "lanes": {
+      "main": 1.0,
+      "rootway_cave": 0.97
+    },
+    "lap2": 62.45,
+    "od_time": 5.9,
+    "perfect": 2,
+    "sparks": 2
+  },
+  "flume": {
+    "boost_time": 12.2,
+    "impacts": [
+      1,
+      16,
+      9
+    ],
+    "lanes": {
+      "main": 1.0,
+      "millrace_flume": 0.98
+    },
+    "lap2": 67.98,
+    "od_time": 5.9,
+    "perfect": 2,
+    "sparks": 2
+  },
+  "giants log": {
+    "boost_time": 12.0,
+    "impacts": [
+      2,
+      14,
+      14
+    ],
+    "lanes": {
+      "giants_log": 0.97,
+      "main": 1.0
+    },
+    "lap2": 64.1,
+    "od_time": 5.9,
+    "perfect": 3,
+    "sparks": 4
+  },
+  "left bank": {
+    "boost_time": 13.5,
+    "impacts": [
+      0,
+      4,
+      4
+    ],
+    "lanes": {
+      "left_bank": 0.98,
+      "main": 1.0
+    },
+    "lap2": 63.25,
+    "od_time": 5.9,
+    "perfect": 3,
+    "sparks": 4
+  },
+  "log + shelf": {
+    "boost_time": 18.6,
+    "impacts": [
+      1,
+      5,
+      2
+    ],
+    "lanes": {
+      "giants_log": 0.5,
+      "left_bank": 0.98,
+      "main": 1.0,
+      "shelf_rock": 0.97
+    },
+    "lap2": 56.38,
+    "od_time": 5.9,
+    "perfect": 2,
+    "sparks": 3
+  },
+  "right bank": {
+    "boost_time": 12.9,
+    "impacts": [
+      1,
+      8,
+      3
+    ],
+    "lanes": {
+      "main": 1.0,
+      "right_bank": 0.99
+    },
+    "lap2": 60.68,
+    "od_time": 5.9,
+    "perfect": 4,
+    "sparks": 4
+  }
+}
