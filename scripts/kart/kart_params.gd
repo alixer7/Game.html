@@ -20,7 +20,7 @@ extends Resource
 @export_group("Steering")
 @export var turn_rate_max := 2.35        ## yaw rate at turn_full_speed (rad/s)
 @export var turn_full_speed := 9.0       ## speed where steering reaches full authority
-@export var turn_rate_top := 1.45        ## yaw rate at top speed (rad/s)
+@export var turn_rate_top := 1.05        ## yaw rate at top speed (rad/s): R_min ~26 m without sliding
 @export var steer_response := 9.0        ## digital steering smoothing (1/s)
 @export var grip := 11.0                 ## lateral grip rate (1/s)
 @export var turn_scrub := 0.16           ## speed lost per m/s of lateral slip absorbed
@@ -75,7 +75,7 @@ static func make_class(kind: String) -> KartParams:
 			p.display_name = "Speed"
 			p.max_speed = 26.9
 			p.accel = 15.2
-			p.turn_rate_top = 1.36
+			p.turn_rate_top = 0.98
 			p.drift_base_rate = 1.38
 			p.mass = 1.15
 		"accel":
@@ -88,7 +88,7 @@ static func make_class(kind: String) -> KartParams:
 			p.display_name = "Turning"
 			p.max_speed = 25.5
 			p.accel = 16.4
-			p.turn_rate_top = 1.6
+			p.turn_rate_top = 1.16
 			p.turn_rate_max = 2.5
 			p.drift_base_rate = 1.56
 			p.drift_steer_range = 1.05
