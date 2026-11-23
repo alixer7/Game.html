@@ -34,6 +34,11 @@ var _noise_t := 0.0
 var _line_off := 0.0
 var _line_off_target := 0.0
 var _drift_plan := false
+var _drift_decided := false
+var _drift_cool := 0.0
+var _stuck_sample_t := 0.0
+var _lost_t := 0.0
+var _stuck_last_pos := Vector3.ZERO
 var _tap_target := 0.8
 var _stuck_t := 0.0
 var _reverse_t := 0.0
@@ -41,6 +46,7 @@ var _hop_cool := 0.0
 var _item_think := 0.0
 var _base_speed := 0.0
 var lap := 0
+var dbg := {}
 
 
 func setup(k: Kart, lane_graph: Dictionary, prof_index: int, obs: Array, seed: int) -> void:
@@ -152,12 +158,21 @@ func _physics_process(dt: float) -> void:
 				continue
 			var ei: int = ln.entry_i
 			var ahead := _index_dist(lane, idx, ei)
-			if ahead >= 0 and ahead < int(6.0 / rl.path.spacing) and _decided.get(id, false) and _branch_conditions_ok(id):
+			if ahead >= 0 and ahead < int(24.0 / rl.path.spacing) and _decided.get(id, false) and _branch_conditions_ok(id):
 				lane = id
 				idx = 0
 				rl = _line(lane)
 				n = rl.size()
 				break
+	if lane != "main" and idx < 4 and not rl.closed:
+		var entry_pt := rl.pts[mini(4, n - 1)]
+		var to_entry := entry_pt - p
+		to_entry.y = 0
+		if to_entry.length() > 5.0 and to_entry.dot(kart.heading()) < 0.0:
+			lane = String(lanes[lane].entry_lane)   # missed the entrance: carry on
+			idx = _nearest_on(lane, p, 0, true)
+			rl = _line(lane)
+			n = rl.size()
 	if lane != "main" and not rl.closed and idx >= n - 3:
 		var ln2: Dictionary = lanes[lane]
 		lane = ln2.exit_lane
@@ -185,10 +200,7 @@ func _physics_process(dt: float) -> void:
 	steer += sin(_noise_t * 3.1 + float(kart.racer_index)) * float(profile.steer_noise)
 	# ---- corner analysis ahead
 	var near_i := _advance(lane, idx, int(10.0 / rl.path.spacing))
-	var far_i := _advance(lane, idx, int(28.0 / rl.path.spacing))
 	var r_near := _radius(near_i)
-	var r_far := _radius(far_i)
-	var turn_sign := signf(-ang) if absf(ang) > 0.02 else 0.0
 	# ---- speed control
 	var v_target := minf(_speed(near_i), _speed(_advance(lane, idx, int((spd * 0.6) / rl.path.spacing)))) * float(profile.margin)
 	if kart.tier > 0:
@@ -199,32 +211,51 @@ func _physics_process(dt: float) -> void:
 		throttle = 0.0
 		if spd > v_target + 6.0:
 			brake = 0.6
-	# ---- power slides
-	var want_drift := r_near < 48.0 and spd > 14.0 and kart.grounded
-	if want_drift and not kart.drifting and not _drift_plan:
-		_drift_plan = _rng.randf() < float(profile.drift_use)
-		if _drift_plan:
-			_new_tap_target()
-	if not want_drift and r_far > 70.0:
-		_drift_plan = false
-	var drift := _drift_plan and (kart.drifting or (absf(steer) > 0.25 and want_drift))
-	if kart.drifting:
-		# modulate tightness: required yaw rate vs drift base
-		var need := spd / maxf(r_near, 4.0)
+	# ---- power slides: decided from the total turn ahead, like a player reads a corner
+	var turn_ahead := _turn_ahead(lane, idx, 50.0)     # signed radians, + = left
+	var turn_near := _turn_ahead(lane, idx, 16.0)
+	# rotation rate the corner asks for; a slide can't rotate slower than ~0.5 rad/s
+	var need_start := absf(turn_ahead) / (50.0 / maxf(spd, 10.0))
+	var corner_dir := 0
+	if absf(turn_ahead) > deg_to_rad(30.0) and need_start >= 0.45:
+		corner_dir = -1 if turn_ahead > 0.0 else 1
+	_drift_cool = maxf(_drift_cool - dt, 0.0)
+	var drift := false
+	if not kart.drifting:
+		if corner_dir == 0:
+			_drift_decided = false
+		elif spd > 15.0 and _drift_cool <= 0.0 and (kart.grounded or kart.in_drift):
+			if not _drift_decided:
+				_drift_decided = true
+				_drift_plan = _rng.randf() < float(profile.drift_use)
+				_new_tap_target()
+			if _drift_plan:
+				drift = true
+				steer = float(corner_dir)   # commit the slide direction through the hop
+	else:
+		drift = true
+		var dd := float(kart.drift_dir)
+		var t_near := maxf(16.0 / maxf(spd, 5.0), 0.2)
+		var need := absf(turn_near) / t_near
 		var into := clampf((need - kart.params.drift_base_rate) / kart.params.drift_steer_range, -1.0, 1.0)
-		# correct toward the target if we drift off the line
-		var err := clampf(-ang * 2.0 * float(kart.drift_dir), -0.6, 0.6)
+		# steer on the travel direction: a sliding chassis points ~30 deg inside it
+		var hv := Vector3(kart.velocity.x, 0, kart.velocity.z)
+		var ang_v := hv.signed_angle_to(to.normalized(), Vector3.UP) if hv.length() > 1.0 and to.length() > 0.5 else ang
+		var err := clampf(-ang_v * 2.5 * dd, -0.8, 0.8)
 		into = clampf(into + err, -1.0, 1.0)
-		steer = into * float(kart.drift_dir)
-		# end the slide when the corner opens or flips direction
-		if r_near > 75.0 or (turn_sign != 0.0 and turn_sign != float(kart.drift_dir) and absf(ang) > 0.25):
+		steer = into * dd
+		dbg = {"turn_near": rad_to_deg(turn_near), "need": need, "into": into, "ang_v": rad_to_deg(ang_v), "err": err}
+		# end the slide when the corner runs out, reverses, or the nose gets ahead of it
+		var remaining := turn_near * -dd    # >0 while still turning the slide's way
+		var over_rotating := ang_v * dd > deg_to_rad(22.0)
+		if (remaining < deg_to_rad(5.0) and absf(ang_v) < 0.3) or over_rotating or (need < 0.3 and kart.drift_time > 0.5):
 			drift = false
-			_drift_plan = false
-		# hook turn for hairpins
-		if profile.hook and r_near < 13.0 and spd > 14.0:
+			_drift_cool = 0.35
+			_drift_decided = false
+		# hook turn when even a full slide can't rotate fast enough
+		if profile.hook and need > kart.params.drift_base_rate + kart.params.drift_steer_range * 0.95 and spd > 14.0:
 			brake = 1.0
-			steer = float(kart.drift_dir)
-		# spark taps
+			steer = dd
 		if kart.drift_stage < 3 and kart.drift_charge >= _tap_target:
 			kart.in_boost = true
 			_new_tap_target()
@@ -236,14 +267,33 @@ func _physics_process(dt: float) -> void:
 			drift = true
 			steer = 0.0 if absf(steer) < 0.35 else steer
 			_hop_cool = 1.0
-	# ---- stuck recovery
-	if spd < 1.5 and not kart.frozen and kart.spin_time <= 0.0:
-		_stuck_t += dt
-	else:
-		_stuck_t = maxf(_stuck_t - dt * 2.0, 0.0)
-	if _stuck_t > 1.6:
+	# ---- stuck recovery (measured by real displacement, not reported speed)
+	_stuck_sample_t += dt
+	if _stuck_sample_t >= 1.0:
+		_stuck_sample_t = 0.0
+		var moved := p.distance_to(_stuck_last_pos)
+		_stuck_last_pos = p
+		if moved < 1.2 and kart.spin_time <= 0.0:
+			_stuck_t += 1.0
+		else:
+			_stuck_t = 0.0
+	if _stuck_t >= 2.0 and _reverse_t <= 0.0 and _stuck_t < 4.0:
 		_reverse_t = 1.1
+	# lost: far from the lane for a while (fell off a shortcut, spun into the forest)
+	var line_pt := _line(lane).pts[idx]
+	if Vector2(line_pt.x - p.x, line_pt.z - p.z).length() > 9.0 or absf(line_pt.y - p.y) > 4.0:
+		_lost_t += dt
+	else:
+		_lost_t = maxf(_lost_t - dt, 0.0)
+	if _lost_t > 4.0:
+		_stuck_t = 4.0
+		_lost_t = 0.0
+	if _stuck_t >= 4.0 and race:
+		race.call("respawn_kart", kart)
 		_stuck_t = 0.0
+		_reverse_t = 0.0
+		lane = "main"
+		idx = _nearest_on("main", kart.global_position, 0, true)
 	if _reverse_t > 0.0:
 		_reverse_t -= dt
 		throttle = 0.0
@@ -294,6 +344,24 @@ func _point(li: Dictionary) -> Vector3:
 
 func _right_at(li: Dictionary) -> Vector3:
 	return _line(li.lane).path.right[li.i]
+
+
+func _dir_at(li: Dictionary) -> Vector3:
+	var rl := _line(li.lane)
+	var i: int = li.i
+	var n := rl.size()
+	var j := (i + 2) % n if rl.closed else mini(i + 2, n - 1)
+	var k := i if j != i else maxi(i - 2, 0)
+	var d := rl.pts[j] - rl.pts[k]
+	d.y = 0.0
+	return d.normalized() if d.length_squared() > 1e-6 else Vector3.FORWARD
+
+
+func _turn_ahead(id: String, from: int, meters: float) -> float:
+	var steps := maxi(int(meters / _line(id).path.spacing), 1)
+	var a := _dir_at({"lane": id, "i": from})
+	var b := _dir_at(_advance(id, from, steps))
+	return a.signed_angle_to(b, Vector3.UP)
 
 
 func _radius(li: Dictionary) -> float:

@@ -362,17 +362,21 @@ def build_branches(t):
     pa, ta, ra, wa = m.at(a["dist"] - 4)
     pb, tb, rb, wb = m.at(b["dist"] + 2)
     mid = ((pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2, (pa[2] + pb[2]) / 2)
+    ea = wa / 2 + 3.0
+    eb = wb / 2 + 3.0
     gate = [
-        [round(pa[0] - ra[0] * 3, 3), round(pa[1], 3), round(pa[2] - ra[1] * 3, 3), 7.0, 0.0, {"s": DIRT, "style": "lane", "tm": "conform", "tag": "gate_lane"}],
-        [round(lerp(pa[0], mid[0], 0.5) - ra[0] * 6, 3), round(lerp(pa[1], mid[1], 0.5) + 0.2, 3), round(lerp(pa[2], mid[2], 0.5) - ra[1] * 6, 3), 6.0, 0.0, {"tag": "gate"}],
-        [round(mid[0] - ra[0] * 4, 3), round(mid[1] + 0.3, 3), round(mid[2] - ra[1] * 4, 3), 6.0, 0.0, {}],
-        [round(pb[0] - rb[0] * 3, 3), round(pb[1], 3), round(pb[2] - rb[1] * 3, 3), 7.0, 0.0, {}],
+        [round(pa[0] - ra[0] * ea, 3), round(pa[1], 3), round(pa[2] - ra[1] * ea, 3), 7.0, 0.0, {"s": DIRT, "style": "lane", "tm": "conform", "tag": "gate_lane"}],
+        [round(lerp(pa[0], mid[0], 0.5) - ra[0] * 14, 3), round(lerp(pa[1], mid[1], 0.5) + 0.2, 3), round(lerp(pa[2], mid[2], 0.5) - ra[1] * 14, 3), 6.0, 0.0, {"tag": "gate"}],
+        [round(mid[0] - ra[0] * 13, 3), round(mid[1] + 0.3, 3), round(mid[2] - ra[1] * 13, 3), 6.0, 0.0, {}],
+        [round(pb[0] - rb[0] * eb, 3), round(pb[1], 3), round(pb[2] - rb[1] * eb, 3), 7.0, 0.0, {}],
     ]
     br.append({"id": "gate_lane", "style": "lane", "points": gate})
 
     # ------------------------------------------------ Giant's Log + Ridge (+ Shelf Rock jump)
     a = mk["log_entry"]
-    pe, te, re_, we = m.at(a["dist"] + 4)
+    pe0, te, re_, we = m.at(a["dist"] + 4)
+    off = we / 2 + 3.0
+    pe = (pe0[0] - re_[0] * off, pe0[1], pe0[2] - re_[1] * off)
     ex = mk["ridge_merge"]
     px, tx_, rx_, wx = m.at(ex["dist"] + 6)
     # direction from log entry toward ridge merge
@@ -387,8 +391,8 @@ def build_branches(t):
         along(22, 0, 3.6, 4.4),
         along(30, 0, 4.4, 4.2, {"tag": "log_lip"}),
         along(33, 0, 4.5, 4.2, {"style": "gap", "tag": "log_gap"}),
-        along(55, 0, 1.2, 10.0, {"s": ROCK, "style": "ridge", "tag": "ridge"}),
-        along(68, 0, 1.0, 9.0, {"tag": "shelf_split"}),
+        along(50, 0, 1.3, 10.0, {"s": ROCK, "style": "ridge", "tag": "ridge"}),
+        along(64, 0, 1.0, 9.0, {"tag": "shelf_split"}),
     ]
     # rest of ridge descends to the merge point on the main road
     for k in range(1, 4):
@@ -400,8 +404,8 @@ def build_branches(t):
     # Shelf Rock: stage-2 jump off the ridge's left edge over the chicane into the hairpin exit
     hp = mk["root_hops"]
     ph, th, rh, wh = m.at(hp["dist"] + 6)
-    sx = pe[0] + ux * 64 - uz * -4
-    sz = pe[2] + uz * 64 + ux * -4
+    sx = pe[0] + ux * 60
+    sz = pe[2] + uz * 60
     shelf = [
         [round(sx, 3), round(pe[1] + 1.0, 3), round(sz, 3), 6.0, 0.0, {"s": ROCK, "style": "slab", "tm": "none", "tag": "shelf"}],
         [round(lerp(sx, ph[0], 0.12), 3), round(pe[1] + 2.6, 3), round(lerp(sz, ph[2], 0.12), 3), 5.5, 0.0, {"tag": "shelf_lip"}],
@@ -414,6 +418,7 @@ def build_branches(t):
     # ------------------------------------------------ Millrace Flume (momentum shortcut)
     k = mk["flume_kicker"]
     pk, tk, rk, wk = m.at(k["dist"] + 2)
+    kick_off = wk / 2 + 3.5
     ce = mk["cave_entry"]
     pw, tw, rw, ww = m.at(ce["dist"] - 2)
     fx, fz = pw[0] - pk[0], pw[2] - pk[2]
@@ -421,7 +426,7 @@ def build_branches(t):
     fux, fuz = fx / FL, fz / FL
     y0 = pk[1]
     def fl(s_, y, w, attrs=None):
-        return [round(pk[0] + fux * s_ + rk[0] * 3.5, 3), round(y, 3), round(pk[2] + fuz * s_ + rk[1] * 3.5, 3), w, 0.0, attrs or {}]
+        return [round(pk[0] + fux * s_ + rk[0] * kick_off, 3), round(y, 3), round(pk[2] + fuz * s_ + rk[1] * kick_off, 3), w, 0.0, attrs or {}]
     flume = [
         fl(0, y0, 6.0, {"s": WOOD, "style": "kicker", "tm": "none", "tag": "flume_kicker"}),
         fl(8, y0 + 2.0, 5.5, {"tag": "flume_kick_lip"}),
@@ -447,14 +452,19 @@ def build_branches(t):
     pc, tc, rc, wc = m.at(ce["dist"] + 2)
     hx = mk["hairpin_exit"]
     pf, tf, rf, wf = m.at(hx["dist"] + 12)
-    start = (pc[0] - rc[0] * 7, pc[1] + 0.2, pc[2] - rc[1] * 7)
+    co = wc / 2 + 4.0
+    start = (pc[0] - rc[0] * co, pc[1] + 0.2, pc[2] - rc[1] * co)
     cave = [[round(start[0], 3), round(start[1], 3), round(start[2], 3), 6.0, 0.0, {"s": ROCK, "style": "cave", "tm": "none", "tag": "cave"}]]
+    exit_pt = (pf[0] - rf[0] * (wf / 2 + 4.0), pf[1], pf[2] - rf[1] * (wf / 2 + 4.0))
     for i in range(1, 5):
         f = i / 5
-        q = (lerp(start[0], pf[0], f), lerp(start[1], pf[1], smooth(f)), lerp(start[2], pf[2], f))
+        q = (lerp(start[0], exit_pt[0], f), lerp(start[1], exit_pt[1], smooth(f)), lerp(start[2], exit_pt[2], f))
         wob = math.sin(f * math.pi) * 5.0
         cave.append([round(q[0] - tc[0] * wob, 3), round(q[1], 3), round(q[2] - tc[1] * wob, 3), 5.5, 0.0, {}])
-    cave.append([round(pf[0], 3), round(pf[1], 3), round(pf[2], 3), 8.0, 0.0, {"tag": "cave_exit"}])
+    eo = wf / 2 + 4.0
+    cave.append([round(pf[0] - rf[0] * eo, 3), round(pf[1] + 0.2, 3), round(pf[2] - rf[1] * eo, 3), 6.5, 0.0, {"tag": "cave_exit"}])
+    pf2, _, rf2, wf2 = m.at(hx["dist"] + 30)
+    cave.append([round(pf2[0] - rf2[0] * 2.0, 3), round(pf2[1], 3), round(pf2[2] - rf2[1] * 2.0, 3), 8.0, 0.0, {"style": "dirt", "s": DIRT, "tm": "conform", "tag": "cave_merge"}])
     br.append({"id": "rootway_cave", "style": "cave", "points": cave})
     return br
 

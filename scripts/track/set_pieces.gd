@@ -253,7 +253,7 @@ static func _start_gantry(tb: TrackBuilder, root: Node3D) -> void:
 	banner.modulate = Color(1.0, 0.92, 0.6)
 	banner.outline_size = 18
 	banner.outline_modulate = Color(0.25, 0.12, 0.05)
-	banner.transform = Transform3D(b.rotated(Vector3.UP, PI), pos + Vector3.UP * 6.6 - sp.tan[k] * 0.4)
+	banner.transform = Transform3D(b, pos + Vector3.UP * 6.6 - sp.tan[k] * 0.4)
 	node.add_child(banner)
 	# countdown lamps (the race manager toggles their materials)
 	var lamps := Node3D.new()
@@ -475,7 +475,14 @@ static func _ridge(tb: TrackBuilder, root: Node3D) -> void:
 	node.name = "Ridge"
 	root.add_child(node)
 	var mb := MeshBuilder.new()
+	var split := rr.y
+	for k in sp.size():
+		if sp.tags[k] == "shelf_split":
+			split = k
+			break
 	for k in range(rr.x, rr.y, 5):
+		if absi(k - split) < 14:
+			continue   # leave the Shelf Rock take-off clear
 		for side: int in [-1, 1]:
 			if tb.rng.randf() < 0.35:
 				continue   # gaps: falling off into the hollow is possible
@@ -579,7 +586,7 @@ static func _owl_statue(tb: TrackBuilder, node: Node3D) -> void:
 	mb.append_builder(tmp, xf)
 	var g2 := MeshBuilder.new()
 	g2.append_builder(glow, xf)
-	tb.add_static_mesh(node, mb, Mats.triplanar("stone"), "OwlStatue")
+	tb.add_static_mesh(node, mb, Mats.triplanar("rock"), "OwlStatue")
 	tb.add_static_mesh(node, g2, Mats.glow(Color(1.0, 0.6, 0.15), 4.0), "OwlEyes", false)
 	tb.add_cylinder_collider(node, base, 4.5, 9.0)
 	tb.landmarks.append({"name": "guardian_owl", "pos": base})
@@ -684,7 +691,8 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	var nz := MeshLib.make_noise(1313, 0.35, 3)
 	var mb := MeshBuilder.new()
 	var ring := 14
-	var n := sp.size()
+	var cr := _style_range(sp, "cave")
+	var n := cr.y + 1   # shell only over the cave section (the merge ramp stays open)
 	for k in n:
 		var hw := sp.width[k] * 0.5 + 1.3
 		for s in ring + 1:
@@ -716,6 +724,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	tb.add_static_mesh(node, rocks, Mats.triplanar("rock"), "CaveMouths")
 	# glowing crystals (also light the way)
 	var crystals := MeshBuilder.new()
+	var crystals2 := MeshBuilder.new()
 	for k in range(3, n - 3, 3):
 		for side: int in [-1, 1]:
 			if tb.rng.randf() < 0.4:
@@ -724,10 +733,11 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 			var p := sp.pos[k] + sp.right[k] * float(side) * hw + Vector3.UP * tb.rng.randf_range(0.0, 3.5)
 			for c in 3:
 				var dir := (Vector3.UP * 0.8 - sp.right[k] * float(side) * 0.6 + Vector3(tb.rng.randf_range(-0.3, 0.3), 0, tb.rng.randf_range(-0.3, 0.3))).normalized()
-				var col := Color(0.35, 0.95, 1.0) if (k + c) % 3 != 0 else Color(0.8, 0.45, 1.0)
-				MeshLib.tube(crystals, PackedVector3Array([p, p + dir * tb.rng.randf_range(0.6, 1.4)]), PackedFloat32Array([0.22, 0.0]), 5,
-					func(_t: float, _a: float, _p: Vector3) -> Color: return col)
-	tb.add_static_mesh(node, crystals, Mats.glow(Color(1, 1, 1), 2.5), "Crystals", false)
+				var target_mb := crystals if (k + c) % 3 != 0 else crystals2
+				MeshLib.tube(target_mb, PackedVector3Array([p, p + dir * tb.rng.randf_range(0.6, 1.4)]), PackedFloat32Array([0.22, 0.0]), 5,
+					func(_t: float, _a: float, _p: Vector3) -> Color: return Color.WHITE)
+	tb.add_static_mesh(node, crystals, Mats.glow(Color(0.35, 0.95, 1.0), 2.5), "Crystals", false)
+	tb.add_static_mesh(node, crystals2, Mats.glow(Color(0.8, 0.45, 1.0), 2.5), "Crystals2", false)
 	# hanging vine curtain hides the entrance (subtle cue: it sways, light leaks through)
 	var vines := MeshBuilder.new()
 	var e := 1

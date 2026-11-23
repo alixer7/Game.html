@@ -167,12 +167,12 @@ func _extra_water_paths() -> Array:
 	var pts: Array = []
 	var n := main.size()
 	var y_land := main.pos[land_i].y
-	var i := (lip_i - 4 + n) % n
+	var first := (lip_i - 4 + n) % n
+	var count := (land_i + 2 - first + n) % n
 	var steps := 0
-	while i != (land_i + 2) % n and steps < 200:
-		var p := main.pos[i]
+	for s in range(0, count + 1, 3):
+		var p := main.pos[(first + s) % n]
 		pts.append([p.x, y_land + 0.25, p.z, 15.0, 0.0, {"s": Surfaces.CURRENT, "style": "river", "tm": "river"} if steps == 0 else {}])
-		i = (i + 3) % n
 		steps += 1
 	if pts.size() >= 2:
 		var sp := SplinePath.from_points(pts, false, 1.5)
@@ -186,8 +186,12 @@ func _punch_cave_holes() -> void:
 	var cave: SplinePath = branches.get("rootway_cave")
 	if cave == null:
 		return
+	var last := 0
+	for i in cave.size():
+		if cave.style[i] == "cave":
+			last = i
 	terrain.punch_holes_along(cave, 0, 10, 6.5, 7.0)
-	terrain.punch_holes_along(cave, cave.size() - 10, cave.size(), 6.5, 7.0)
+	terrain.punch_holes_along(cave, maxi(last - 10, 0), last + 1, 6.5, 7.0)
 
 
 # ------------------------------------------------------------------ roads

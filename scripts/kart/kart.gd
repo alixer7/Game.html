@@ -109,15 +109,14 @@ func _ready() -> void:
 		params = KartParams.new()
 	collision_layer = 2
 	collision_mask = WORLD_MASK
-	floor_max_angle = deg_to_rad(52.0)
-	floor_snap_length = 0.55
-	floor_constant_speed = false
-	floor_block_on_wall = false
-	wall_min_slide_angle = deg_to_rad(5.0)
+	# FLOATING: move_and_slide only slides velocity along contact normals. Ground
+	# detection and snapping are done here (see _ground_check) so the controller
+	# isn't affected by CharacterBody3D's floor heuristics (gravity reset on
+	# descents, snap suppression while moving up, etc.).
 	max_slides = 5
 	safe_margin = 0.02
-	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
-	platform_on_leave = CharacterBody3D.PLATFORM_ON_LEAVE_ADD_VELOCITY
+	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	wall_min_slide_angle = 0.0
 	_ray_query.collision_mask = WORLD_MASK
 	_ray_query.exclude = [get_rid()]
 	_ray_query.hit_from_inside = false
@@ -305,6 +304,7 @@ func _update_drift_state(dt: float) -> void:
 	var can_control := stun_time <= 0.0 and spin_time <= 0.0
 	# --- hop
 	if drift_pressed and _was_on_floor and can_control and not drifting:
+		velocity -= ground_normal * minf(velocity.dot(ground_normal), 0.0)   # drop the contact push
 		velocity += smooth_normal * p.hop_velocity
 		_hop_active = true
 		_was_on_floor = false   # integrate this tick as airborne so the hop isn't projected away
@@ -517,7 +517,9 @@ func _ground_motion(dt: float) -> void:
 		var along := v_new.dot(fl.normalized()) if fl.length() > 0.01 else 0.0
 		if along < fl.length() + cap:
 			v_new += fl.normalized() * minf(fl.length() * 0.9, 9.0) * float(info.flow) * dt
-	v_new -= n * 2.0   # keep contact (snap does the rest)
+	# gentle push into the ground; any part not absorbed by the contact is
+	# exactly along n and is projected out next tick
+	v_new -= n * 1.5
 	velocity = v_new
 	forward_speed = vf
 	lateral_speed = vl
@@ -629,10 +631,34 @@ func _handle_impacts(v_before: Vector3, dt: float) -> void:
 	velocity = Vector3(hv.x, velocity.y, hv.z)
 
 
+func _ground_check() -> bool:
+	## Own ground detection + snap (FLOATING motion mode).
+	var space := get_world_3d().direct_space_state
+	var origin := global_position + Vector3.UP * 0.7
+	_ray_query.from = origin
+	_ray_query.to = origin + Vector3.DOWN * 1.5
+	var hit := space.intersect_ray(_ray_query)
+	if hit.is_empty():
+		return false
+	var n: Vector3 = hit.normal
+	if n.y < 0.6:
+		return false
+	var gap := global_position.y - (hit.position as Vector3).y
+	var away := velocity.dot(n)
+	if gap <= 0.16 and away < 0.6:
+		ground_normal = n
+		return true
+	# snap down over convex transitions, but let real launches (crests, lips, hops) fly
+	if _was_on_floor and gap < 0.6 and away < 0.8 and not _hop_active:
+		global_position.y -= gap - 0.03
+		velocity -= n * maxf(velocity.dot(n), 0.0)
+		ground_normal = n
+		return true
+	return false
+
+
 func _post_move(v_before: Vector3, dt: float) -> void:
-	var on_floor := is_on_floor()
-	if on_floor:
-		ground_normal = get_floor_normal()
+	var on_floor := _ground_check()
 	smooth_normal = smooth_normal.slerp(ground_normal if on_floor else Vector3.UP, clampf((14.0 if on_floor else 2.5) * dt, 0.0, 1.0)).normalized()
 	if on_floor and not _was_on_floor:
 		_on_landed(v_before)

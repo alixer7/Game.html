@@ -24,10 +24,10 @@ func _wait(n: int) -> void:
 
 
 func _shot(name: String) -> void:
-	await _wait(6)
+	await _wait(4)
 	var t0 := Time.get_ticks_usec()
-	await _wait(10)
-	var ft := float(Time.get_ticks_usec() - t0) / 10.0 / 1000.0
+	await _wait(3)
+	var ft := float(Time.get_ticks_usec() - t0) / 3.0 / 1000.0
 	var img := get_viewport().get_texture().get_image()
 	img.save_png("res://tests/results/shots/%s.png" % name)
 	out[name] = {
@@ -82,10 +82,11 @@ func _run() -> void:
 	var race: RaceManager = scene.get("race")
 	race.start_countdown()
 	var player: Kart = scene.get("player")
-	await _wait(200)
+	var race_frames := int(OS.get_environment("WK_RACE_FRAMES")) if OS.get_environment("WK_RACE_FRAMES") != "" else 40
+	await _wait(race_frames)
 	for i in 3:
 		player.in_throttle = 1.0
-		await _wait(150)
+		await _wait(race_frames)
 		await _shot("race_%d" % i)
 	var f := FileAccess.open("res://tests/results/render.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify({"views": out, "build_ms": scene.get("build_ms"), "timings": tb.timings, "adapter": RenderingServer.get_video_adapter_name(), "renderer": ProjectSettings.get_setting("rendering/renderer/rendering_method")}, "  "))

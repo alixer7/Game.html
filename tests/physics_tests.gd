@@ -26,6 +26,7 @@ func run(runner: Object) -> void:
 	await _walls()
 	await _hook()
 	await _current()
+	await _slopes()
 	await _determinism()
 	arena.queue_free()
 
@@ -338,6 +339,24 @@ func _current() -> void:
 	R.check("physics", "river current: faster than the road cap (flow pushes)", v_cur > k.params.max_speed * 1.0, "v=%.1f (road max %.1f)" % [v_cur, k.params.max_speed])
 	k.queue_free()
 	body.queue_free()
+
+
+func _slopes() -> void:
+	## Regression guard: CharacterBody3D floor heuristics once bled speed on descents.
+	var res := {}
+	var x := 3000.0
+	for deg: float in [-12.0, 12.0]:
+		var ramp := _ground(Vector3(x, 0, -500), Vector3(30, 1, 1200), Surfaces.ROAD, Vector3(deg_to_rad(deg), 0, 0))
+		var k := _kart(Vector3(x, 0.9, -500.0), 0.0)
+		await R.frames(10)
+		k.in_throttle = 1.0
+		await R.frames(420)
+		res[deg] = [snappedf(k.speed, 0.1), k.grounded]
+		k.queue_free()
+		ramp.queue_free()
+		x += 60.0
+	R.check("physics", "downhill: reaches the cap and stays grounded", float(res[-12.0][0]) > 25.5 and bool(res[-12.0][1]), res[-12.0])
+	R.check("physics", "uphill: slower than flat but grounded", float(res[12.0][0]) > 20.0 and float(res[12.0][0]) < 25.9 and bool(res[12.0][1]), res[12.0])
 
 
 func _determinism() -> void:

@@ -1,0 +1,25 @@
+{
+  "build_ms": 3150,
+  "item_boxes": 26,
+  "length": 1510.89843827486,
+  "obstacles": 31,
+  "pads": 5,
+  "radius_buckets": {
+    "20-40": 78,
+    "40-80": 197,
+    "<20": 66,
+    ">80": 667
+  },
+  "timings": {
+    "gameplay": 2438,
+    "life": 3148,
+    "paths": 12,
+    "roads": 1590,
+    "scatter": 3114,
+    "scatter_colliders": 1622,
+    "scatter_instances": 48220,
+    "set_pieces": 2409,
+    "terrain_field": 1127,
+    "terrain_mesh": 2159
+  }
+}

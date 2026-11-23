@@ -206,6 +206,8 @@ func _process(dt: float) -> void:
 
 
 func _draw() -> void:
+	if get_rect().size.y < 50.0:
+		return
 	var op: float = Game.settings["touch_opacity"]
 	var labels := {"drift": "DRIFT", "boost": "BOOST", "item": "ITEM", "brake": "BRAKE", "accel": "GO", "look": "BACK"}
 	var cols := {"drift": UIKit.ORANGE, "boost": UIKit.TEAL, "item": Color(0.95, 0.85, 0.3), "brake": Color(0.9, 0.35, 0.3),

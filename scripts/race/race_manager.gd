@@ -257,6 +257,11 @@ func kart_at_position(pos: int) -> Kart:
 	return null
 
 
+func respawn_kart(k: Kart) -> void:
+	if not _respawning.has(k):
+		_respawn(k)
+
+
 func _respawn(k: Kart) -> void:
 	_respawning[k] = true
 	var pr: Dictionary = _prog[k]

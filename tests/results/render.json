@@ -1,0 +1,125 @@
+{
+  "adapter": "llvmpipe (LLVM 20.1.2, 256 bits)",
+  "build_ms": 4267,
+  "renderer": "mobile",
+  "timings": {
+    "gameplay": 2888,
+    "life": 3611,
+    "paths": 21,
+    "roads": 1782,
+    "scatter": 3556,
+    "scatter_colliders": 1643,
+    "scatter_instances": 24900,
+    "scatter_multimeshes": 3456,
+    "set_pieces": 2816,
+    "terrain_field": 1213,
+    "terrain_mesh": 2384
+  },
+  "views": {
+    "elder_tree": {
+      "draw_calls": 582,
+      "frame_ms_software_renderer": 1159.0,
+      "objects": 680,
+      "primitives": 1604242,
+      "video_mem_mb": 236.3
+    },
+    "fernway": {
+      "draw_calls": 493,
+      "frame_ms_software_renderer": 864.1,
+      "objects": 592,
+      "primitives": 1335174,
+      "video_mem_mb": 236.3
+    },
+    "giants_log": {
+      "draw_calls": 561,
+      "frame_ms_software_renderer": 985.2,
+      "objects": 660,
+      "primitives": 1595143,
+      "video_mem_mb": 236.3
+    },
+    "hairpin": {
+      "draw_calls": 420,
+      "frame_ms_software_renderer": 920.1,
+      "objects": 512,
+      "primitives": 1009556,
+      "video_mem_mb": 236.3
+    },
+    "lower_falls": {
+      "draw_calls": 544,
+      "frame_ms_software_renderer": 1187.8,
+      "objects": 643,
+      "primitives": 1465801,
+      "video_mem_mb": 236.3
+    },
+    "millrace": {
+      "draw_calls": 788,
+      "frame_ms_software_renderer": 1168.7,
+      "objects": 934,
+      "primitives": 2302283,
+      "video_mem_mb": 236.3
+    },
+    "moss_arch": {
+      "draw_calls": 509,
+      "frame_ms_software_renderer": 867.5,
+      "objects": 608,
+      "primitives": 1161742,
+      "video_mem_mb": 236.3
+    },
+    "portal_river": {
+      "draw_calls": 606,
+      "frame_ms_software_renderer": 1027.0,
+      "objects": 706,
+      "primitives": 1618970,
+      "video_mem_mb": 236.3
+    },
+    "race_0": {
+      "draw_calls": 779,
+      "frame_ms_software_renderer": 1049.3,
+      "objects": 925,
+      "primitives": 2072396,
+      "video_mem_mb": 240.4
+    },
+    "race_1": {
+      "draw_calls": 769,
+      "frame_ms_software_renderer": 1127.0,
+      "objects": 921,
+      "primitives": 2076634,
+      "video_mem_mb": 240.5
+    },
+    "race_2": {
+      "draw_calls": 769,
+      "frame_ms_software_renderer": 1605.1,
+      "objects": 915,
+      "primitives": 2077174,
+      "video_mem_mb": 240.5
+    },
+    "river_rocks": {
+      "draw_calls": 540,
+      "frame_ms_software_renderer": 849.9,
+      "objects": 638,
+      "primitives": 1343990,
+      "video_mem_mb": 236.3
+    },
+    "roof_lip": {
+      "draw_calls": 569,
+      "frame_ms_software_renderer": 1098.3,
+      "objects": 670,
+      "primitives": 1626756,
+      "video_mem_mb": 236.3
+    },
+    "ruins_owl": {
+      "draw_calls": 530,
+      "frame_ms_software_renderer": 878.2,
+      "objects": 621,
+      "primitives": 1287378,
+      "video_mem_mb": 236.3
+    },
+    "start_grid": {
+      "draw_calls": 825,
+      "frame_ms_software_renderer": 1079.4,
+      "objects": 1009,
+      "primitives": 2116173,
+      "video_mem_mb": 236.3
+    }
+  }
+}

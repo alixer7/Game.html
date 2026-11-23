@@ -106,6 +106,33 @@ static func _build_run(path: SplinePath, root: Node3D, name_prefix: String, styl
 	mi.name = "%s_%s_%d" % [name_prefix, style, i0]
 	mi.mesh = mb.commit(null, mat)
 	root.add_child(mi)
+	# Solid end faces where a run starts/ends at a jump gap: no paper-thin road
+	# edges to drive under, and the landing reads as a rock face.
+	var caps := MeshBuilder.new()
+	var prev_gap := path.closed or i0 > 0
+	if prev_gap and path.style[(i0 - 1 + n) % n] == "gap" or (not path.closed and i0 == 0 and style in ["ridge", "slab", "kicker", "log_ramp", "flume", "boardwalk"]):
+		_end_cap(caps, path, i0, prof, -1.0)
+	var nxt := (i1 + 1) % n
+	if (path.closed or i1 + 1 < n) and path.style[nxt] == "gap":
+		_end_cap(caps, path, i1, prof, 1.0)
+	elif not path.closed and i1 == n - 1 and style in ["ridge", "slab", "kicker", "flume"]:
+		_end_cap(caps, path, i1, prof, 1.0)
+	if caps.vcount() > 0:
+		caps.recompute_normals()
+		var cmi := MeshInstance3D.new()
+		cmi.name = "Cap_%s_%d" % [style, i0]
+		cmi.mesh = caps.commit(null, Mats.triplanar("rock"))
+		root.add_child(cmi)
+		var cbody := StaticBody3D.new()
+		cbody.collision_layer = 1
+		cbody.set_meta("surface", Surfaces.ROCK)
+		var csh := ConcavePolygonShape3D.new()
+		csh.set_faces(caps.to_collision_faces())
+		csh.backface_collision = true
+		var ccs := CollisionShape3D.new()
+		ccs.shape = csh
+		cbody.add_child(ccs)
+		root.add_child(cbody)
 	# ---- collision grouped by surface id
 	var s0 := 0
 	while s0 < count - 1:
@@ -141,6 +168,29 @@ static func _build_run(path: SplinePath, root: Node3D, name_prefix: String, styl
 		body.add_child(cs)
 		root.add_child(body)
 		s0 = s1 + 1
+
+
+static func _end_cap(mb: MeshBuilder, path: SplinePath, k: int, prof: Array, dir: float) -> void:
+	## Vertical face from the road cross-section down 9 m, facing along `dir` * tangent.
+	var t := path.tan[k] * dir
+	var top: Array[Vector3] = []
+	for pp in prof:
+		top.append(_profile_point(path, k, pp))
+	var c := Color(0.85, 0.82, 0.78, 0.4)
+	for i in top.size() - 1:
+		var a := top[i]
+		var b := top[i + 1]
+		var a2 := a + Vector3.DOWN * 9.0
+		var b2 := b + Vector3.DOWN * 9.0
+		var i0 := mb.add_vertex(a, t, Vector2.ZERO, c)
+		mb.add_vertex(b, t, Vector2.ZERO, c)
+		mb.add_vertex(b2, t, Vector2.ZERO, c)
+		mb.add_vertex(a2, t, Vector2.ZERO, c)
+		var fn := (b - a).cross(a2 - a)
+		if fn.dot(t) > 0.0:
+			mb.quad(i0, i0 + 1, i0 + 2, i0 + 3)
+		else:
+			mb.quad(i0, i0 + 3, i0 + 2, i0 + 1)
 
 
 static func _build_walls(path: SplinePath, root: Node3D, styles: PackedStringArray) -> void:

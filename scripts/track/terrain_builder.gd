@@ -341,7 +341,12 @@ func build_meshes(parent: Node3D, material: Material, chunk_cells := 32, collisi
 				var mb := _chunk_mesh(x0, z0, x1, z1, step)
 				if mb.vcount() == 0:
 					continue
+				var cc := cell_pos((x0 + x1) / 2, (z0 + z1) / 2)
+				var centre := Vector3(cc.x, h[idx((x0 + x1) / 2, (z0 + z1) / 2)], cc.y)
+				for vi in mb.verts.size():
+					mb.verts[vi] -= centre
 				var mi := MeshInstance3D.new()
+				mi.position = centre
 				mi.name = "T_%d_%d_L%d" % [jx, jz, lod]
 				mi.mesh = mb.commit(null, material)
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if lod == 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON

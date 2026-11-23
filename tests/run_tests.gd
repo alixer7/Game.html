@@ -29,6 +29,8 @@ func _run() -> void:
 				await AITests.new().run(self, false)
 			"routes":
 				await AITests.new().run(self, true)
+			"jumps":
+				await JumpTests.new().run(self)
 		print("suite %s took %.1f s" % [s, (Time.get_ticks_msec() - t0) / 1000.0])
 	var f := FileAccess.open("res://tests/results/summary.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, "  "))

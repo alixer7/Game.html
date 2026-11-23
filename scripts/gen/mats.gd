@@ -253,7 +253,6 @@ static func glow(color: Color, energy := 2.0) -> StandardMaterial3D:
 	m.emission_enabled = true
 	m.emission = color
 	m.emission_energy_multiplier = energy
-	m.vertex_color_use_as_albedo = true
 	_cache[key] = m
 	return m
 

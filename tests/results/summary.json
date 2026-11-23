@@ -106,7 +106,7 @@
       "test": "skilled slide chaining sustains boost (reserve never empties)"
     },
     {
-      "detail": "air=0.35 s",
+      "detail": "air=0.30 s",
       "ok": true,
       "test": "hop airtime 0.25-0.5 s"
     },
@@ -121,7 +121,7 @@
       "test": "ramp launch gives hang time > 0.5 s"
     },
     {
-      "detail": "[0.273, 0.153]",
+      "detail": "[0.273]",
       "ok": true,
       "test": "clean landing after hang time grants an air boost"
     },
@@ -158,6 +158,22 @@
       "detail": "v=31.0 (road max 26.0)",
       "ok": true,
       "test": "river current: faster than the road cap (flow pushes)"
+    },
+    {
+      "detail": [
+        26.0,
+        true
+      ],
+      "ok": true,
+      "test": "downhill: reaches the cap and stays grounded"
+    },
+    {
+      "detail": [
+        20.2,
+        true
+      ],
+      "ok": true,
+      "test": "uphill: slower than flat but grounded"
     },
     {
       "detail": "delta=0.0000",

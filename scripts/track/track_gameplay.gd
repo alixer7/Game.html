@@ -208,13 +208,17 @@ static func _gate(tb: TrackBuilder, root: Node3D) -> void:
 	var gl: SplinePath = tb.branches.get("gate_lane")
 	if gl == null:
 		return
-	var gi := -1
-	for i in gl.size():
-		if gl.tags[i] == "gate":
+	# stand the gate where the lane is farthest from the main road
+	var gi := gl.size() / 2
+	var best := -1.0
+	for i in range(2, gl.size() - 2):
+		var j := tb.main.nearest_index(gl.pos[i], 60.0)
+		if j < 0:
+			continue
+		var d := Vector2(gl.pos[i].x - tb.main.pos[j].x, gl.pos[i].z - tb.main.pos[j].z).length() - tb.main.width[j] * 0.5
+		if d > best:
+			best = d
 			gi = i
-			break
-	if gi < 0:
-		gi = gl.size() / 2
 	var gate := BreakableGate.make(gl.width[gi])
 	var t := gl.tan[gi]
 	t.y = 0
