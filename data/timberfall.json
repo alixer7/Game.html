@@ -15,7 +15,7 @@
      "style": "roof",
      "wl": "parapet",
      "wr": "parapet",
-     "tm": "none",
+     "tm": "aqueduct",
      "tag": "roof"
     }
    ],
@@ -1544,7 +1544,7 @@
      "style": "cobble",
      "wl": "parapet",
      "wr": "parapet",
-     "tm": "none",
+     "tm": "conform",
      "tag": "approach"
     }
    ],

@@ -9,6 +9,7 @@ extends RefCounted
 ##     "wl"/"wr": wall style left/right from this point on ("none", "stone", "rail", "rock", "log", "flume")
 ##     "tm": terrain mode from this point on ("conform", "none")
 ##     "tag": free-form tag for this stretch (used by gameplay e.g. "lip", "pad")
+##     "style": visual/geometry style from this point on (see RoadMesher.STYLES, "gap" = none)
 ## Positive bank raises the RIGHT edge (good for left-handers).
 
 var closed := false
@@ -27,6 +28,7 @@ var wall_l := PackedStringArray()
 var wall_r := PackedStringArray()
 var terrain_mode := PackedStringArray()
 var tags := PackedStringArray()
+var style := PackedStringArray()
 
 var _grid := {}
 var _cell := 12.0
@@ -51,7 +53,7 @@ func _build(points: Array) -> void:
 	var W := PackedFloat32Array()
 	var B := PackedFloat32Array()
 	var attrs: Array = []
-	var cur := {"s": Surfaces.ROAD, "wl": "none", "wr": "none", "tm": "conform", "tag": ""}
+	var cur := {"s": Surfaces.ROAD, "wl": "none", "wr": "none", "tm": "conform", "tag": "", "style": "dirt"}
 	for i in n:
 		var cp: Array = points[i]
 		P.append(Vector3(cp[0], cp[1], cp[2]))
@@ -140,6 +142,7 @@ func _build(points: Array) -> void:
 		wall_r.append(str(at["wr"]))
 		terrain_mode.append(str(at["tm"]))
 		tags.append(str(at["tag"]))
+		style.append(str(at["style"]))
 	_compute_frames()
 	_build_grid()
 

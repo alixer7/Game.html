@@ -158,7 +158,7 @@ def build_main():
     t = Turtle(START[0], START[1], START[2], START[3], 18.0)
     # ---------------------------------------------------------------- Z1 Aqueduct Roof
     t.zone("Z1", "Aqueduct Roof")
-    t.set(s=ROAD, style="roof", wl="parapet", wr="parapet", tm="none", tag="roof")
+    t.set(s=ROAD, style="roof", wl="parapet", wr="parapet", tm="aqueduct", tag="roof")
     t.straight(30)
     t.mark("start_line")
     t.straight(22, w=17)
@@ -267,7 +267,7 @@ def build_main():
     t.mark("final_approach")
     x, y, z, h = t.pose()
     print("before close: pose", [round(v, 1) for v in (x, y, z, h)], "dist", round(t.dist, 1))
-    t.set(style="cobble", wl="parapet", wr="parapet", tm="none", tag="approach")
+    t.set(style="cobble", wl="parapet", wr="parapet", tm="conform", tag="approach")
     t.goto(START[0], START[1], START[2], START[3], w=18, bank=0, tension=0.42)
     t.pts.pop()   # closed loop: the last point duplicates the first
     return t
