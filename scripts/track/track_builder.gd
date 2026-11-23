@@ -24,6 +24,8 @@ var spawn_grid: Array = []          # Transform3D
 var river_rocks: Array = []
 var chevrons: Array = []
 var landmarks: Array = []           # {name, pos}
+var solid_meshes: Array[MeshInstance3D] = []   # set-piece meshes with exact colliders (tests)
+var solid_props: Array = []         # [kind, probe point inside the prop] for scattered solid props (tests)
 var dynamic_nodes: Array = []       # nodes needing per-frame updates
 var timings := {}
 
@@ -43,6 +45,7 @@ func build(parent: Node3D, q := 2) -> Node3D:
 	root.name = "Track"
 	parent.add_child(root)
 	_make_paths()
+	_seat_branches()
 	_t("paths", t0)
 	terrain = TerrainBuilder.new()
 	var b := _bounds()
@@ -200,11 +203,69 @@ func _punch_cave_holes() -> void:
 	terrain.punch_holes_along(cave, maxi(last - inset - 8, 0), last - inset + 1, r, 7.0)
 
 
+# ------------------------------------------------------------------ merges
+## Where a ground-level branch overlaps (or runs right beside) the main road it is
+## seated on the main road's real surface - same height and bank, 3 cm below so
+## the main surface stays on top - blending out as the two part. Authoring can't
+## do this exactly (it doesn't see the final smoothed curves); left alone, every
+## merge grows a kerb that stops karts dead.
+func _seat_branches() -> void:
+	for id in branches:
+		if id == "river_upstream":
+			continue
+		var sp: SplinePath = branches[id]
+		var n := sp.size()
+		var dy := PackedFloat32Array()
+		var db := PackedFloat32Array()
+		dy.resize(n)
+		db.resize(n)
+		var any := false
+		for i in n:
+			if sp.style[i] == "gap" or sp.terrain_mode[i] != "conform":
+				continue
+			var j := main.nearest_index(sp.pos[i], 30.0)
+			if j < 0 or main.terrain_mode[j] != "conform" or main.style[j] == "river":
+				continue
+			var mhw := main.width[j] * 0.5
+			var bhw := sp.width[i] * 0.5
+			var lat := main.lateral_offset(j, sp.pos[i])
+			var overlap := (mhw + bhw) - absf(lat)
+			if overlap <= -1.5:
+				continue
+			var w := clampf((overlap + 1.5) / (bhw + 1.5), 0.0, 1.0)
+			w = w * w * (3.0 - 2.0 * w)
+			var target := main.pos[j].y + main.right[j].y * lat - 0.03
+			dy[i] = (target - sp.pos[i].y) * w
+			var par := sp.tan[i].dot(main.tan[j])
+			if absf(par) > 0.6:
+				db[i] = (main.bank[j] * signf(par) - sp.bank[i]) * w * absf(par)
+			any = true
+		if not any:
+			continue
+		# smooth the corrections along the branch so the seat blends in
+		for i in n:
+			var sy := 0.0
+			var sb := 0.0
+			var c := 0.0
+			for k in range(maxi(i - 3, 0), mini(i + 4, n)):
+				if sp.style[k] == "gap" and sp.style[i] != "gap":
+					continue
+				sy += dy[k]
+				sb += db[k]
+				c += 1.0
+			if c > 0.0 and sp.style[i] != "gap":
+				sp.pos[i].y += sy / c
+				sp.bank[i] += sb / c
+		sp._compute_frames()
+		sp._build_grid()
+
+
 # ------------------------------------------------------------------ roads
 func _build_roads() -> void:
 	var roads := Node3D.new()
 	roads.name = "Roads"
 	root.add_child(roads)
+	RoadMesher.terrain = terrain
 	RoadMesher.build(main, roads, "Main", 6.5, main.style)
 	for id in branches:
 		var sp: SplinePath = branches[id]
@@ -237,14 +298,68 @@ func _water_for(sp: SplinePath, parent: Node3D, depth: float, extra: float) -> v
 
 
 # ------------------------------------------------------------------ helpers for modules
-func add_static_mesh(parent: Node3D, mb: MeshBuilder, mat: Material, name := "Mesh", shadows := true) -> MeshInstance3D:
+## solid: also build an exact (trimesh) collider, so what you see is what you hit.
+func add_static_mesh(parent: Node3D, mb: MeshBuilder, mat: Material, name := "Mesh", shadows := true, solid := false, surface := Surfaces.ROCK) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = name
 	mi.mesh = mb.commit(null, mat)
 	if not shadows:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
+	if solid:
+		var faces := clear_of_roads(mb.to_collision_faces())
+		if faces.size() > 0:
+			var body := StaticBody3D.new()
+			body.name = name + "_Col"
+			body.collision_layer = 1
+			body.collision_mask = 0
+			body.set_meta("surface", surface)
+			var shape := ConcavePolygonShape3D.new()
+			shape.set_faces(faces)
+			shape.backface_collision = true
+			var cs := CollisionShape3D.new()
+			cs.shape = shape
+			body.add_child(cs)
+			parent.add_child(body)
+		solid_meshes.append(mi)
 	return mi
+
+
+## Drops collision triangles that intrude into a road's driving corridor (over the
+## road surface, up to 2.2 m above it): decoration poking through a road must
+## never become an invisible wall. Overhead parts (arches, roofs) are kept.
+func clear_of_roads(faces: PackedVector3Array) -> PackedVector3Array:
+	var paths: Array = [main]
+	paths.append_array(branches.values())
+	var out := PackedVector3Array()
+	for t in range(0, faces.size() - 2, 3):
+		var inside := 0
+		for v in 3:
+			if in_road_corridor(faces[t + v], paths):
+				inside += 1
+		var c := (faces[t] + faces[t + 1] + faces[t + 2]) / 3.0
+		# a triangle reaching into the corridor with its centre or most of it goes;
+		# a visible face that only touches it keeps its collision
+		if inside >= 2 or in_road_corridor(c, paths):
+			continue
+		out.append(faces[t]); out.append(faces[t + 1]); out.append(faces[t + 2])
+	return out
+
+
+func in_road_corridor(p: Vector3, paths: Array = []) -> bool:
+	if terrain.dist_at(p.x, p.z) > 3.0:
+		return false
+	if paths.is_empty():
+		paths = [main]
+		paths.append_array(branches.values())
+	for spx: SplinePath in paths:
+		var i := spx.nearest_index(p, 12.0)
+		if i < 0 or spx.style[i] == "gap":
+			continue
+		var dy := p.y - spx.pos[i].y
+		if absf(spx.lateral_offset(i, p)) < spx.width[i] * 0.5 - 0.2 and dy > -0.6 and dy < 2.2:
+			return true
+	return false
 
 
 func add_box_collider(parent: Node3D, xf: Transform3D, size: Vector3, surface := Surfaces.ROCK) -> StaticBody3D:

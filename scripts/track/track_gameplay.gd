@@ -272,7 +272,7 @@ static func _chevrons(tb: TrackBuilder, root: Node3D) -> void:
 			var sign := MeshLib.chevron_sign(left_turn)
 			var b := Basis.looking_at(-face.normalized(), Vector3.UP)
 			mb.append_builder(sign, Transform3D(b.scaled(Vector3(1.25, 1.25, 1.25)), p))
-	tb.add_static_mesh(root, mb, Mats.vcol(0.8), "Chevrons")
+	tb.add_static_mesh(root, mb, Mats.vcol(0.8), "Chevrons", true, true, Surfaces.WOOD)
 
 
 static func _spawn_grid(tb: TrackBuilder) -> void:

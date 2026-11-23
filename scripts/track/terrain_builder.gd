@@ -23,6 +23,7 @@ var surf := PackedByteArray()
 var splat := PackedColorArray()
 var hole := PackedByteArray()
 var features: Array = []                # {"type","x","z","r","h"}
+var _ground_roads: Array = []           # [pos, half width, right] of every ground-level road sample
 
 var _n1 := FastNoiseLite.new()
 var _n2 := FastNoiseLite.new()
@@ -93,9 +94,11 @@ func stamp_path(path: SplinePath, is_main_river_level := false) -> void:
 			# elevated road or jump gap: the ground may never rise into it
 			_carve(p, hw + 1.2, p.y - 0.8)
 			continue
+		if mode == "conform" and path.style[i] != "gap":
+			_ground_roads.append([p, hw, path.right[i]])
 		var inner := hw + 0.4
 		var shoulder := 10.0
-		var drop := 0.14
+		var drop := 0.1
 		if mode == "river":
 			shoulder = 3.0
 			drop = 0.3
@@ -127,6 +130,8 @@ func stamp_path(path: SplinePath, is_main_river_level := false) -> void:
 					# banks rise out of the channel
 					target = p.y + minf((d - inner) * 0.55, 1.4) - drop
 				var k := wt * wt / (0.35 + d)
+				if d < hw:
+					k *= 6.0   # each road owns the ground under its own surface
 				var id := idx(ix, iz)
 				road_sum_h[id] += target * k
 				road_sum_k[id] += k
@@ -247,11 +252,49 @@ func finalize() -> void:
 				var rh := road_sum_h[id] / road_sum_k[id]
 				y = lerpf(base, rh, road_w[id])
 			# carve under elevated roads/gaps, but never through a road that is stamped here
-			# (road shoulders are carved; only the stamped road bed, weight ~1, is kept)
-			if carve[id] < y and road_w[id] < 0.95:
-				y = lerpf(carve[id], y, smoothstep(0.7, 0.95, road_w[id]))
+			# Carve under elevated paths, but never the apron of a ground-level road
+			# (weight >= 0.85 = within ~2.5 m of its edge): a carved apron leaves the
+			# road floating on a ledge that karts can't get back onto.
+			if carve[id] < y and road_w[id] < 0.85:
+				y = lerpf(carve[id], y, smoothstep(0.7, 0.85, road_w[id]))
 			h[id] = y
+	_fit_ground_roads()
 	_paint()
+
+
+func _fit_ground_roads() -> void:
+	## Ground-level roads sit IN the ground: under a road and its 1.2 m apron the
+	## terrain is raised to just below the road edge (no ledge to drive off/onto),
+	## then never allowed above the road surface (nothing pokes through a road).
+	## Lowering runs last, so where two roads at different heights meet, the
+	## lower one wins and stays clear.
+	for pass_i in 2:
+		for rd in _ground_roads:
+			var p: Vector3 = rd[0]
+			var hw: float = rd[1]
+			var rx: Vector3 = rd[2]
+			# the raise reaches ~1.5 cells further with a gentle fall-off, so the
+			# interpolated ground between 2.5 m vertices also meets the road edge
+			var r := hw + (1.2 + cell * 1.5 if pass_i == 0 else 1.2)
+			var ix0 := maxi(int(floor((p.x - r - origin.x) / cell)), 0)
+			var ix1 := mini(int(ceil((p.x + r - origin.x) / cell)), nx - 1)
+			var iz0 := maxi(int(floor((p.z - r - origin.y) / cell)), 0)
+			var iz1 := mini(int(ceil((p.z + r - origin.y) / cell)), nz - 1)
+			for iz in range(iz0, iz1 + 1):
+				for ix in range(ix0, ix1 + 1):
+					var c := cell_pos(ix, iz)
+					var dx := c.x - p.x
+					var dz := c.y - p.z
+					var d := sqrt(dx * dx + dz * dz)
+					if d > r:
+						continue
+					var lat := clampf(dx * rx.x + dz * rx.z, -hw, hw)
+					var surface := p.y + rx.y * lat
+					var id := idx(ix, iz)
+					if pass_i == 0:
+						h[id] = maxf(h[id], surface - (0.12 if d < hw else 0.12 + (d - hw) * 0.45))
+					else:
+						h[id] = minf(h[id], surface - (0.05 if d < hw else 0.03))
 
 
 func _paint() -> void:

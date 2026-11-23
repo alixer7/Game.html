@@ -282,9 +282,19 @@ class Main:
         pts = t.pts
         self.P = [(p[0], p[1], p[2]) for p in pts]
         self.W = [p[3] for p in pts]
+        self.B = [p[4] if len(p) > 4 else 0.0 for p in pts]
         self.D = [0.0]
         for i in range(1, len(self.P)):
             self.D.append(self.D[-1] + math.dist((self.P[i][0], self.P[i][2]), (self.P[i - 1][0], self.P[i - 1][2])))
+
+    def bank_at(self, d):
+        """Bank (degrees) of the main road at distance d."""
+        D = self.D
+        for i in range(1, len(D)):
+            if D[i] >= d:
+                f = (d - D[i - 1]) / max(D[i] - D[i - 1], 1e-6)
+                return lerp(self.B[i - 1], self.B[i], f)
+        return self.B[-1]
 
     def at(self, d):
         D = self.D
@@ -415,12 +425,24 @@ def build_branches(t):
     ry = pe[1] - 0.8
     def sh(d, y, w, attrs=None):
         return [round(sx + sux * d, 3), round(y, 3), round(sz + suz * d, 3), w, 0.0, attrs or {}]
+    def main_y_near(x, z):
+        best = min(range(len(m.P)), key=lambda i: (m.P[i][0] - x) ** 2 + (m.P[i][2] - z) ** 2)
+        return m.P[best][1]
+    l36 = sh(36, lerp(ry - 1.25, ph[1], 0.3), 9.0)
+    # the run-out climbs back to the main road's height BEFORE it runs alongside it,
+    # so no ledge forms between the two roads
+    mids = []
+    for f in (0.35, 0.6, 0.82):
+        x = lerp(l36[0], ph[0], f)
+        z = lerp(l36[2], ph[2], f)
+        mids.append([round(x, 3), round(main_y_near(x, z) + 0.04, 3), round(z, 3), 9.0, 0.0, {}])
     shelf = [
         sh(0, ry, 6.0, {"s": ROCK, "style": "slab", "tm": "none", "tag": "shelf"}),
         sh(8, ry + 1.4, 5.5, {"tag": "shelf_lip"}),
         sh(10, ry + 1.75, 5.5, {"style": "gap", "tag": "shelf_gap"}),
         sh(26, ry - 1.25, 9.0, {"s": DIRT, "style": "landing", "tm": "conform", "tag": "shelf_land"}),
-        sh(36, lerp(ry - 1.25, ph[1], 0.3), 9.0),
+        l36,
+    ] + mids + [
         [round(ph[0], 3), round(ph[1], 3), round(ph[2], 3), 9.0, 0.0, {}],
     ]
     br.append({"id": "shelf_rock", "style": "slab", "points": shelf})
@@ -445,7 +467,7 @@ def build_branches(t):
         ang = -ang
         kax = tk[0] * math.cos(ang) - tk[1] * math.sin(ang)
         kaz = tk[0] * math.sin(ang) + tk[1] * math.cos(ang)
-    KL, KY, KG, KH = 8.6, 3.4, 27.0, 2.6     # lip station, lip height, gap length, deck above lip
+    KL, KY, KG, KH = 8.6, 3.4, 25.5, 2.6     # lip station, lip height, gap length, deck above lip
     deck = y0 + KY + KH
     def fl(s_, y, w, attrs=None):
         return [round(bx + kax * s_, 3), round(y, 3), round(bz + kaz * s_, 3), w, 0.0, attrs or {}]
@@ -461,14 +483,17 @@ def build_branches(t):
         fl(KL + KG, y0 + KY + KH, 6.0, {"s": CURRENT, "style": "flume", "tag": "flume"}),
     ]
     # The channel curves (cubic Bezier) from the landing (heading ka) to its end E beside
-    # the main road, then an earth chute (stamped into the hillside, no gap) runs down
-    # onto the road at the cave entry, already aligned with the race direction.
+    # the main road (2.5 m clear of the edge), then an earth chute runs down PARALLEL
+    # to the road and only joins it once it is at road level: no raised layer ever
+    # overlaps the road surface.
     pl, tl, rl, wl = m.at(ce["dist"] + 2)
-    l2x, l2z = pl[0] + rl[0] * 2, pl[2] + rl[1] * 2
     side = 1.0 if ((bx - pl[0]) * rl[0] + (bz - pl[2]) * rl[1]) > 0 else -1.0
-    ex = l2x - tl[0] * 16 + rl[0] * side * (wl / 2 + 4.5)
-    ez = l2z - tl[1] * 16 + rl[1] * side * (wl / 2 + 4.5)
-    ddx, ddz = l2x - ex, l2z - ez
+    pE, tE, rE, wE = m.at(ce["dist"] - 22)
+    ex = pE[0] + rE[0] * side * (wE / 2 + 6.0)
+    ez = pE[2] + rE[1] * side * (wE / 2 + 6.0)
+    pC, tC, rC, wC = m.at(ce["dist"] - 6)
+    c1x_, c1z_ = pC[0] + rC[0] * side * (wC / 2 + 3.2), pC[2] + rC[1] * side * (wC / 2 + 3.2)
+    ddx, ddz = c1x_ - ex, c1z_ - ez
     ddl = math.hypot(ddx, ddz)
     ddx, ddz = ddx / ddl, ddz / ddl
     # straight run-out after the landing (an Overdrive + hop flight reaches ~40 m)
@@ -478,22 +503,24 @@ def build_branches(t):
     span = math.hypot(ex - lx, ez - lz)
     c1x, c1z = lx + kax * span * 0.4, lz + kaz * span * 0.4
     c2x, c2z = ex - ddx * span * 0.4, ez - ddz * span * 0.4
-    ye = pl[1]
+    ye = pE[1]
     steps = 7
     for i in range(1, steps + 1):
         u = i / steps
         bu = [(1 - u) ** 3, 3 * u * (1 - u) ** 2, 3 * u * u * (1 - u), u ** 3]
         x = bu[0] * lx + bu[1] * c1x + bu[2] * c2x + bu[3] * ex
         z = bu[0] * lz + bu[1] * c1z + bu[2] * c2z + bu[3] * ez
-        # water runs downhill toward the chute, which starts 1.6 m above the road
-        y = lerp(deck - 0.15, max(deck - 1.0, ye + 1.6), u)
+        # water runs downhill toward the chute, which starts 1.2 m above the road
+        y = lerp(deck - 0.15, max(deck - 1.2, ye + 1.2), u)
         attrs = {"tag": "flume_end"} if i == steps else {}
         flume.append([round(x, 3), round(y, 3), round(z, 3), 6.0, 0.0, attrs])
-    flume.append([round(ex + ddx * 4, 3), round(ye + 1.35, 3), round(ez + ddz * 4, 3), 7.0, 0.0,
+    flume.append([round(ex + ddx * 4, 3), round(ye + 0.95, 3), round(ez + ddz * 4, 3), 7.0, 0.0,
                   {"style": "landing", "s": DIRT, "tm": "conform", "tag": "flume_chute"}])
-    flume.append([round(l2x, 3), round(ye + 0.1, 3), round(l2z, 3), 11.0, 0.0, {"tag": "flume_land"}])
-    pl2, _, _, _ = m.at(ce["dist"] + 10)
-    flume.append([round(pl2[0], 3), round(pl2[1], 3), round(pl2[2], 3), 11.0, 0.0, {}])
+    flume.append([round(c1x_, 3), round(pC[1] + 0.04, 3), round(c1z_, 3), 7.0, 0.0, {}])
+    pL, tL, rL, wL = m.at(ce["dist"] + 6)
+    flume.append([round(pL[0] + rL[0] * side * 2.0, 3), round(pL[1] + 0.03, 3), round(pL[2] + rL[1] * side * 2.0, 3), 9.0, 0.0, {"tag": "flume_land"}])
+    pl2, _, _, _ = m.at(ce["dist"] + 14)
+    flume.append([round(pl2[0], 3), round(pl2[1], 3), round(pl2[2], 3), 9.0, 0.0, {}])
     br.append({"id": "millrace_flume", "style": "flume", "points": add_lead_in(m, flume, (55.0, 25.0))})
 
     # ------------------------------------------------ Rootway Cave (hidden shortcut)
@@ -529,7 +556,7 @@ def build_branches(t):
     lgl = math.hypot(lgx, lgz)
     xz.insert(1, (ent[0] + lgx / lgl * 5.0, ent[1] + lgz / lgl * 5.0))
     xz.append(ext)
-    ya, yb = pa[1] + 0.2, pb[1] + 0.2
+    ya, yb = pa[1] + 0.2, pb[1] + 0.02
     acc = [0.0]
     for i in range(1, len(xz)):
         acc.append(acc[-1] + math.dist(xz[i - 1], xz[i]))
@@ -549,8 +576,19 @@ def build_branches(t):
         elif i == 5:
             attrs = {"tag": "cave_turn"}
         cave.append([round(x, 3), round(y, 3), round(z, 3), w, 0.0, attrs])
-    pf2, _, rf2, wf2 = m.at(hx["dist"] + 36)
-    cave.append([round(pf2[0] - nx_ * 2.5, 3), round(pf2[1], 3), round(pf2[2] - nz_ * 2.5, 3), 8.0, 0.0, {"style": "dirt", "s": DIRT, "tm": "conform", "tag": "cave_merge"}])
+    # merge onto the climbing road: where the ramp overlaps the road it follows the
+    # road's own height (a ramp left floating above the road is a kerb to crash into)
+    # (and its bank: a flat ramp on a banked road leaves the road's high edge as a kerb)
+    def on_main(d, lat_off, dy, w, attrs):
+        p_, t_, r_, w_ = m.at(d)
+        bk = m.bank_at(d)
+        lat_s = -(nx_ * r_[0] + nz_ * r_[1]) * lat_off   # signed lateral along main's right vector
+        y = p_[1] + math.tan(math.radians(bk)) * lat_s + dy
+        return [round(p_[0] - nx_ * lat_off, 3), round(y, 3), round(p_[2] - nz_ * lat_off, 3), w, round(bk, 2), attrs]
+    wm = m.at(hx["dist"] + 26)[3]
+    cave.append(on_main(hx["dist"] + 26, wm / 2 + 1.0, 0.03, 7.5, {}))
+    cave.append(on_main(hx["dist"] + 36, 2.5, -0.02, 8.0, {"style": "dirt", "s": DIRT, "tm": "conform", "tag": "cave_merge"}))
+    cave.append(on_main(hx["dist"] + 46, 0.0, -0.02, 8.0, {}))
     # a narrow mouth: the last guide point lines the kart up with it
     br.append({"id": "rootway_cave", "style": "cave", "points": add_lead_in(m, cave, (34.0, 18.0, 7.0), (0.2, 0.6, 0.93))})
     return br

@@ -39,6 +39,7 @@ var settings := {
 	"touch_layout": {},        # button id -> [x_frac, y_frac, scale]
 	"haptics": true,
 	"show_fps": false,
+	"screen_margin": 0.02,     # extra inset (fraction of width) for rounded/curved screens
 	"rubber_band": 1,          # 0 off, 1 light, 2 classic
 }
 

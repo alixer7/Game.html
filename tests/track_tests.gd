@@ -46,14 +46,23 @@ func run(runner: Object) -> void:
 	for id in tb.branches:
 		var sp: SplinePath = tb.branches[id]
 		var h2 := 0
+		var where: Array = []
 		for i in range(0, sp.size(), 4):
 			if sp.style[i] == "gap":
 				continue
-			q.from = sp.pos[i] + Vector3.UP * 1.5
-			q.to = sp.pos[i] + Vector3.DOWN * 1.2
-			if space.intersect_ray(q).is_empty():
+			# (a ray exactly on the edge where a run starts can slip between
+			# triangles: only a miss at the sample AND 0.25 m either side is a hole)
+			var missed := true
+			for o: float in [0.0, 0.25, -0.25]:
+				q.from = sp.pos[i] + sp.tan[i] * o + Vector3.UP * 1.5
+				q.to = sp.pos[i] + sp.tan[i] * o + Vector3.DOWN * 1.2
+				if not space.intersect_ray(q).is_empty():
+					missed = false
+					break
+			if missed:
 				h2 += 1
-		R.check("track", "branch %s has continuous surface" % id, h2 == 0, "holes=%d" % h2)
+				where.append([i, sp.style[i], sp.tags[i], sp.pos[i].snapped(Vector3.ONE * 0.1)])
+		R.check("track", "branch %s has continuous surface" % id, h2 == 0, "holes=%d %s" % [h2, where])
 	# variety metrics (design acceptance: widths/radii must vary)
 	var wmin := 1e9
 	var wmax := 0.0

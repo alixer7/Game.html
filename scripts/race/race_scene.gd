@@ -317,24 +317,26 @@ func _menu_overlay(title: String, entries: Array, extra: Control = null) -> Canv
 	add_child(layer)
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.55)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(dim)
 	var panel := PanelContainer.new()
 	panel.theme = UIKit.theme()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	layer.add_child(panel)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 14)
+	v.add_theme_constant_override("separation", 12)
 	panel.add_child(v)
-	var t := UIKit.label(title, 54, UIKit.ORANGE, 10)
+	var t := UIKit.label(title, 50, UIKit.ORANGE, 10)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
 	if extra:
 		v.add_child(extra)
+	var row: BoxContainer = HBoxContainer.new() if entries.size() <= 2 and extra != null else VBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_child(row)
 	for en in entries:
-		v.add_child(UIKit.button(en[0], en[1], 420))
-	panel.reset_size()
-	panel.position = -panel.size * 0.5
+		row.add_child(UIKit.button(en[0], en[1], 380))
+	# centred in the safe area (clear of notches/rounded corners), scrolls if too tall
+	UIKit.centered(layer, panel)
 	return layer
 
 
@@ -342,13 +344,14 @@ func _on_finished(results: Array) -> void:
 	Game.last_results = results
 	var grid := GridContainer.new()
 	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 40)
+	grid.add_theme_constant_override("h_separation", 36)
+	grid.add_theme_constant_override("v_separation", 2)
 	for r in results:
 		var col := UIKit.ORANGE if r.player else UIKit.CREAM
-		grid.add_child(UIKit.label("%d" % int(r.pos), 30, col, 6))
-		grid.add_child(UIKit.label(String(r.name), 30, col, 6))
-		grid.add_child(UIKit.label(Game.format_time(float(r.time)) + ("" if r.finished else "*"), 30, col, 6))
-		grid.add_child(UIKit.label("best " + Game.format_time(float(r.best)), 24, col, 6))
+		grid.add_child(UIKit.label("%d" % int(r.pos), 28, col, 6))
+		grid.add_child(UIKit.label(String(r.name), 28, col, 6))
+		grid.add_child(UIKit.label(Game.format_time(float(r.time)) + ("" if r.finished else "*"), 28, col, 6))
+		grid.add_child(UIKit.label("best " + Game.format_time(float(r.best)), 22, col, 6))
 	var pr := race.progress_of(player)
 	var key := "%s_%s" % [Game.race.track, Game.race.mode]
 	var record := Game.submit_record(key + "_lap", float(pr.best))

@@ -4,6 +4,16 @@ extends RefCounted
 
 # quality -> spacing multipliers (lower quality = sparser)
 const DENSITY := [1.7, 1.3, 1.0]
+## Props within this distance (m) of a road get colliders (the race respawns a
+## kart that strays more than 46 m from every road).
+const REACH := 52.0
+
+
+## Upright cylinder collider sized from the prop mesh's own bounds.
+static func _solid_prop(colliders: Array, mesh: ArrayMesh, x: float, y: float, z: float, sc: float) -> void:
+	var bb := mesh.get_aabb()
+	var r := 0.25 * (bb.size.x + bb.size.z) * sc * 0.9
+	colliders.append([Vector3(x, y - 0.2, z), maxf(r, 0.3), maxf(bb.end.y * sc + 0.2, 0.8)])
 
 
 static func by_name_tmp(name: String, V: Array) -> int:
@@ -111,7 +121,8 @@ static func build_all(tb: TrackBuilder) -> void:
 	var nz2 := FastNoiseLite.new()
 	nz2.seed = 78
 	nz2.frequency = 0.06
-	var colliders: Array = []   # [Vector3, radius, height]
+	var colliders: Array = []   # [Vector3, radius, height] upright cylinders
+	var logs: Array = []        # [Vector3, yaw, scale] fallen logs (boxes)
 	var exclusions: Array = []
 	for lm in tb.landmarks:
 		var rad := {"elder_tree": 16.0, "guardian_owl": 8.0, "mill": 11.0, "lower_falls": 9.0, "giants_log": 7.0, "rootway_cave": 6.0}.get(lm.name, 0.0) as float
@@ -180,9 +191,10 @@ static func build_all(tb: TrackBuilder) -> void:
 				name = "autumn"
 			var sc := rng.randf_range(0.8, 1.3) * (1.15 if far else 1.0)
 			place.call(name, x, z, sc, rng.randf() * TAU, false, 64.0, 0.2)
-			if d < 32.0:
+			if d < REACH:
 				var vr: float = V[by_name[name]].r
-				colliders.append([Vector3(x, hgt, z), maxf(vr * sc, 0.35), 4.0])
+				colliders.append([Vector3(x, hgt - 0.3, z), maxf(vr * sc, 0.35), 4.5])
+				tb.solid_props.append(["tree", Vector3(x, hgt + 0.8, z)])
 		gx += tree_step
 
 	# --- undergrowth, rocks, flowers, grass
@@ -218,9 +230,13 @@ static func build_all(tb: TrackBuilder) -> void:
 				continue
 			var r := rng.randf()
 			if d > 2.0 and r < 0.025:
-				place.call("rock%d" % rng.randi_range(0, 3), x, z, rng.randf_range(0.5, 1.6), rng.randf() * TAU, true, 64.0, 0.25)
-				if d < 18.0:
-					colliders.append([Vector3(x, terrain.height_at(x, z), z), 0.9, 1.6])
+				var rname := "rock%d" % rng.randi_range(0, 3)
+				var rsc := rng.randf_range(0.5, 1.6)
+				place.call(rname, x, z, rsc, rng.randf() * TAU, true, 64.0, 0.25)
+				_solid_prop(colliders, V[by_name[rname]].lod0, x, terrain.height_at(x, z) - 0.25, z, rsc)
+				var rbb: AABB = (V[by_name[rname]].lod0 as ArrayMesh).get_aabb()
+				if rbb.end.y * rsc - 0.25 > 0.35:
+					tb.solid_props.append(["rock", Vector3(x, terrain.height_at(x, z) - 0.25 + rbb.end.y * rsc * 0.5, z)])
 			elif d > 3.0 and r < 0.07:
 				place.call("bush%d" % rng.randi_range(0, 1), x, z, rng.randf_range(0.7, 1.4), rng.randf() * TAU, false, 64.0)
 			elif d > 2.0 and r < 0.12 and nn > -0.1:
@@ -230,9 +246,15 @@ static func build_all(tb: TrackBuilder) -> void:
 			elif d > 1.6 and r < 0.17 and nn < -0.2:
 				place.call("flowers", x, z, rng.randf_range(0.8, 1.2), rng.randf() * TAU, false, 32.0)
 			elif d > 8.0 and r < 0.172:
-				place.call("stump", x, z, rng.randf_range(0.8, 1.3), rng.randf() * TAU, false, 64.0, 0.1)
+				var ssc := rng.randf_range(0.8, 1.3)
+				place.call("stump", x, z, ssc, rng.randf() * TAU, false, 64.0, 0.1)
+				_solid_prop(colliders, V[by_name["stump"]].lod0, x, terrain.height_at(x, z) - 0.1, z, ssc)
+				tb.solid_props.append(["stump", Vector3(x, terrain.height_at(x, z) + 0.3, z)])
 			elif d > 9.0 and r < 0.174:
-				place.call("deadlog", x, z, rng.randf_range(0.8, 1.2), rng.randf() * TAU, true, 64.0, 0.2)
+				var lsc := rng.randf_range(0.8, 1.2)
+				var lyaw := rng.randf() * TAU
+				place.call("deadlog", x, z, lsc, lyaw, true, 64.0, 0.2)
+				logs.append([Vector3(x, terrain.height_at(x, z) - 0.2, z), lyaw, lsc])
 			elif d < 28.0 and r < 0.17 + 0.55 * (1.0 if q >= 2 else 0.6):
 				place.call("grass" if nn < 0.35 else "grass_tall", x, z, rng.randf_range(0.8, 1.3), rng.randf() * TAU, false, 24.0)
 		gx += small_step
@@ -307,11 +329,21 @@ static func build_all(tb: TrackBuilder) -> void:
 				mmi_count += 1
 			if lod == 0:
 				count += xfs.size()
-	# ---------------------------------------------------------------- colliders near the track
-	var body := StaticBody3D.new()
-	body.name = "ScatterColliders"
-	body.collision_layer = 1
-	body.set_meta("surface", Surfaces.WOOD)
+	# ---------------------------------------------------------------- colliders
+	# every solid prop a kart can reach (trees, rocks, stumps, fallen logs) is
+	# solid; grouped in 64 m cells so the physics broadphase stays cheap
+	var cells := {}
+	var cell_body := func(p: Vector3) -> StaticBody3D:
+		var key := Vector2i(floori(p.x / 64.0), floori(p.z / 64.0))
+		if not cells.has(key):
+			var bd := StaticBody3D.new()
+			bd.name = "ScatterColliders_%d_%d" % [key.x, key.y]
+			bd.collision_layer = 1
+			bd.collision_mask = 0
+			bd.set_meta("surface", Surfaces.WOOD)
+			root.add_child(bd)
+			cells[key] = bd
+		return cells[key]
 	for c in colliders:
 		var cs := CollisionShape3D.new()
 		var cyl := CylinderShape3D.new()
@@ -319,8 +351,18 @@ static func build_all(tb: TrackBuilder) -> void:
 		cyl.height = c[2]
 		cs.shape = cyl
 		cs.position = (c[0] as Vector3) + Vector3.UP * float(c[2]) * 0.5
-		body.add_child(cs)
-	root.add_child(body)
+		(cell_body.call(c[0]) as StaticBody3D).add_child(cs)
+	var log_aabb: AABB = (V[by_name["deadlog"]].lod0 as ArrayMesh).get_aabb()
+	for lg in logs:
+		var cs := CollisionShape3D.new()
+		var bx := BoxShape3D.new()
+		bx.size = log_aabb.size * float(lg[2]) * Vector3(1.0, 0.9, 1.0)
+		cs.shape = bx
+		var lb := Basis(Vector3.UP, float(lg[1]))
+		cs.transform = Transform3D(lb, (lg[0] as Vector3) + lb * (log_aabb.get_center() * float(lg[2])))
+		(cell_body.call(lg[0]) as StaticBody3D).add_child(cs)
+		tb.solid_props.append(["log", cs.transform.origin])
+	tb.timings["scatter_logs"] = logs.size()
 	tb.timings["scatter_instances"] = count
 	tb.timings["scatter_multimeshes"] = mmi_count
 	tb.timings["scatter_colliders"] = colliders.size()

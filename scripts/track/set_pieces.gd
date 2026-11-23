@@ -108,10 +108,10 @@ static func _aqueduct(tb: TrackBuilder, root: Node3D) -> void:
 				gl.append_builder(lant["glow"], Transform3D(lb.scaled(Vector3(0.9, 0.9, 0.9)), lp))
 				tb.add_static_mesh(node, gl, Mats.glow(Color(1.0, 0.78, 0.4), 3.0), "LanternGlow", false)
 	walls.recompute_normals()
-	tb.add_static_mesh(node, walls, stone, "AqueductWalls")
-	tb.add_static_mesh(node, cols, stone, "Buttresses")
+	tb.add_static_mesh(node, walls, stone, "AqueductWalls", true, true, Surfaces.ROCK)
+	tb.add_static_mesh(node, cols, stone, "Buttresses", true, true, Surfaces.ROCK)
 	tb.add_static_mesh(node, vines, Mats.cards(Color(0.8, 1.0, 0.75), "vines"), "Vines", false)
-	tb.add_static_mesh(node, deco, Mats.vcol(0.8), "Lanterns")
+	tb.add_static_mesh(node, deco, Mats.vcol(0.8), "Lanterns", true, true, Surfaces.WOOD)
 	_portal(tb, node, r.y)
 
 
@@ -179,7 +179,7 @@ static func _portal(tb: TrackBuilder, node: Node3D, lip_i: int) -> void:
 		var i2 := mb.add_vertex(b1, n, Vector2.ZERO, c * 0.4)
 		var i3 := mb.add_vertex(b0, n, Vector2.ZERO, c * 0.4)
 		mb.quad(i0, i3, i2, i1)
-	tb.add_static_mesh(node, mb, Mats.triplanar("stone"), "Portal")
+	tb.add_static_mesh(node, mb, Mats.triplanar("stone"), "Portal", true, true, Surfaces.ROCK)
 	# keystone + voussoir accents
 	var acc := MeshBuilder.new()
 	for i in range(1, segs, 2):
@@ -188,7 +188,7 @@ static func _portal(tb: TrackBuilder, node: Node3D, lip_i: int) -> void:
 		var b := Basis.looking_at(fwd, dir)
 		var sz := Vector3(1.0, 1.4 if i == segs / 2 else 1.0, 0.8)
 		MeshLib.box(acc, Transform3D(b, p + dir * 0.5 + fwd * 0.25), sz, Color(0.92, 0.88, 0.8, 0.4))
-	tb.add_static_mesh(node, acc, Mats.triplanar("stone"), "Voussoirs")
+	tb.add_static_mesh(node, acc, Mats.triplanar("stone"), "Voussoirs", true, true, Surfaces.ROCK)
 	# dark tunnel interior + portcullis grate (blocks reversing into the tunnel)
 	var dark := MeshBuilder.new()
 	MeshLib.box(dark, Transform3D(Basis.looking_at(fwd, Vector3.UP), face - fwd * 6.5 + Vector3.UP * (river_y + arch_h * 0.5 - face.y)), Vector3(arch_w * 2.0, arch_h + 1.0, 0.5), Color(0.02, 0.025, 0.03))
@@ -224,7 +224,7 @@ static func _start_gantry(tb: TrackBuilder, root: Node3D) -> void:
 		MeshLib.box(mb, Transform3D(b, pp + Vector3.UP * 3.5), Vector3(1.3, 7.0, 1.3), Color(0.95, 0.92, 0.88), 0.2)
 		MeshLib.box(mb, Transform3D(b, pp + Vector3.UP * 7.2), Vector3(1.7, 0.5, 1.7), Color(1, 1, 1))
 	MeshLib.box(mb, Transform3D(b, pos + Vector3.UP * 6.6), Vector3(hw * 2.0 + 1.0, 1.0, 0.7), Color(0.55, 0.38, 0.22))
-	tb.add_static_mesh(node, mb, Mats.triplanar("stone"), "Pillars")
+	tb.add_static_mesh(node, mb, Mats.triplanar("stone"), "Pillars", true, true, Surfaces.ROCK)
 	# chequered start line painted on the deck
 	var line := MeshBuilder.new()
 	var cells := 16
@@ -323,7 +323,7 @@ static func _lower_falls(tb: TrackBuilder, root: Node3D) -> void:
 			var rm := MeshLib.rock(400 + i * 7 + (side + 1) * 31, 0)
 			var s := tb.rng.randf_range(2.0, 3.4)
 			rocks.append_builder(rm, Transform3D(Basis(Vector3.UP, tb.rng.randf() * TAU).scaled(Vector3(s, s * 1.2, s)), Vector3(rp.x, gy - 0.8, rp.z)))
-	tb.add_static_mesh(node, rocks, Mats.triplanar("rock"), "FallRocks")
+	tb.add_static_mesh(node, rocks, Mats.triplanar("rock"), "FallRocks", true, true, Surfaces.ROCK)
 	EnvLife.mist(node, pool_c + Vector3.UP * (pool_y - pool_c.y + 0.5), hw * 2.0)
 	tb.landmarks.append({"name": "lower_falls", "pos": p})
 
@@ -376,7 +376,7 @@ static func _river_arch(tb: TrackBuilder, root: Node3D) -> void:
 	var node := Node3D.new()
 	node.name = "MossArch"
 	root.add_child(node)
-	tb.add_static_mesh(node, mb, Mats.triplanar("rock"), "Arch")
+	tb.add_static_mesh(node, mb, Mats.triplanar("rock"), "Arch", true, true, Surfaces.ROCK)
 	for side: int in [-1, 1]:
 		var foot := p + right * span * side
 		tb.add_cylinder_collider(node, Vector3(foot.x, tb.ground_y(foot.x, foot.z) - 1.0, foot.z), 3.6, 10.0)
@@ -428,7 +428,7 @@ static func _giants_log(tb: TrackBuilder, root: Node3D) -> void:
 	var mb := MeshBuilder.new()
 	var nz := MeshLib.make_noise(5, 0.6)
 	MeshLib.tube(mb, path, rad, 16, func(_t: float, _a: float, _p: Vector3) -> Color: return Color(0.95, 0.9, 0.86, 1.0), 0.3, false, nz, 0.05)
-	tb.add_static_mesh(node, mb, Mats.triplanar("bark"), "Trunk")
+	tb.add_static_mesh(node, mb, Mats.triplanar("bark"), "Trunk", true, true, Surfaces.WOOD)
 	# broken, splintered end at the lip
 	var end := path[path.size() - 1]
 	var tdir := (path[path.size() - 1] - path[path.size() - 2]).normalized()
@@ -449,7 +449,7 @@ static func _giants_log(tb: TrackBuilder, root: Node3D) -> void:
 	var gy := tb.ground_y(under.x, under.z)
 	var s := maxf((under.y - R - gy) * 0.75, 2.0)
 	rocks.append_builder(MeshLib.rock(777, 0), Transform3D(Basis().scaled(Vector3(s * 1.3, s, s * 1.2)), Vector3(under.x, gy - 0.5, under.z)))
-	tb.add_static_mesh(node, rocks, Mats.triplanar("rock"), "LogRest")
+	tb.add_static_mesh(node, rocks, Mats.triplanar("rock"), "LogRest", true, true, Surfaces.ROCK)
 	tb.add_cylinder_collider(node, Vector3(under.x, gy - 0.5, under.z), s * 1.1, maxf(under.y - R - gy - 0.3, 1.0))
 	# shelf fungus on the trunk sides (decor)
 	var fungus := MeshBuilder.new()
@@ -502,7 +502,7 @@ static func _ridge(tb: TrackBuilder, root: Node3D) -> void:
 			var slab := MeshBuilder.new()
 			var hgt := maxf(mid.y - gy, 1.0)
 			slab.append_builder(MeshLib.rock(4242, 2), Transform3D(Basis.looking_at(sh.tan[sr.x], Vector3.UP).scaled(Vector3(2.6, hgt * 0.9, 4.0)), Vector3(mid.x, gy - 0.4, mid.z)))
-			tb.add_static_mesh(node, slab, Mats.triplanar("rock"), "ShelfMass")
+			tb.add_static_mesh(node, slab, Mats.triplanar("rock"), "ShelfMass", true, true, Surfaces.ROCK)
 
 
 # =================================================================== Z5 ruins
@@ -534,7 +534,7 @@ static func _ruins(tb: TrackBuilder, root: Node3D) -> void:
 		if i == 6:
 			continue   # a missing stone: the arch is ancient
 		MeshLib.box(mb, Transform3D(bb, cpos), Vector3(hw * 0.36, 0.9, 1.1), Color(0.9, 0.88, 0.82, 0.9))
-	tb.add_static_mesh(node, mb, stone, "EntryArch")
+	tb.add_static_mesh(node, mb, stone, "EntryArch", true, true, Surfaces.ROCK)
 	# scattered pillars & fallen blocks beside the corridor
 	var deco := MeshBuilder.new()
 	var k1 := tb.mark_index("od_pad")
@@ -550,7 +550,7 @@ static func _ruins(tb: TrackBuilder, root: Node3D) -> void:
 			else:
 				var bb := Basis(Vector3(tb.rng.randf(), tb.rng.randf(), tb.rng.randf()).normalized(), tb.rng.randf_range(0.1, 0.5))
 				MeshLib.box(deco, Transform3D(bb, Vector3(pp.x, gy + 0.3, pp.z)), Vector3(1.8, 0.9, 1.0), Color(0.88, 0.86, 0.8, 1.0), 0.1)
-	tb.add_static_mesh(node, deco, stone, "RuinDeco")
+	tb.add_static_mesh(node, deco, stone, "RuinDeco", true, true, Surfaces.ROCK)
 	_owl_statue(tb, node)
 
 
@@ -621,7 +621,7 @@ static func _mill(tb: TrackBuilder, root: Node3D) -> void:
 		if top - gyc > 2.0:
 			MeshLib.box(tres, Transform3D(b, Vector3(cp.x, (top + gyc) * 0.5, cp.z)), Vector3(hw * 2.0, 0.25, 0.25), wc)
 			MeshLib.box(tres, Transform3D(b.rotated(b.z, 0.6), Vector3(cp.x, (top + gyc) * 0.5, cp.z)), Vector3(hw * 2.3, 0.2, 0.2), wc)
-	tb.add_static_mesh(node, tres, wood, "Trestles")
+	tb.add_static_mesh(node, tres, wood, "Trestles", true, true, Surfaces.WOOD)
 	# the mill house on the pond shore, beside the flume
 	var fr := _style_range(sp, "flume")
 	if fr.x < 0:
@@ -755,7 +755,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 			var p := sp.pos[end] + sp.right[end] * (-cos(a) * hw) + Vector3.UP * (sin(a) * 5.8 - 0.8)
 			var s := tb.rng.randf_range(1.4, 2.4)
 			rocks.append_builder(MeshLib.rock(end * 10 + i, 0), Transform3D(Basis(Vector3.UP, tb.rng.randf() * TAU).scaled(Vector3(s, s, s)), p))
-	tb.add_static_mesh(node, rocks, Mats.triplanar("rock"), "CaveMouths")
+	tb.add_static_mesh(node, rocks, Mats.triplanar("rock"), "CaveMouths", true, true, Surfaces.ROCK)
 	# glowing crystals (also light the way)
 	var crystals := MeshBuilder.new()
 	var crystals2 := MeshBuilder.new()

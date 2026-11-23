@@ -53,6 +53,14 @@ var yaw_rate := 0.0
 var grounded := false
 var ground_normal := Vector3.UP
 var smooth_normal := Vector3.UP
+## Collision capsule: rides CAP_CLEARANCE above the ground on the ground ray, so
+## seams, curbs and lips lower than that pass under it and are climbed by the
+## step-up snap instead of acting as walls.
+const CAP_RADIUS := 0.45
+const CAP_CENTRE := 0.75          # capsule bottom at 0.30 m
+const MAX_STEP := 0.36            # highest walkable step taken without a hop
+## Visual-only vertical offset (m) that eases out after a step-up snap.
+var visual_step_offset := 0.0
 var surface := Surfaces.ROAD
 var flow := Vector3.ZERO
 var forward_speed := 0.0
@@ -124,11 +132,11 @@ func _ready() -> void:
 		var cs := CollisionShape3D.new()
 		cs.name = "Shape"
 		var cap := CapsuleShape3D.new()
-		cap.radius = 0.5
+		cap.radius = CAP_RADIUS
 		cap.height = 1.75
 		cs.shape = cap
 		cs.rotation = Vector3(PI * 0.5, 0, 0)
-		cs.position = Vector3(0, 0.52, 0)
+		cs.position = Vector3(0, CAP_CENTRE, 0)
 		add_child(cs)
 	yaw = rotation.y
 	_last_pos = global_position
@@ -147,7 +155,7 @@ func _tilt_shape() -> void:
 	var axis := Vector3.UP.cross(n_local)
 	if axis.length() > 1e-4:
 		tilt = Basis(axis.normalized(), Vector3.UP.angle_to(n_local))
-	cs.transform = Transform3D(tilt * Basis(Vector3.RIGHT, PI * 0.5), n_local * 0.52)
+	cs.transform = Transform3D(tilt * Basis(Vector3.RIGHT, PI * 0.5), n_local * CAP_CENTRE)
 
 
 func heading() -> Vector3:
@@ -241,6 +249,7 @@ func teleport(xform: Transform3D) -> void:
 	_last_pos = global_position
 	smooth_normal = Vector3.UP
 	ground_normal = Vector3.UP
+	visual_step_offset = 0.0
 
 
 func last_safe_transform() -> Transform3D:
@@ -587,7 +596,7 @@ func _handle_impacts(v_before: Vector3, dt: float) -> void:
 		if nrm.y > 0.55:
 			continue
 		# contacts near the bottom of the capsule are seams/bumps, not walls
-		if c.get_position().y - global_position.y < 0.2:
+		if c.get_position().y - global_position.y < CAP_CENTRE - CAP_RADIUS + 0.15:
 			continue
 		var hn := Vector3(nrm.x, 0.0, nrm.z)
 		if hn.length_squared() < 1e-4:
@@ -649,9 +658,9 @@ func _handle_impacts(v_before: Vector3, dt: float) -> void:
 func _ground_check() -> bool:
 	## Own ground detection + snap (FLOATING motion mode).
 	var space := get_world_3d().direct_space_state
-	var origin := global_position + Vector3.UP * 0.7
+	var origin := global_position + Vector3.UP * (MAX_STEP + 0.4)
 	_ray_query.from = origin
-	_ray_query.to = origin + Vector3.DOWN * 1.5
+	_ray_query.to = origin + Vector3.DOWN * (MAX_STEP + 1.2)
 	var hit := space.intersect_ray(_ray_query)
 	if hit.is_empty():
 		return false
@@ -660,6 +669,14 @@ func _ground_check() -> bool:
 		return false
 	var gap := global_position.y - (hit.position as Vector3).y
 	var away := velocity.dot(n)
+	if gap < -0.02 and gap >= -MAX_STEP and away < 2.5:
+		# step-up: the surface ahead/below is a little higher (road lip, seam,
+		# merge, curb): climb onto it instead of treating it as a wall
+		global_position.y -= gap
+		visual_step_offset = clampf(visual_step_offset + gap, -MAX_STEP, 0.0)
+		velocity -= n * minf(velocity.dot(n), 0.0)
+		ground_normal = n
+		return true
 	if gap <= 0.16 and away < 0.6:
 		ground_normal = n
 		return true
@@ -674,6 +691,7 @@ func _ground_check() -> bool:
 
 func _post_move(v_before: Vector3, dt: float) -> void:
 	var on_floor := _ground_check()
+	visual_step_offset = move_toward(visual_step_offset, 0.0, (1.5 + absf(visual_step_offset) * 12.0) * dt)
 	smooth_normal = smooth_normal.slerp(ground_normal if on_floor else Vector3.UP, clampf((14.0 if on_floor else 2.5) * dt, 0.0, 1.0)).normalized()
 	if on_floor and not _was_on_floor:
 		_on_landed(v_before)

@@ -42,6 +42,11 @@ const STYLES := {
 }
 
 
+## Set by the track builder: lets road skirts blend down onto the real ground.
+static var terrain: TerrainBuilder = null
+const SKIRT_PROFILES := ["paved", "soft"]
+
+
 static func build(path: SplinePath, parent: Node3D, name_prefix: String, flow_speed := 0.0, style_list: PackedStringArray = PackedStringArray()) -> Node3D:
 	var root := Node3D.new()
 	root.name = name_prefix
@@ -80,14 +85,29 @@ static func _build_run(path: SplinePath, root: Node3D, name_prefix: String, styl
 	var mb := MeshBuilder.new()
 	var cols := prof.size()
 	var count := i1 - i0 + 1
+	var conform_skirt: bool = (def[0] in SKIRT_PROFILES or def[0] == "riverbed") and terrain != null
+	var riverbed: bool = def[0] == "riverbed"
 	for s in count:
 		var k := (i0 + s) % n
 		var hw := path.width[k] * 0.5
+		var grounded_k := path.terrain_mode[k] != "none"
 		for c in cols:
 			var pp: Array = prof[c]
 			var side: float = pp[0]
 			var lat := side * hw + signf(side) * float(pp[1])
 			var p := path.pos[k] + path.right[k] * lat + path.up[k] * float(pp[2])
+			if conform_skirt and grounded_k and (c == 0 or c == cols - 1):
+				# the outer skirt edge sits just under the ground beside the road, so
+				# the road blends into the terrain instead of floating on it
+				var inner: Array = prof[1 if c == 0 else cols - 2]
+				var lat_i := side * hw + signf(side) * float(inner[1])
+				var pi := path.pos[k] + path.right[k] * lat_i + path.up[k] * float(inner[2])
+				var gy := terrain.height_at(p.x, p.z) - 0.04
+				if riverbed:
+					# the channel's bank lip meets the real bank (or the bank road)
+					p.y = clampf(gy, pi.y + 0.3, pi.y + 1.8)
+				else:
+					p.y = clampf(gy, pi.y - 1.5, pi.y - 0.02)
 			var wear := clampf(1.0 - absf(lat) / maxf(hw * 0.7, 1.0), 0.0, 1.0) * 0.8
 			var col := Color(float(pp[3]), wear, 0.0, float(pp[4]))
 			if style == "river":
@@ -150,17 +170,22 @@ static func _build_run(path: SplinePath, root: Node3D, name_prefix: String, styl
 		while s1 + 1 < count - 1 and path.surface[(i0 + s1 + 1) % n] == sid:
 			s1 += 1
 		var faces := PackedVector3Array()
-		# outer skirt quads only hide the road/terrain seam: no collision there
-		# (the cave floor keeps them: they meet the shell walls, closing the floor)
-		var has_skirt: bool = def[0] in ["paved", "soft", "riverbed"] and style != "cave"
-		var c_from := 1 if has_skirt else 0
-		var c_to := cols - 2 if has_skirt else cols - 1
+		# Outer skirt quads collide only where they form a gentle ramp down to the
+		# ground (drive on/off the road smoothly); steep skirts under raised roads
+		# stay visual so they never act as invisible walls.
+		var has_skirt: bool = def[0] in ["paved", "soft", "riverbed"]
 		for s in range(s0, s1 + 1):
-			for c in range(c_from, c_to):
+			for c in range(0, cols - 1):
 				var a := s * cols + c
 				var b := a + 1
 				var d := a + cols
 				var e := d + 1
+				if has_skirt and (c == 0 or c == cols - 2) and def[0] != "riverbed":
+					var va := mb.verts[a]
+					var vb := mb.verts[b]
+					var run := Vector2(va.x - vb.x, va.z - vb.z).length()
+					if absf(va.y - vb.y) > run * 0.7:
+						continue
 				# same triangles as the render mesh (stored clockwise)
 				faces.append(mb.verts[a]); faces.append(mb.verts[e]); faces.append(mb.verts[d])
 				faces.append(mb.verts[a]); faces.append(mb.verts[b]); faces.append(mb.verts[e])

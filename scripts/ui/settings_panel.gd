@@ -16,12 +16,8 @@ func _ready() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel.offset_left = 120
-	panel.offset_right = -120
-	panel.offset_top = 40
-	panel.offset_bottom = -40
 	add_child(panel)
+	UIKit.safe_margins(panel)   # full screen minus notches/rounded corners
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
 	panel.add_child(v)
@@ -43,6 +39,8 @@ func _ready() -> void:
 func _page(name: String) -> VBoxContainer:
 	var sc := ScrollContainer.new()
 	sc.name = name
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.scroll_deadzone = 28   # a tap with a little finger movement is still a tap
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 16)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -62,6 +60,9 @@ func _graphics() -> Control:
 		s.fps_cap = [30, 60, 120][i]
 		Game.apply_settings())))
 	v.add_child(UIKit.row("Shadows", UIKit.toggle(bool(s.shadows), func(b: bool) -> void: s.shadows = b)))
+	v.add_child(UIKit.row("Screen edge margin", UIKit.slider(0.0, 0.06, 0.005, float(s.get("screen_margin", 0.02)), func(x: float) -> void:
+		s.screen_margin = x
+		get_viewport().size_changed.emit())))   # every safe-area layout re-applies
 	v.add_child(UIKit.row("Show FPS", UIKit.toggle(bool(s.show_fps), func(b: bool) -> void: s.show_fps = b)))
 	return v.get_parent()
 

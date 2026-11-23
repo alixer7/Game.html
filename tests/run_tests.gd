@@ -11,7 +11,7 @@ var _suites: PackedStringArray
 func _ready() -> void:
 	_suites = OS.get_cmdline_user_args()
 	if _suites.is_empty():
-		_suites = PackedStringArray(["physics", "track", "ai", "routes"])
+		_suites = PackedStringArray(["physics", "track", "jumps", "drive", "ai", "routes"])
 	_run.call_deferred()
 
 
@@ -31,6 +31,8 @@ func _run() -> void:
 				await AITests.new().run(self, true)
 			"jumps":
 				await JumpTests.new().run(self)
+			"drive":
+				await DriveTests.new().run(self)
 		print("suite %s took %.1f s" % [s, (Time.get_ticks_msec() - t0) / 1000.0])
 	var f := FileAccess.open("res://tests/results/summary.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, "  "))

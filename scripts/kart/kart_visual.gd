@@ -233,7 +233,7 @@ func _process(dt: float) -> void:
 		var vy := kart.velocity.y
 		_pitch = lerpf(_pitch, clampf(-vy * 0.02, -0.25, 0.25), clampf(dt * 3.0, 0.0, 1.0))
 	var tilt := Basis(Vector3.FORWARD, _roll) * Basis(Vector3.RIGHT, _pitch)
-	global_transform = Transform3D(b, kart.global_position)
+	global_transform = Transform3D(b, kart.global_position + Vector3.UP * kart.visual_step_offset)
 	_tilt.transform = Transform3D(tilt.scaled(Vector3(1.0 + _squash * 0.5, 1.0 - _squash, 1.0 + _squash * 0.5)), Vector3.ZERO)
 	# ---- wheels
 	_wheel_angle += kart.forward_speed / KartModel.REAR_R * dt
