@@ -1,0 +1,13 @@
+# Godot
+.godot/
+*.tmp
+/android/build/
+export/
+*.apk
+*.aab
+*.idsig
+# keystores
+*.keystore
+*.jks
+# python
+__pycache__/
