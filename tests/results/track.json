@@ -1,5 +1,5 @@
 {
-  "build_ms": 3906,
+  "build_ms": 4009,
   "item_boxes": 26,
   "length": 1510.89843827486,
   "obstacles": 35,
@@ -11,17 +11,19 @@
     ">80": 667
   },
   "timings": {
-    "gameplay": 3156,
-    "life": 3906,
-    "paths": 24,
-    "roads": 1116,
-    "scatter": 3899,
+    "gameplay": 3240,
+    "life": 4008,
+    "paths": 38,
+    "roads": 1583,
+    "scatter": 3972,
     "scatter_colliders": 4681,
     "scatter_instances": 23303,
     "scatter_logs": 67,
-    "scatter_multimeshes": 3329,
-    "set_pieces": 3074,
-    "terrain_field": 1043,
-    "terrain_mesh": 1580
+    "scatter_multimeshes": 2087,
+    "set_pieces": 2504,
+    "set_pieces_2": 3175,
+    "terrain_field": 1186,
+    "terrain_mesh": 2015,
+    "terrain_stamps": 262
   }
 }

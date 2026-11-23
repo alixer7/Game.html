@@ -267,12 +267,13 @@ static func build_all(tb: TrackBuilder) -> void:
 	var tr: Array = [[26.0, 72.0, 300.0], [36.0, 105.0, 380.0], [46.0, 135.0, 460.0]][q]
 	var sm: float = [0.6, 0.8, 1.0][q]
 	var specs := {
-		"tree": [[0.0, tr[0], 48.0, q >= 1], [tr[0] - 6.0, tr[1], 128.0, false], [tr[1] - 8.0, tr[2], 320.0, false]],
-		"bush": [[0.0, 45.0 * sm, 48.0, false], [40.0 * sm, 100.0 * sm, 128.0, false]],
-		"rock": [[0.0, 55.0 * sm, 64.0, q >= 2], [48.0 * sm, 170.0 * sm, 192.0, false]],
-		"fern": [[0.0, 48.0 * sm, 24.0, false]], "grass": [[0.0, grass_end + 6.0, 24.0, false]],
-		"flower": [[0.0, 45.0 * sm, 24.0, false]], "mushroom": [[0.0, 40.0 * sm, 24.0, false]], "reeds": [[0.0, 60.0 * sm, 32.0, false]],
-		"lily": [[0.0, 80.0 * sm, 32.0, false]], "stump": [[0.0, 60.0 * sm, 48.0, false]], "deadlog": [[0.0, 70.0 * sm, 48.0, false]],
+		# (bigger cells = fewer draw calls; each cell is one MultiMesh draw)
+		"tree": [[0.0, tr[0], 64.0, q >= 1], [tr[0] - 6.0, tr[1], 160.0, false], [tr[1] - 8.0, tr[2], 320.0, false]],
+		"bush": [[0.0, 45.0 * sm, 64.0, false], [40.0 * sm, 100.0 * sm, 160.0, false]],
+		"rock": [[0.0, 55.0 * sm, 80.0, q >= 2], [48.0 * sm, 170.0 * sm, 192.0, false]],
+		"fern": [[0.0, 48.0 * sm, 40.0, false]], "grass": [[0.0, grass_end + 6.0, 36.0, false]],
+		"flower": [[0.0, 45.0 * sm, 40.0, false]], "mushroom": [[0.0, 40.0 * sm, 40.0, false]], "reeds": [[0.0, 60.0 * sm, 48.0, false]],
+		"lily": [[0.0, 80.0 * sm, 48.0, false]], "stump": [[0.0, 60.0 * sm, 64.0, false]], "deadlog": [[0.0, 70.0 * sm, 64.0, false]],
 	}
 	# variants that share a far mesh are merged so each far cell is one draw
 	var merged_far := {}   # ArrayMesh -> Array[Transform3D]

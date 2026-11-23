@@ -153,11 +153,15 @@ static func _item_boxes(tb: TrackBuilder, root: Node3D) -> void:
 	_box_row(tb, root, sp, tb.mark_index("hairpin_exit") + 8, [-4.0, -1.3, 1.3, 4.0])
 
 
+static var _ambers: Array = []
+
+
 static func _amber_line(tb: TrackBuilder, root: Node3D, sp: SplinePath, i0: int, i1: int, step: int, lat := 0.0, lift := 0.0) -> void:
 	for i in range(i0, i1, step):
 		var a := AmberPickup.make()
 		a.position = at(sp, i, lat, lift)
 		root.add_child(a)
+		_ambers.append(a)
 
 
 static func _first_real(sp: SplinePath) -> int:
@@ -168,6 +172,13 @@ static func _first_real(sp: SplinePath) -> int:
 
 
 static func _amber(tb: TrackBuilder, root: Node3D) -> void:
+	_ambers = []
+	_amber_lines(tb, root)
+	AmberPickup.build_field(root, _ambers)   # one draw call for every pickup
+	_ambers = []
+
+
+static func _amber_lines(tb: TrackBuilder, root: Node3D) -> void:
 	var sp := tb.main
 	var s := tb.mark_index("start_line")
 	_amber_line(tb, root, sp, s + 20, s + 60, 5, -2.0)

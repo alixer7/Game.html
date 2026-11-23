@@ -382,7 +382,7 @@ func punch_holes_along(path: SplinePath, from_i: int, to_i: int, radius: float, 
 
 
 # ------------------------------------------------------------------ meshes
-func build_meshes(parent: Node3D, material: Material, chunk_cells := 32, collision_dist := 70.0) -> StaticBody3D:
+func build_meshes(parent: Node3D, material: Material, chunk_cells := 48, collision_dist := 70.0) -> StaticBody3D:
 	var body: StaticBody3D = load("res://scripts/track/terrain_body.gd").new()
 	body.name = "TerrainBody"
 	body.collision_layer = 1

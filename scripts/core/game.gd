@@ -168,6 +168,7 @@ func render_scale_for(window_h: float) -> float:
 
 
 func apply_settings() -> void:
+	settings["fps_cap"] = 30 if int(settings["fps_cap"]) <= 30 else 60
 	Engine.max_fps = int(settings["fps_cap"])
 	var vp := get_viewport()
 	if vp:

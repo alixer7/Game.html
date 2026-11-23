@@ -1,125 +1,128 @@
 {
   "adapter": "llvmpipe (LLVM 20.1.2, 256 bits)",
-  "build_ms": 3732,
+  "build_ms": 24148,
   "renderer": "mobile",
   "timings": {
-    "gameplay": 2533,
-    "life": 3163,
-    "paths": 18,
-    "roads": 1653,
-    "scatter": 3117,
-    "scatter_colliders": 1635,
-    "scatter_instances": 23367,
-    "scatter_multimeshes": 3354,
-    "set_pieces": 2467,
-    "terrain_field": 1119,
-    "terrain_mesh": 2147
+    "gameplay": 3527,
+    "life": 4286,
+    "paths": 26,
+    "roads": 1554,
+    "scatter": 4204,
+    "scatter_colliders": 2818,
+    "scatter_instances": 11725,
+    "scatter_logs": 26,
+    "scatter_multimeshes": 1953,
+    "set_pieces": 2644,
+    "set_pieces_2": 3399,
+    "terrain_field": 969,
+    "terrain_mesh": 2062,
+    "terrain_stamps": 243
   },
   "views": {
     "elder_tree": {
-      "draw_calls": 538,
-      "frame_ms_software_renderer": 811.2,
-      "objects": 657,
-      "primitives": 1358519,
-      "video_mem_mb": 238.0
+      "draw_calls": 331,
+      "frame_ms_software_renderer": 289.7,
+      "objects": 447,
+      "primitives": 419669,
+      "video_mem_mb": 183.4
     },
     "fernway": {
-      "draw_calls": 475,
-      "frame_ms_software_renderer": 778.5,
-      "objects": 595,
-      "primitives": 1145838,
-      "video_mem_mb": 238.0
+      "draw_calls": 230,
+      "frame_ms_software_renderer": 338.2,
+      "objects": 347,
+      "primitives": 276361,
+      "video_mem_mb": 183.4
     },
     "giants_log": {
-      "draw_calls": 487,
-      "frame_ms_software_renderer": 803.1,
-      "objects": 607,
-      "primitives": 1291696,
-      "video_mem_mb": 238.0
+      "draw_calls": 265,
+      "frame_ms_software_renderer": 361.3,
+      "objects": 382,
+      "primitives": 320433,
+      "video_mem_mb": 183.4
     },
     "hairpin": {
-      "draw_calls": 409,
-      "frame_ms_software_renderer": 679.1,
-      "objects": 526,
-      "primitives": 857238,
-      "video_mem_mb": 238.0
+      "draw_calls": 230,
+      "frame_ms_software_renderer": 270.9,
+      "objects": 342,
+      "primitives": 267061,
+      "video_mem_mb": 183.4
     },
     "lower_falls": {
-      "draw_calls": 490,
-      "frame_ms_software_renderer": 819.4,
-      "objects": 609,
-      "primitives": 1098614,
-      "video_mem_mb": 238.0
+      "draw_calls": 317,
+      "frame_ms_software_renderer": 441.4,
+      "objects": 434,
+      "primitives": 362491,
+      "video_mem_mb": 183.4
     },
     "millrace": {
-      "draw_calls": 580,
-      "frame_ms_software_renderer": 871.1,
-      "objects": 723,
-      "primitives": 1723473,
-      "video_mem_mb": 238.0
+      "draw_calls": 303,
+      "frame_ms_software_renderer": 297.9,
+      "objects": 427,
+      "primitives": 373465,
+      "video_mem_mb": 183.4
     },
     "moss_arch": {
-      "draw_calls": 487,
-      "frame_ms_software_renderer": 760.9,
-      "objects": 606,
-      "primitives": 1104163,
-      "video_mem_mb": 238.0
+      "draw_calls": 237,
+      "frame_ms_software_renderer": 355.3,
+      "objects": 352,
+      "primitives": 288306,
+      "video_mem_mb": 183.4
     },
     "portal_river": {
-      "draw_calls": 602,
-      "frame_ms_software_renderer": 961.0,
-      "objects": 723,
-      "primitives": 1564982,
-      "video_mem_mb": 238.0
+      "draw_calls": 330,
+      "frame_ms_software_renderer": 300.9,
+      "objects": 445,
+      "primitives": 410998,
+      "video_mem_mb": 183.4
     },
     "race_0": {
-      "draw_calls": 676,
-      "frame_ms_software_renderer": 889.2,
-      "objects": 869,
-      "primitives": 1416836,
-      "video_mem_mb": 242.7
+      "draw_calls": 374,
+      "frame_ms_software_renderer": 268.5,
+      "objects": 526,
+      "primitives": 410527,
+      "video_mem_mb": 188.1
     },
     "race_1": {
-      "draw_calls": 755,
-      "frame_ms_software_renderer": 939.8,
-      "objects": 956,
-      "primitives": 1647413,
-      "video_mem_mb": 242.7
+      "draw_calls": 360,
+      "frame_ms_software_renderer": 288.5,
+      "objects": 509,
+      "primitives": 385303,
+      "video_mem_mb": 188.1
     },
     "race_2": {
-      "draw_calls": 644,
-      "frame_ms_software_renderer": 759.9,
-      "objects": 815,
-      "primitives": 1281839,
-      "video_mem_mb": 242.7
+      "draw_calls": 389,
+      "frame_ms_software_renderer": 275.8,
+      "objects": 543,
+      "primitives": 483431,
+      "video_mem_mb": 188.3
     },
     "river_rocks": {
-      "draw_calls": 466,
-      "frame_ms_software_renderer": 788.4,
-      "objects": 585,
-      "primitives": 1087129,
-      "video_mem_mb": 238.0
+      "draw_calls": 260,
+      "frame_ms_software_renderer": 339.0,
+      "objects": 374,
+      "primitives": 321935,
+      "video_mem_mb": 183.4
     },
     "roof_lip": {
-      "draw_calls": 572,
-      "frame_ms_software_renderer": 800.7,
-      "objects": 693,
-      "primitives": 1671524,
-      "video_mem_mb": 238.0
+      "draw_calls": 274,
+      "frame_ms_software_renderer": 322.2,
+      "objects": 390,
+      "primitives": 424891,
+      "video_mem_mb": 183.4
     },
     "ruins_owl": {
-      "draw_calls": 530,
-      "frame_ms_software_renderer": 728.9,
-      "objects": 642,
-      "primitives": 1243058,
-      "video_mem_mb": 238.0
+      "draw_calls": 293,
+      "frame_ms_software_renderer": 277.3,
+      "objects": 405,
+      "primitives": 369665,
+      "video_mem_mb": 183.4
     },
     "start_grid": {
-      "draw_calls": 768,
-      "frame_ms_software_renderer": 867.8,
-      "objects": 973,
-      "primitives": 1601558,
-      "video_mem_mb": 238.0
+      "draw_calls": 461,
+      "frame_ms_software_renderer": 304.5,
+      "objects": 602,
+      "primitives": 591551,
+      "video_mem_mb": 183.4
     }
   }
 }

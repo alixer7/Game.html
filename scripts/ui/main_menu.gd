@@ -106,7 +106,26 @@ func _clear() -> void:
 	UIKit.safe_margins(_page)
 
 
+var _page_name := "main"
+
+
+## Android back button / back gesture: close settings, else step back a page,
+## and only quit from the main page.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		for c in _ui.get_children():
+			if c is SettingsPanel:
+				c.call("_close")
+				return
+		if _page_name != "main":
+			Game.save_settings()
+			_show_main()
+		else:
+			get_tree().quit()
+
+
 func _show_main() -> void:
+	_page_name = "main"
 	_clear()
 	# one column, vertically centred in the safe area (fits 16:9 ... 21:9 and tablets)
 	var col := VBoxContainer.new()
@@ -135,6 +154,7 @@ func _show_main() -> void:
 
 
 func _show_setup(mode: String) -> void:
+	_page_name = "setup"
 	Game.race.mode = mode
 	_clear()
 	var panel := PanelContainer.new()
@@ -170,6 +190,7 @@ func _start() -> void:
 
 
 func _show_garage() -> void:
+	_page_name = "garage"
 	_clear()
 	var panel := PanelContainer.new()
 	var v := VBoxContainer.new()

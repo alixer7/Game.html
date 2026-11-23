@@ -59,8 +59,9 @@ func _graphics() -> Control:
 	v.add_child(UIKit.row("Render scale", UIKit.slider(0.5, 1.0, 0.05, float(s.render_scale), func(x: float) -> void:
 		s.render_scale = x
 		Game.apply_settings())))
-	v.add_child(UIKit.row("FPS cap", UIKit.options(["30", "60", "120"], [30, 60, 120].find(int(s.fps_cap)), func(i: int) -> void:
-		s.fps_cap = [30, 60, 120][i]
+	# (physics runs at 60 Hz: above 60 FPS only adds heat and judder)
+	v.add_child(UIKit.row("FPS cap", UIKit.options(["30 (battery saver)", "60"], 0 if int(s.fps_cap) <= 30 else 1, func(i: int) -> void:
+		s.fps_cap = [30, 60][i]
 		Game.apply_settings())))
 	v.add_child(UIKit.row("Shadows", UIKit.toggle(bool(s.shadows), func(b: bool) -> void: s.shadows = b)))
 	v.add_child(UIKit.row("Screen edge margin", UIKit.slider(0.0, 0.06, 0.005, float(s.get("screen_margin", 0.02)), func(x: float) -> void:

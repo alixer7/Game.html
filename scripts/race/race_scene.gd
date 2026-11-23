@@ -30,7 +30,9 @@ func _ready() -> void:
 	_setup_environment()
 	await _build_track()
 	_spawn_karts()
+	await get_tree().process_frame
 	_setup_ai()
+	await get_tree().process_frame
 	_setup_ui()
 	build_ms = Time.get_ticks_msec() - t0
 	print("[race] world built in %d ms  %s" % [build_ms, tb.timings])
@@ -313,6 +315,23 @@ func _intro(dt: float) -> void:
 		race.start_countdown()
 
 
+## Back gesture pauses (or resumes); leaving the app (call, notification shade,
+## home) pauses the race so nothing happens while you're away.
+func _notification(what: int) -> void:
+	if _state == "loading" or race == null:
+		return
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if is_instance_valid(_settings_sp):
+			_settings_sp.call("_close")
+			return
+		if get_tree().paused and _overlay != null and race.state != "finished":
+			_resume()
+		else:
+			_pause()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
+		_pause()
+
+
 func _pause() -> void:
 	if get_tree().paused or _overlay != null:
 		return
@@ -332,8 +351,12 @@ func _resume() -> void:
 		_overlay = null
 
 
+var _settings_sp: Node
+
+
 func _open_settings() -> void:
 	var sp := SettingsPanel.new()
+	_settings_sp = sp
 	sp.process_mode = Node.PROCESS_MODE_ALWAYS
 	var layer := CanvasLayer.new()
 	layer.layer = 40

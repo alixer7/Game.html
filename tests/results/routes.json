@@ -1,9 +1,9 @@
 {
   "all shortcuts (cave)": {
-    "boost_time": 15.5,
+    "boost_time": 16.6,
     "impacts": [
-      2,
       1,
+      2,
       4
     ],
     "lanes": {
@@ -12,64 +12,64 @@
       "right_bank": 0.99,
       "rootway_cave": 0.97
     },
-    "lap2": 60.93,
+    "lap2": 61.07,
     "od_time": 5.9,
     "perfect": 0,
     "sparks": 0
   },
   "baseline (river lane)": {
-    "boost_time": 13.7,
+    "boost_time": 16.4,
     "impacts": [
-      0,
-      11,
-      13
+      4,
+      10,
+      9
     ],
     "lanes": {
       "main": 1.0
     },
-    "lap2": 64.88,
+    "lap2": 63.97,
     "od_time": 5.9,
     "perfect": 2,
-    "sparks": 2
+    "sparks": 3
   },
   "cave": {
-    "boost_time": 15.2,
+    "boost_time": 16.0,
     "impacts": [
-      3,
-      10,
-      10
+      1,
+      12,
+      12
     ],
     "lanes": {
       "main": 1.0,
       "rootway_cave": 0.97
     },
-    "lap2": 62.52,
+    "lap2": 61.12,
     "od_time": 5.9,
     "perfect": 2,
-    "sparks": 2
+    "sparks": 3
   },
   "flume": {
-    "boost_time": 17.3,
+    "boost_time": 20.1,
     "impacts": [
-      0,
+      1,
       11,
-      20
+      12
     ],
     "lanes": {
       "main": 1.0,
       "millrace_flume": 0.98
     },
-    "lap2": 72.33,
-    "od_time": 4.6,
-    "perfect": 3,
-    "sparks": 3
+    "lap2": 62.87,
+    "od_time": 5.9,
+    "perfect": 2,
+    "sparks": 2
   },
   "gate + flume": {
-    "boost_time": 21.3,
+    "boost_time": 22.7,
     "impacts": [
-      1,
-      7,
-      3
+      0,
+      5,
+      5
     ],
     "lanes": {
       "gate_lane": 0.96,
@@ -77,7 +77,7 @@
       "main": 1.0,
       "millrace_flume": 0.98
     },
-    "lap2": 59.48,
+    "lap2": 60.78,
     "od_time": 5.9,
     "perfect": 4,
     "sparks": 4
@@ -85,21 +85,21 @@
   "giants log": {
     "boost_time": 15.8,
     "impacts": [
-      1,
-      12,
-      9
+      2,
+      11,
+      11
     ],
     "lanes": {
       "giants_log": 0.97,
       "main": 1.0
     },
-    "lap2": 62.0,
+    "lap2": 59.22,
     "od_time": 5.9,
-    "perfect": 0,
-    "sparks": 0
+    "perfect": 1,
+    "sparks": 2
   },
   "left bank": {
-    "boost_time": 19.0,
+    "boost_time": 19.3,
     "impacts": [
       1,
       5,
@@ -109,35 +109,35 @@
       "left_bank": 0.98,
       "main": 1.0
     },
-    "lap2": 59.17,
+    "lap2": 57.12,
     "od_time": 5.9,
     "perfect": 2,
     "sparks": 2
   },
   "log + shelf": {
-    "boost_time": 21.7,
+    "boost_time": 23.7,
     "impacts": [
       0,
-      7,
-      4
+      6,
+      5
     ],
     "lanes": {
-      "giants_log": 0.49,
+      "giants_log": 0.5,
       "left_bank": 0.98,
       "main": 1.0,
       "shelf_rock": 0.97
     },
-    "lap2": 60.98,
+    "lap2": 57.17,
     "od_time": 5.9,
     "perfect": 0,
     "sparks": 0
   },
   "log + shelf + flume": {
-    "boost_time": 25.0,
+    "boost_time": 28.4,
     "impacts": [
-      1,
+      2,
       4,
-      4
+      3
     ],
     "lanes": {
       "giants_log": 0.49,
@@ -146,25 +146,25 @@
       "millrace_flume": 0.98,
       "shelf_rock": 0.97
     },
-    "lap2": 55.13,
-    "od_time": 9.1,
-    "perfect": 1,
-    "sparks": 1
+    "lap2": 53.57,
+    "od_time": 7.7,
+    "perfect": 2,
+    "sparks": 2
   },
   "right bank": {
-    "boost_time": 18.8,
+    "boost_time": 15.2,
     "impacts": [
-      2,
-      4,
+      0,
+      5,
       1
     ],
     "lanes": {
       "main": 1.0,
       "right_bank": 0.99
     },
-    "lap2": 63.47,
+    "lap2": 61.52,
     "od_time": 5.9,
-    "perfect": 3,
-    "sparks": 3
+    "perfect": 2,
+    "sparks": 4
   }
 }

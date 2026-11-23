@@ -125,9 +125,10 @@ static func _wheel_mesh(r: float, w: float, rim_col: Color) -> ArrayMesh:
 	var rp := PackedVector2Array([Vector2(0.0, hw * 0.9), Vector2(r * 0.25, hw * 0.95), Vector2(r * 0.6, hw * 0.7), Vector2(r * 0.64, -hw * 0.7), Vector2(r * 0.25, -hw * 0.95), Vector2(0.0, -hw * 0.9)])
 	MeshLib.lathe(rim, rp, 10, Transform3D(), func(t: float, _a: float, _p: Vector3) -> Color:
 		return rim_col.lerp(Color(0.85, 0.85, 0.9), 0.3) if t < 0.5 else Color(0.8, 0.8, 0.85))
+	# tire + rim in one surface: one draw per wheel instead of two
+	tire.append_builder(rim, Transform3D())
 	var am := ArrayMesh.new()
-	tire.commit(am, Mats.vcol(0.85, 0.0, "tire"))
-	rim.commit(am, Mats.vcol(0.3, 0.7, "rim"))
+	tire.commit(am, Mats.vcol(0.6, 0.2, "wheel"))
 	_wheel_cache[key] = am
 	return am
 

@@ -1,295 +1,921 @@
 {
+  "ai": [
+    {
+      "detail": [
+        [
+          "Rusk",
+          62.4,
+          1,
+          1,
+          [
+            1,
+            0,
+            2
+          ]
+        ],
+        [
+          "Bandit",
+          69.9,
+          0,
+          0,
+          [
+            2,
+            4,
+            5
+          ]
+        ],
+        [
+          "Ribbo",
+          65.95,
+          2,
+          1,
+          [
+            0,
+            0,
+            2
+          ]
+        ],
+        [
+          "Bramble",
+          69.58,
+          0,
+          0,
+          [
+            1,
+            4,
+            9
+          ]
+        ],
+        [
+          "Hoots",
+          73.35,
+          1,
+          1,
+          [
+            1,
+            4,
+            8
+          ]
+        ],
+        [
+          "Clover",
+          69.33,
+          1,
+          1,
+          [
+            0,
+            1,
+            4
+          ]
+        ],
+        [
+          "Tusker",
+          71.9,
+          0,
+          0,
+          [
+            1,
+            2,
+            10
+          ]
+        ],
+        [
+          "Splash",
+          63.8,
+          0,
+          0,
+          [
+            0,
+            2,
+            2
+          ]
+        ]
+      ],
+      "ok": true,
+      "test": "Normal field: all 8 AI finish a lap"
+    },
+    {
+      "detail": [
+        [
+          "Rusk",
+          71.17,
+          3,
+          2,
+          [
+            4,
+            3,
+            7
+          ]
+        ],
+        [
+          "Bandit",
+          64.2,
+          0,
+          0,
+          [
+            0,
+            8,
+            3
+          ]
+        ],
+        [
+          "Ribbo",
+          60.9,
+          1,
+          1,
+          [
+            3,
+            4,
+            6
+          ]
+        ],
+        [
+          "Bramble",
+          63.53,
+          2,
+          2,
+          [
+            4,
+            2,
+            2
+          ]
+        ],
+        [
+          "Hoots",
+          73.4,
+          1,
+          1,
+          [
+            1,
+            5,
+            9
+          ]
+        ],
+        [
+          "Clover",
+          62.62,
+          0,
+          0,
+          [
+            0,
+            6,
+            3
+          ]
+        ],
+        [
+          "Tusker",
+          55.05,
+          1,
+          1,
+          [
+            1,
+            3,
+            7
+          ]
+        ],
+        [
+          "Splash",
+          58.97,
+          0,
+          0,
+          [
+            3,
+            3,
+            1
+          ]
+        ]
+      ],
+      "ok": true,
+      "test": "Expert field: all 8 AI finish a lap"
+    }
+  ],
+  "drive": [
+    {
+      "detail": {
+        "blocking": 0,
+        "climbable_lips": 3668,
+        "examples": [],
+        "pairs": 49832
+      },
+      "ok": true,
+      "test": "no road/ground step taller than 0.36 m on or beside any road"
+    },
+    {
+      "detail": {
+        "blocked_by_road_or_ground": 0,
+        "examples": [],
+        "trials": 72
+      },
+      "ok": true,
+      "test": "driving onto/off every road edge is never blocked by the road or the ground"
+    },
+    {
+      "detail": {
+        "blocked": [],
+        "runs": 14
+      },
+      "ok": true,
+      "test": "every branch entry/exit is driven without hitting a road/ground seam"
+    },
+    {
+      "detail": {
+        "examples": [],
+        "props_checked": 2301,
+        "props_missing": 0,
+        "set_piece_missing": {},
+        "set_piece_points": 253
+      },
+      "ok": true,
+      "test": "every reachable solid structure and prop has a collider where it is visible"
+    }
+  ],
+  "jumps": [
+    {
+      "detail": {
+        "22": false,
+        "22+hop": true,
+        "26": true,
+        "26+hop": true,
+        "31": true,
+        "31+hop": true,
+        "36": true,
+        "36+hop": true
+      },
+      "ok": true,
+      "test": "Giant's Log: base speed or hop clears, slow+no hop fails"
+    },
+    {
+      "detail": {
+        "22": false,
+        "22+hop": false,
+        "26": false,
+        "26+hop": false,
+        "31": true,
+        "31+hop": true,
+        "36": true,
+        "36+hop": true
+      },
+      "ok": true,
+      "test": "Flume: Boost/Overdrive speed clears, base speed (even with a hop) does not"
+    },
+    {
+      "detail": {
+        "22": false,
+        "22+hop": false,
+        "26": false,
+        "26+hop": true,
+        "31": true,
+        "31+hop": true,
+        "36": true,
+        "36+hop": true
+      },
+      "ok": true,
+      "test": "Shelf Rock: needs a lip-hop or Overdrive; slow+no hop fails"
+    }
+  ],
+  "physics": [
+    {
+      "detail": "v=26.00",
+      "ok": true,
+      "test": "top speed ~ base max (26 m/s)"
+    },
+    {
+      "detail": "t90=2.25 s, v@2s=22.4",
+      "ok": true,
+      "test": "0->90%% in 2.0-4.5 s"
+    },
+    {
+      "detail": "ratio=0.80",
+      "ok": true,
+      "test": "surface grass top speed ratio ~ 0.80"
+    },
+    {
+      "detail": "ratio=0.76",
+      "ok": true,
+      "test": "surface sand top speed ratio ~ 0.76"
+    },
+    {
+      "detail": "ratio=0.62",
+      "ok": true,
+      "test": "surface mud top speed ratio ~ 0.62"
+    },
+    {
+      "detail": "ratio=0.97",
+      "ok": true,
+      "test": "surface dirt top speed ratio ~ 0.97"
+    },
+    {
+      "detail": "R=22.7 m at 24.2 m/s",
+      "ok": true,
+      "test": "full-speed steering radius 20-32 m (slides needed for tight corners)"
+    },
+    {
+      "detail": null,
+      "ok": true,
+      "test": "hop + steer starts a slide"
+    },
+    {
+      "detail": "slip=41.5",
+      "ok": true,
+      "test": "steady slide angle 15-45 deg"
+    },
+    {
+      "detail": "perfect=3 taps=3",
+      "ok": true,
+      "test": "3 perfect sparks per slide"
+    },
+    {
+      "detail": "gained=2.30",
+      "ok": true,
+      "test": "3-stage chain adds ~2.3 s reserve"
+    },
+    {
+      "detail": "R_min=11.3",
+      "ok": true,
+      "test": "slide (steering in) is tighter than plain steering (< 16 m)"
+    },
+    {
+      "detail": "before=26.0 after=31.2",
+      "ok": true,
+      "test": "slide + sparks keep/raise speed"
+    },
+    {
+      "detail": null,
+      "ok": true,
+      "test": "early tap fizzles (no reserve, stage kept)"
+    },
+    {
+      "detail": "fizzles=2",
+      "ok": true,
+      "test": "waiting too long backfires (stage lost)"
+    },
+    {
+      "detail": "reserve=1.00",
+      "ok": true,
+      "test": "reserve drains ~1 s per s on road"
+    },
+    {
+      "detail": null,
+      "ok": true,
+      "test": "tier 1 while reserve lasts"
+    },
+    {
+      "detail": "v=32.2",
+      "ok": true,
+      "test": "boost raises speed toward +24%"
+    },
+    {
+      "detail": "v=30.7 0.33 s after the boost ended",
+      "ok": true,
+      "test": "reserve empty -> tier 0, speed bleeds gradually (momentum)"
+    },
+    {
+      "detail": "v=36.4 tier=2",
+      "ok": true,
+      "test": "Overdrive pad -> tier 2 & ~+40% speed"
+    },
+    {
+      "detail": "min reserve=0.45 end=0.45 tier=1",
+      "ok": true,
+      "test": "skilled slide chaining sustains boost (reserve never empties)"
+    },
+    {
+      "detail": "air=0.30 s",
+      "ok": true,
+      "test": "hop airtime 0.25-0.5 s"
+    },
+    {
+      "detail": null,
+      "ok": true,
+      "test": "hop without steer does not start a slide"
+    },
+    {
+      "detail": "air=0.67",
+      "ok": true,
+      "test": "ramp launch gives hang time > 0.5 s"
+    },
+    {
+      "detail": "[0.273]",
+      "ok": true,
+      "test": "clean landing after hang time grants an air boost"
+    },
+    {
+      "detail": {
+        "retained": 0.97,
+        "sev": 0
+      },
+      "ok": true,
+      "test": "8 deg contact = graze, small loss"
+    },
+    {
+      "detail": {
+        "retained": 0.69,
+        "sev": 1
+      },
+      "ok": true,
+      "test": "30 deg contact = glance, medium loss"
+    },
+    {
+      "detail": {
+        "retained": 0.05,
+        "sev": 2
+      },
+      "ok": true,
+      "test": "80 deg contact = head-on, big loss"
+    },
+    {
+      "detail": "slide=2.40 hook=3.30 rad/s v=25.6",
+      "ok": true,
+      "test": "hook turn rotates much faster than a slide"
+    },
+    {
+      "detail": "v=31.0 (road max 26.0)",
+      "ok": true,
+      "test": "river current: faster than the road cap (flow pushes)"
+    },
+    {
+      "detail": [
+        26.0,
+        true
+      ],
+      "ok": true,
+      "test": "downhill: reaches the cap and stays grounded"
+    },
+    {
+      "detail": [
+        20.2,
+        true
+      ],
+      "ok": true,
+      "test": "uphill: slower than flat but grounded"
+    },
+    {
+      "detail": "delta=0.0000",
+      "ok": true,
+      "test": "same inputs -> same result (deterministic)"
+    }
+  ],
+  "routes": [
+    {
+      "detail": {
+        "boost_time": 16.4,
+        "impacts": [
+          4,
+          10,
+          9
+        ],
+        "lanes": {
+          "main": 1.0
+        },
+        "lap2": 63.97,
+        "od_time": 5.9,
+        "perfect": 2,
+        "sparks": 3
+      },
+      "ok": true,
+      "test": "route 'baseline (river lane)' completes"
+    },
+    {
+      "detail": {
+        "boost_time": 19.3,
+        "impacts": [
+          1,
+          5,
+          3
+        ],
+        "lanes": {
+          "left_bank": 0.98,
+          "main": 1.0
+        },
+        "lap2": 57.12,
+        "od_time": 5.9,
+        "perfect": 2,
+        "sparks": 2
+      },
+      "ok": true,
+      "test": "route 'left bank' completes"
+    },
+    {
+      "detail": {
+        "left_bank": 0.98,
+        "main": 1.0
+      },
+      "ok": true,
+      "test": "route 'left bank': left_bank driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 15.2,
+        "impacts": [
+          0,
+          5,
+          1
+        ],
+        "lanes": {
+          "main": 1.0,
+          "right_bank": 0.99
+        },
+        "lap2": 61.52,
+        "od_time": 5.9,
+        "perfect": 2,
+        "sparks": 4
+      },
+      "ok": true,
+      "test": "route 'right bank' completes"
+    },
+    {
+      "detail": {
+        "main": 1.0,
+        "right_bank": 0.99
+      },
+      "ok": true,
+      "test": "route 'right bank': right_bank driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 15.8,
+        "impacts": [
+          2,
+          11,
+          11
+        ],
+        "lanes": {
+          "giants_log": 0.97,
+          "main": 1.0
+        },
+        "lap2": 59.22,
+        "od_time": 5.9,
+        "perfect": 1,
+        "sparks": 2
+      },
+      "ok": true,
+      "test": "route 'giants log' completes"
+    },
+    {
+      "detail": {
+        "giants_log": 0.97,
+        "main": 1.0
+      },
+      "ok": true,
+      "test": "route 'giants log': giants_log driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 23.7,
+        "impacts": [
+          0,
+          6,
+          5
+        ],
+        "lanes": {
+          "giants_log": 0.5,
+          "left_bank": 0.98,
+          "main": 1.0,
+          "shelf_rock": 0.97
+        },
+        "lap2": 57.17,
+        "od_time": 5.9,
+        "perfect": 0,
+        "sparks": 0
+      },
+      "ok": true,
+      "test": "route 'log + shelf' completes"
+    },
+    {
+      "detail": {
+        "giants_log": 0.5,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "shelf_rock": 0.97
+      },
+      "ok": true,
+      "test": "route 'log + shelf': left_bank driven to its end"
+    },
+    {
+      "detail": {
+        "giants_log": 0.5,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "shelf_rock": 0.97
+      },
+      "ok": true,
+      "test": "route 'log + shelf': shelf_rock driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 16.0,
+        "impacts": [
+          1,
+          12,
+          12
+        ],
+        "lanes": {
+          "main": 1.0,
+          "rootway_cave": 0.97
+        },
+        "lap2": 61.12,
+        "od_time": 5.9,
+        "perfect": 2,
+        "sparks": 3
+      },
+      "ok": true,
+      "test": "route 'cave' completes"
+    },
+    {
+      "detail": {
+        "main": 1.0,
+        "rootway_cave": 0.97
+      },
+      "ok": true,
+      "test": "route 'cave': rootway_cave driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 20.1,
+        "impacts": [
+          1,
+          11,
+          12
+        ],
+        "lanes": {
+          "main": 1.0,
+          "millrace_flume": 0.98
+        },
+        "lap2": 62.87,
+        "od_time": 5.9,
+        "perfect": 2,
+        "sparks": 2
+      },
+      "ok": true,
+      "test": "route 'flume' completes"
+    },
+    {
+      "detail": {
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": true,
+      "test": "route 'flume': millrace_flume driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 22.7,
+        "impacts": [
+          0,
+          5,
+          5
+        ],
+        "lanes": {
+          "gate_lane": 0.96,
+          "left_bank": 0.98,
+          "main": 1.0,
+          "millrace_flume": 0.98
+        },
+        "lap2": 60.78,
+        "od_time": 5.9,
+        "perfect": 4,
+        "sparks": 4
+      },
+      "ok": true,
+      "test": "route 'gate + flume' completes"
+    },
+    {
+      "detail": {
+        "gate_lane": 0.96,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": true,
+      "test": "route 'gate + flume': left_bank driven to its end"
+    },
+    {
+      "detail": {
+        "gate_lane": 0.96,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": true,
+      "test": "route 'gate + flume': millrace_flume driven to its end"
+    },
+    {
+      "detail": {
+        "gate_lane": 0.96,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98
+      },
+      "ok": true,
+      "test": "route 'gate + flume': gate_lane driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 28.4,
+        "impacts": [
+          2,
+          4,
+          3
+        ],
+        "lanes": {
+          "giants_log": 0.49,
+          "left_bank": 0.98,
+          "main": 1.0,
+          "millrace_flume": 0.98,
+          "shelf_rock": 0.97
+        },
+        "lap2": 53.57,
+        "od_time": 7.7,
+        "perfect": 2,
+        "sparks": 2
+      },
+      "ok": true,
+      "test": "route 'log + shelf + flume' completes"
+    },
+    {
+      "detail": {
+        "giants_log": 0.49,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98,
+        "shelf_rock": 0.97
+      },
+      "ok": true,
+      "test": "route 'log + shelf + flume': left_bank driven to its end"
+    },
+    {
+      "detail": {
+        "giants_log": 0.49,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98,
+        "shelf_rock": 0.97
+      },
+      "ok": true,
+      "test": "route 'log + shelf + flume': shelf_rock driven to its end"
+    },
+    {
+      "detail": {
+        "giants_log": 0.49,
+        "left_bank": 0.98,
+        "main": 1.0,
+        "millrace_flume": 0.98,
+        "shelf_rock": 0.97
+      },
+      "ok": true,
+      "test": "route 'log + shelf + flume': millrace_flume driven to its end"
+    },
+    {
+      "detail": {
+        "boost_time": 16.6,
+        "impacts": [
+          1,
+          2,
+          4
+        ],
+        "lanes": {
+          "giants_log": 0.97,
+          "main": 1.0,
+          "right_bank": 0.99,
+          "rootway_cave": 0.97
+        },
+        "lap2": 61.07,
+        "od_time": 5.9,
+        "perfect": 0,
+        "sparks": 0
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (cave)' completes"
+    },
+    {
+      "detail": {
+        "giants_log": 0.97,
+        "main": 1.0,
+        "right_bank": 0.99,
+        "rootway_cave": 0.97
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (cave)': right_bank driven to its end"
+    },
+    {
+      "detail": {
+        "giants_log": 0.97,
+        "main": 1.0,
+        "right_bank": 0.99,
+        "rootway_cave": 0.97
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (cave)': giants_log driven to its end"
+    },
+    {
+      "detail": {
+        "giants_log": 0.97,
+        "main": 1.0,
+        "right_bank": 0.99,
+        "rootway_cave": 0.97
+      },
+      "ok": true,
+      "test": "route 'all shortcuts (cave)': rootway_cave driven to its end"
+    }
+  ],
+  "track": [
+    {
+      "detail": "build ms=4009 timings={ \"paths\": 38, \"terrain_stamps\": 262, \"terrain_field\": 1186, \"roads\": 1583, \"terrain_mesh\": 2015, \"set_pieces\": 2504, \"set_pieces_2\": 3175, \"gameplay\": 3240, \"scatter_logs\": 67, \"scatter_instances\": 23303, \"scatter_multimeshes\": 2087, \"scatter_colliders\": 4681, \"scatter\": 3972, \"life\": 4008 }",
+      "ok": true,
+      "test": "track builds (quality high)"
+    },
+    {
+      "detail": "L=1511 m",
+      "ok": true,
+      "test": "main loop length 1.3-1.7 km"
+    },
+    {
+      "detail": "bad=0",
+      "ok": true,
+      "test": "all 8 grid slots on road collision"
+    },
+    {
+      "detail": "holes=0 of 240",
+      "ok": true,
+      "test": "drivable surface everywhere on the main line"
+    },
+    {
+      "detail": "holes=0 []",
+      "ok": true,
+      "test": "branch right_bank has continuous surface"
+    },
+    {
+      "detail": "holes=0 []",
+      "ok": true,
+      "test": "branch left_bank has continuous surface"
+    },
+    {
+      "detail": "holes=0 []",
+      "ok": true,
+      "test": "branch gate_lane has continuous surface"
+    },
+    {
+      "detail": "holes=0 []",
+      "ok": true,
+      "test": "branch giants_log has continuous surface"
+    },
+    {
+      "detail": "holes=0 []",
+      "ok": true,
+      "test": "branch shelf_rock has continuous surface"
+    },
+    {
+      "detail": "holes=0 []",
+      "ok": true,
+      "test": "branch millrace_flume has continuous surface"
+    },
+    {
+      "detail": "holes=0 []",
+      "ok": true,
+      "test": "branch rootway_cave has continuous surface"
+    },
+    {
+      "detail": "holes=0 []",
+      "ok": true,
+      "test": "branch river_upstream has continuous surface"
+    },
+    {
+      "detail": "9.0..18.0 m",
+      "ok": true,
+      "test": "road width varies (>=5 m spread)"
+    },
+    {
+      "detail": {
+        "20-40": 78,
+        "40-80": 197,
+        "<20": 66,
+        ">80": 667
+      },
+      "ok": true,
+      "test": "corner radius distribution covers tight..sweeping"
+    }
+  ],
   "ui": [
+    {
+      "detail": {
+        "back again resumes": true,
+        "back closes settings, stays in menu": true,
+        "back from garage -> main page": true,
+        "back in race pauses": true,
+        "leaving the app pauses the race": true
+      },
+      "ok": true,
+      "test": "Android back gesture and app backgrounding behave (never quit/keep racing by accident)"
+    },
     {
       "detail": {
         "buttons_tapped": 885,
         "cases": 27,
-        "failure_count": 116,
-        "failures": [
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
-            "outside safe area",
-            "Label 'PAUSED'",
-            "[P: (-210.0, -209.0), S: (420.0, 74.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
-            "outside safe area",
-            "Button 'Resume'",
-            "[P: (-210.0, -121.0), S: (420.0, 72.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
-            "outside safe area",
-            "Button 'Restart'",
-            "[P: (-210.0, -35.0), S: (420.0, 72.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
-            "outside safe area",
-            "Button 'Settings'",
-            "[P: (-210.0, 51.0), S: (420.0, 72.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
-            "outside safe area",
-            "Button 'Quit to menu'",
-            "[P: (-210.0, 137.0), S: (420.0, 72.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'RESULTS'",
-            "[P: (-253.5, -312.0), S: (507.0, 74.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '1'",
-            "[P: (-253.5, -224.0), S: (17.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'Racer0'",
-            "[P: (-196.5, -224.0), S: (99.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3:00.000'",
-            "[P: (-57.5, -224.0), S: (119.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'best 0:59.000'",
-            "[P: (101.5, -220.0), S: (152.0, 34.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '2'",
-            "[P: (-253.5, -178.0), S: (17.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'Racer1'",
-            "[P: (-196.5, -178.0), S: (99.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3:01.000'",
-            "[P: (-57.5, -178.0), S: (119.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'best 1:00.000'",
-            "[P: (101.5, -174.0), S: (152.0, 34.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3'",
-            "[P: (-253.5, -132.0), S: (17.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'Racer2'",
-            "[P: (-196.5, -132.0), S: (99.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3:02.000'",
-            "[P: (-57.5, -132.0), S: (119.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'best 1:01.000'",
-            "[P: (101.5, -128.0), S: (152.0, 34.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '4'",
-            "[P: (-253.5, -86.0), S: (17.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'Racer3'",
-            "[P: (-196.5, -86.0), S: (99.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3:03.000'",
-            "[P: (-57.5, -86.0), S: (119.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'best 1:02.000'",
-            "[P: (101.5, -82.0), S: (152.0, 34.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '5'",
-            "[P: (-253.5, -40.0), S: (17.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'Racer4'",
-            "[P: (-196.5, -40.0), S: (99.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3:04.000'",
-            "[P: (-57.5, -40.0), S: (119.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'best 1:03.000'",
-            "[P: (101.5, -36.0), S: (152.0, 34.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '6'",
-            "[P: (-253.5, 6.0), S: (17.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'Racer5'",
-            "[P: (-196.5, 6.0), S: (99.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3:05.000'",
-            "[P: (-57.5, 6.0), S: (119.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'best 1:04.000'",
-            "[P: (101.5, 10.0), S: (152.0, 34.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '7'",
-            "[P: (-253.5, 52.0), S: (17.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'Racer6'",
-            "[P: (-196.5, 52.0), S: (99.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3:06.000'",
-            "[P: (-57.5, 52.0), S: (119.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '8'",
-            "[P: (-253.5, 98.0), S: (17.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label 'Racer7'",
-            "[P: (-196.5, 98.0), S: (99.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Label '3:07.000'",
-            "[P: (-57.5, 98.0), S: (119.0, 42.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Button 'Race again'",
-            "[P: (-253.5, 154.0), S: (507.0, 72.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
-            "outside safe area",
-            "Button 'Main menu'",
-            "[P: (-253.5, 240.0), S: (507.0, 72.0)]",
-            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
-          ],
-          [
-            "16:9 1920x1080 / none / pause",
-            "outside safe area",
-            "Label 'PAUSED'",
-            "[P: (-210.0, -209.0), S: (420.0, 74.0)]",
-            "[P: (32.0, 16.0), S: (1536.0, 868.0)]"
-          ],
-          [
-            "16:9 1920x1080 / none / pause",
-            "outside safe area",
-            "Button 'Resume'",
-            "[P: (-210.0, -121.0), S: (420.0, 72.0)]",
-            "[P: (32.0, 16.0), S: (1536.0, 868.0)]"
-          ]
-        ],
-        "widgets_checked": 2475
+        "failure_count": 0,
+        "failures": [],
+        "widgets_checked": 2502
       },
-      "ok": false,
+      "ok": true,
       "test": "every widget inside the safe area and every button tappable on 8 screen shapes x 3 cut-out cases"
     }
   ]

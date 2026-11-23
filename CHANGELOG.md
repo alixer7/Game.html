@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 0.3.0 — 2026-11-23 (fixes from the first phone test)
+### Screen & menus
+- UI kept inside the device safe area (punch-hole/notch, rounded corners, nav bars), re-applied after the window rotates to landscape; adjustable "Screen edge margin".
+- Pause and results panels were placed off-screen (top-left) — now centred in the safe area and scroll if too tall.
+- Main menu, race setup and garage use responsive containers (16:9 … 21:9 phones, 16:10/4:3 tablets); touch controls laid out inside the safe area and sized so they never overlap on tall screens.
+- Scroll areas tolerate small finger movement (taps no longer swallowed); touch-to-mouse emulation on.
+- Android back gesture: steps back / closes settings / pauses — never quits mid-race; leaving the app pauses the race.
+### Collisions & ground
+- Kart collider rides 0.30 m above the ground with a step-up (≤ 0.36 m): seams, kerbs and merge lips are climbed, not walls.
+- Roads blend into the terrain: skirts follow the ground (and collide where gentle), terrain fitted under and around every ground-level road, road aprons never carved, each road owns the ground under it, river bank lips follow the bank.
+- Branch merges seated on the main road's real surface and bank; flume exit chute, shelf run-out and cave merge reworked so no raised layer overlaps a road.
+- Every reachable tree, rock (sized from its mesh), stump and fallen log is solid; solid set pieces get exact colliders (except parts inside a road's driving corridor).
+### Performance
+- Trees 3–4× lighter at mid/far range, shorter LOD and shadow distances per preset, terrain/small props cast no shadows, larger terrain chunks and vegetation cells, all amber pickups in one shader-animated MultiMesh, wheels one draw each.
+- Automatic 3D render resolution (600/720/900 px tall for Low/Medium/High) with FSR upscaling; MSAA and glow only on High; sky lighting only on High; phones default to Medium (old saved graphics settings reset once); FPS cap 30/60 with Android frame pacing.
+- World built in stages with a progress bar (no frozen screen / "app not responding").
+### Tests
+- New `drive` suite (step scan, edge driving, junctions, collider audit) and `ui` suite (8 screen shapes × 3 cut-outs, every widget in the safe area, every button tapped; back gesture/backgrounding). All 84 checks pass.
+
 ## 0.2.0 — 2026-11-23 (session 2, first compiled & tested build)
 ### Toolchain
 - Official Godot 4.7.2 + export templates (SHA-512 verified), Android SDK, debug keystore; all GDScript compile errors fixed.

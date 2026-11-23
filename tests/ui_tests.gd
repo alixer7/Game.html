@@ -39,6 +39,7 @@ func run(runner: Object) -> void:
 	# the race screens (HUD, touch controls, pause, results) on a subset
 	for k in [[0, 1], [4, 0], [7, 2]]:
 		await _race(SCREENS[k[0]], INSETS[k[1]])
+	await _back_and_focus()
 	OS.set_environment("WK_SAFE_INSET", "")
 	T.root.size = Vector2i(1600, 720)
 	var out := {"cases": SCREENS.size() * INSETS.size() + 3, "widgets_checked": checked, "buttons_tapped": tapped, "failures": fails.slice(0, 40), "failure_count": fails.size()}
@@ -249,3 +250,47 @@ static func _name(c: Node) -> String:
 	if c is Label:
 		return "Label '%s'" % (c as Label).text.left(30)
 	return c.get_class()
+
+
+## Android back gesture / app backgrounding: never quits or keeps racing by accident.
+func _back_and_focus() -> void:
+	var res := {}
+	var menu: Node = load("res://scenes/main.tscn").instantiate()
+	T.root.add_child(menu)
+	await R.frames(3)
+	menu.call("_show_garage")
+	await R.frames(2)
+	menu.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	await R.frames(2)
+	res["back from garage -> main page"] = str(menu.get("_page_name")) == "main"
+	menu.call("_settings")
+	await R.frames(2)
+	menu.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	await R.frames(3)
+	res["back closes settings, stays in menu"] = _find(menu, "SettingsPanel") == null and is_instance_valid(menu)
+	menu.queue_free()
+	await R.frames(2)
+	Game.settings["quality"] = 0
+	var scene: Node = load("res://scenes/race.tscn").instantiate()
+	T.root.add_child(scene)
+	while scene.get("touch") == null:
+		await R.frames(5)
+	await R.frames(5)
+	scene.set("_state", "racing")
+	scene.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	await R.frames(2)
+	res["back in race pauses"] = T.paused
+	scene.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+	await R.frames(2)
+	res["back again resumes"] = not T.paused
+	scene.notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	await R.frames(2)
+	res["leaving the app pauses the race"] = T.paused
+	scene.call("_resume")
+	T.paused = false
+	scene.queue_free()
+	await R.frames(3)
+	var ok := true
+	for k in res:
+		ok = ok and bool(res[k])
+	R.check("ui", "Android back gesture and app backgrounding behave (never quit/keep racing by accident)", ok, res)

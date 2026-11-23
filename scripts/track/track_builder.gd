@@ -375,6 +375,18 @@ func clear_of_roads(faces: PackedVector3Array) -> PackedVector3Array:
 	return out
 
 
+var _path_boxes := {}   # SplinePath -> AABB (+12 m), for cheap corridor rejection
+
+
+func _path_box(spx: SplinePath) -> AABB:
+	if not _path_boxes.has(spx):
+		var bb := AABB(spx.pos[0], Vector3.ZERO)
+		for q in spx.pos:
+			bb = bb.expand(q)
+		_path_boxes[spx] = bb.grow(12.0)
+	return _path_boxes[spx]
+
+
 func in_road_corridor(p: Vector3, paths: Array = []) -> bool:
 	if terrain.dist_at(p.x, p.z) > 3.0:
 		return false
@@ -382,6 +394,8 @@ func in_road_corridor(p: Vector3, paths: Array = []) -> bool:
 		paths = [main]
 		paths.append_array(branches.values())
 	for spx: SplinePath in paths:
+		if not _path_box(spx).has_point(p):
+			continue
 		var i := spx.nearest_index(p, 12.0)
 		if i < 0 or spx.style[i] == "gap":
 			continue

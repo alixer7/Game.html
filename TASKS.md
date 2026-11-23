@@ -35,6 +35,14 @@ Legend: ✅ done & verified by a real run · 🟡 runs, needs tuning/human play-
 - ✅ HUD, menus, garage, settings rendered; layout bugs fixed
 - 🟡 Touch controls drawn correctly; never used with real fingers 📱
 
+## 0.3.0 — fixes from the first phone test
+- ✅ Safe-area layout (cut-outs, rounded corners, nav bars), off-screen pause/results fixed, responsive menus, touch controls inside the safe area — `ui` suite
+- ✅ Buttons: every button reachable and tappable on 8 screen shapes × 3 cut-outs; back gesture; auto-pause — `ui` suite
+- ✅ Road lips / floating layers: kart step-up, roads blended into the ground, merges seated — `drive` suite
+- ✅ Driving through props: every reachable tree/rock/stump/log and solid structure collides — `drive` suite
+- ✅ Performance: ~3× lower scene cost, auto render resolution, Medium default on phones, staged loading
+- 📱 Confirm all of the above on the S24 Ultra
+
 ## P6 — Ship
 - ✅ APK export (arm64, debug-signed, verified); exported pack smoke-run on desktop
 - ⬜ Install and profile on Galaxy S24 Ultra 📱
