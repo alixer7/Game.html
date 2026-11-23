@@ -1,163 +1,296 @@
 {
-  "drive": [
+  "ui": [
     {
       "detail": {
-        "blocking": 0,
-        "climbable_lips": 3668,
-        "examples": [],
-        "pairs": 49832
+        "buttons_tapped": 885,
+        "cases": 27,
+        "failure_count": 116,
+        "failures": [
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
+            "outside safe area",
+            "Label 'PAUSED'",
+            "[P: (-210.0, -209.0), S: (420.0, 74.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
+            "outside safe area",
+            "Button 'Resume'",
+            "[P: (-210.0, -121.0), S: (420.0, 72.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
+            "outside safe area",
+            "Button 'Restart'",
+            "[P: (-210.0, -35.0), S: (420.0, 72.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
+            "outside safe area",
+            "Button 'Settings'",
+            "[P: (-210.0, 51.0), S: (420.0, 72.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / pause",
+            "outside safe area",
+            "Button 'Quit to menu'",
+            "[P: (-210.0, 137.0), S: (420.0, 72.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'RESULTS'",
+            "[P: (-253.5, -312.0), S: (507.0, 74.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '1'",
+            "[P: (-253.5, -224.0), S: (17.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'Racer0'",
+            "[P: (-196.5, -224.0), S: (99.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3:00.000'",
+            "[P: (-57.5, -224.0), S: (119.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'best 0:59.000'",
+            "[P: (101.5, -220.0), S: (152.0, 34.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '2'",
+            "[P: (-253.5, -178.0), S: (17.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'Racer1'",
+            "[P: (-196.5, -178.0), S: (99.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3:01.000'",
+            "[P: (-57.5, -178.0), S: (119.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'best 1:00.000'",
+            "[P: (101.5, -174.0), S: (152.0, 34.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3'",
+            "[P: (-253.5, -132.0), S: (17.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'Racer2'",
+            "[P: (-196.5, -132.0), S: (99.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3:02.000'",
+            "[P: (-57.5, -132.0), S: (119.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'best 1:01.000'",
+            "[P: (101.5, -128.0), S: (152.0, 34.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '4'",
+            "[P: (-253.5, -86.0), S: (17.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'Racer3'",
+            "[P: (-196.5, -86.0), S: (99.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3:03.000'",
+            "[P: (-57.5, -86.0), S: (119.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'best 1:02.000'",
+            "[P: (101.5, -82.0), S: (152.0, 34.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '5'",
+            "[P: (-253.5, -40.0), S: (17.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'Racer4'",
+            "[P: (-196.5, -40.0), S: (99.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3:04.000'",
+            "[P: (-57.5, -40.0), S: (119.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'best 1:03.000'",
+            "[P: (101.5, -36.0), S: (152.0, 34.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '6'",
+            "[P: (-253.5, 6.0), S: (17.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'Racer5'",
+            "[P: (-196.5, 6.0), S: (99.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3:05.000'",
+            "[P: (-57.5, 6.0), S: (119.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'best 1:04.000'",
+            "[P: (101.5, 10.0), S: (152.0, 34.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '7'",
+            "[P: (-253.5, 52.0), S: (17.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'Racer6'",
+            "[P: (-196.5, 52.0), S: (99.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3:06.000'",
+            "[P: (-57.5, 52.0), S: (119.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '8'",
+            "[P: (-253.5, 98.0), S: (17.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label 'Racer7'",
+            "[P: (-196.5, 98.0), S: (99.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Label '3:07.000'",
+            "[P: (-57.5, 98.0), S: (119.0, 42.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Button 'Race again'",
+            "[P: (-253.5, 154.0), S: (507.0, 72.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "S24 Ultra FHD+ 19.5:9 2340x1080 / punch-hole left / results",
+            "outside safe area",
+            "Button 'Main menu'",
+            "[P: (-253.5, 240.0), S: (507.0, 72.0)]",
+            "[P: (70.0, 16.0), S: (1498.0, 706.0)]"
+          ],
+          [
+            "16:9 1920x1080 / none / pause",
+            "outside safe area",
+            "Label 'PAUSED'",
+            "[P: (-210.0, -209.0), S: (420.0, 74.0)]",
+            "[P: (32.0, 16.0), S: (1536.0, 868.0)]"
+          ],
+          [
+            "16:9 1920x1080 / none / pause",
+            "outside safe area",
+            "Button 'Resume'",
+            "[P: (-210.0, -121.0), S: (420.0, 72.0)]",
+            "[P: (32.0, 16.0), S: (1536.0, 868.0)]"
+          ]
+        ],
+        "widgets_checked": 2475
       },
-      "ok": true,
-      "test": "no road/ground step taller than 0.36 m on or beside any road"
-    },
-    {
-      "detail": {
-        "blocked_by_road_or_ground": 0,
-        "examples": [],
-        "trials": 72
-      },
-      "ok": true,
-      "test": "driving onto/off every road edge is never blocked by the road or the ground"
-    },
-    {
-      "detail": {
-        "blocked": [],
-        "runs": 14
-      },
-      "ok": true,
-      "test": "every branch entry/exit is driven without hitting a road/ground seam"
-    },
-    {
-      "detail": {
-        "examples": [],
-        "props_checked": 2301,
-        "props_missing": 0,
-        "set_piece_missing": {},
-        "set_piece_points": 253
-      },
-      "ok": true,
-      "test": "every reachable solid structure and prop has a collider where it is visible"
-    }
-  ],
-  "jumps": [
-    {
-      "detail": {
-        "22": false,
-        "22+hop": true,
-        "26": true,
-        "26+hop": true,
-        "31": true,
-        "31+hop": true,
-        "36": true,
-        "36+hop": true
-      },
-      "ok": true,
-      "test": "Giant's Log: base speed or hop clears, slow+no hop fails"
-    },
-    {
-      "detail": {
-        "22": false,
-        "22+hop": false,
-        "26": false,
-        "26+hop": false,
-        "31": true,
-        "31+hop": true,
-        "36": true,
-        "36+hop": true
-      },
-      "ok": true,
-      "test": "Flume: Boost/Overdrive speed clears, base speed (even with a hop) does not"
-    },
-    {
-      "detail": {
-        "22": false,
-        "22+hop": false,
-        "26": false,
-        "26+hop": true,
-        "31": true,
-        "31+hop": true,
-        "36": true,
-        "36+hop": true
-      },
-      "ok": true,
-      "test": "Shelf Rock: needs a lip-hop or Overdrive; slow+no hop fails"
-    }
-  ],
-  "track": [
-    {
-      "detail": "build ms=3906 timings={ \"paths\": 24, \"terrain_field\": 1043, \"roads\": 1116, \"terrain_mesh\": 1580, \"set_pieces\": 3074, \"gameplay\": 3156, \"scatter_logs\": 67, \"scatter_instances\": 23303, \"scatter_multimeshes\": 3329, \"scatter_colliders\": 4681, \"scatter\": 3899, \"life\": 3906 }",
-      "ok": true,
-      "test": "track builds (quality high)"
-    },
-    {
-      "detail": "L=1511 m",
-      "ok": true,
-      "test": "main loop length 1.3-1.7 km"
-    },
-    {
-      "detail": "bad=0",
-      "ok": true,
-      "test": "all 8 grid slots on road collision"
-    },
-    {
-      "detail": "holes=0 of 240",
-      "ok": true,
-      "test": "drivable surface everywhere on the main line"
-    },
-    {
-      "detail": "holes=0 []",
-      "ok": true,
-      "test": "branch right_bank has continuous surface"
-    },
-    {
-      "detail": "holes=0 []",
-      "ok": true,
-      "test": "branch left_bank has continuous surface"
-    },
-    {
-      "detail": "holes=0 []",
-      "ok": true,
-      "test": "branch gate_lane has continuous surface"
-    },
-    {
-      "detail": "holes=0 []",
-      "ok": true,
-      "test": "branch giants_log has continuous surface"
-    },
-    {
-      "detail": "holes=0 []",
-      "ok": true,
-      "test": "branch shelf_rock has continuous surface"
-    },
-    {
-      "detail": "holes=0 []",
-      "ok": true,
-      "test": "branch millrace_flume has continuous surface"
-    },
-    {
-      "detail": "holes=0 []",
-      "ok": true,
-      "test": "branch rootway_cave has continuous surface"
-    },
-    {
-      "detail": "holes=0 []",
-      "ok": true,
-      "test": "branch river_upstream has continuous surface"
-    },
-    {
-      "detail": "9.0..18.0 m",
-      "ok": true,
-      "test": "road width varies (>=5 m spread)"
-    },
-    {
-      "detail": {
-        "20-40": 78,
-        "40-80": 197,
-        "<20": 66,
-        ">80": 667
-      },
-      "ok": true,
-      "test": "corner radius distribution covers tight..sweeping"
+      "ok": false,
+      "test": "every widget inside the safe area and every button tappable on 8 screen shapes x 3 cut-out cases"
     }
   ]
 }

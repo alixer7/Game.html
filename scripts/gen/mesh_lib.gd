@@ -306,7 +306,8 @@ static func broadleaf_tree(seed: int, lod: int, palette: int = 0) -> Dictionary:
 	var bark := MeshBuilder.new()
 	var leaves := MeshBuilder.new()
 	var cards := MeshBuilder.new()
-	var sides: int = [9, 6, 4][lod]
+	# (mobile budget: LOD0 ~650 tris, LOD1 ~150, LOD2 ~80)
+	var sides: int = [7, 5, 4][lod]
 	var bark_col := func(t: float, _a: float, _p: Vector3) -> Color:
 		var k := lerpf(0.62, 1.0, clampf(t * 3.0, 0.0, 1.0))
 		return Color(k, k * 0.97, k * 0.93, 1.0)
@@ -315,7 +316,7 @@ static func broadleaf_tree(seed: int, lod: int, palette: int = 0) -> Dictionary:
 	var path := PackedVector3Array()
 	var rad := PackedFloat32Array()
 	var trunk_top := H * rng.randf_range(0.48, 0.58)
-	var segs: int = [7, 4, 2][lod]
+	var segs: int = [5, 3, 2][lod]
 	for i in segs + 1:
 		var t := float(i) / segs
 		path.append(Vector3(lean.x * sin(t * PI * 0.8) , -0.4 + trunk_top * t, lean.z * sin(t * PI * 0.8)))
@@ -324,18 +325,18 @@ static func broadleaf_tree(seed: int, lod: int, palette: int = 0) -> Dictionary:
 	var top := path[path.size() - 1]
 	# root flares
 	if lod == 0:
-		var nroots := rng.randi_range(4, 6)
+		var nroots := rng.randi_range(3, 4)
 		for k in nroots:
 			var a := TAU * (float(k) + rng.randf() * 0.5) / nroots
 			var dir := Vector3(cos(a), 0, sin(a))
 			var rp := PackedVector3Array()
 			var rr := PackedFloat32Array()
 			var L := rng.randf_range(1.0, 2.0) * r0 * 3.0
-			for j in 5:
-				var t := float(j) / 4.0
+			for j in 4:
+				var t := float(j) / 3.0
 				rp.append(dir * (r0 * 0.6 + L * t) + Vector3.UP * (0.55 * r0 * 2.0 * (1.0 - t) - 0.15 - t * 0.25))
 				rr.append(r0 * 0.55 * (1.0 - t * 0.85))
-			tube(bark, rp, rr, 6, bark_col, 0.35, false)
+			tube(bark, rp, rr, 4, bark_col, 0.35, false)
 	# branches + canopy clusters
 	var nb := rng.randi_range(3, 5)
 	var canopy_centres: Array[Vector3] = []
@@ -352,8 +353,8 @@ static func broadleaf_tree(seed: int, lod: int, palette: int = 0) -> Dictionary:
 			var t := float(j) / 3.0
 			bp.append(start + dir * L * t + Vector3.UP * (t * t * L * 0.25))
 			br.append(r0 * 0.55 * (1.0 - t * 0.7))
-		if lod < 2:
-			tube(bark, bp, br, 5 if lod == 0 else 4, bark_col, 0.35, true)
+		if lod == 0:
+			tube(bark, bp, br, 4, bark_col, 0.35, true)
 		if lod < 2 or k < 2:
 			canopy_centres.append(bp[3] + Vector3.UP * R * 0.25)
 	var pal := [
@@ -372,12 +373,10 @@ static func broadleaf_tree(seed: int, lod: int, palette: int = 0) -> Dictionary:
 		var ct: Color = pc[1]
 		cb = Color.from_hsv(fposmod(cb.h + hue, 1.0), cb.s, cb.v)
 		ct = Color.from_hsv(fposmod(ct.h + hue, 1.0), ct.s, ct.v * rng.randf_range(0.9, 1.08))
-		var sub := 2 if (lod == 0 and i == 0) else (1 if lod <= 1 else 0)
-		if lod == 2 and i == 0:
-			sub = 1
+		var sub := 1 if lod == 0 else 0
 		blob(leaves, c, radii * (1.12 if lod == 2 else 1.0), sub, nz, 0.3, cb, ct, 0.78, trunk_top * 0.7)
 		if lod == 0:
-			var ncards := 9
+			var ncards := 6
 			for k in ncards:
 				var a := TAU * (float(k) + rng.randf()) / ncards
 				var el := rng.randf_range(-0.4, 0.9)
@@ -468,7 +467,7 @@ static func birch_tree(seed: int, lod: int) -> Dictionary:
 	for k in 4:
 		var c := top + Vector3(rng.randf_range(-1.4, 1.4), rng.randf_range(-2.2, 0.8), rng.randf_range(-1.4, 1.4))
 		var r := rng.randf_range(1.4, 2.1)
-		blob(leaves, c, Vector3(r, r * 1.15, r), 2 if lod == 0 else 1, nz, 0.35, Color(0.25, 0.42, 0.10), Color(0.68, 0.80, 0.28), 0.6, H * 0.4)
+		blob(leaves, c, Vector3(r, r * 1.15, r), 1 if lod == 0 else 0, nz, 0.35, Color(0.25, 0.42, 0.10), Color(0.68, 0.80, 0.28), 0.6, H * 0.4)
 		if lod == 0:
 			for j in 5:
 				var a := TAU * (float(j) + rng.randf()) / 5.0

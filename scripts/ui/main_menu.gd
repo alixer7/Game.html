@@ -108,16 +108,17 @@ func _clear() -> void:
 
 func _show_main() -> void:
 	_clear()
-	var title := UIKit.label("WILDSPARK", 96, UIKit.ORANGE, 18)
-	title.position = Vector2(60, 18)
-	_page.add_child(title)
-	var sub := UIKit.label("KART", 60, UIKit.TEAL, 14)
-	sub.position = Vector2(68, 122)
-	_page.add_child(sub)
+	# one column, vertically centred in the safe area (fits 16:9 ... 21:9 and tablets)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	var title := UIKit.label("WILDSPARK", 92, UIKit.ORANGE, 18)
+	col.add_child(title)
+	var sub := UIKit.label("KART", 56, UIKit.TEAL, 14)
+	sub.position = Vector2(8, 0)
+	col.add_child(sub)
 	var v := VBoxContainer.new()
-	v.position = Vector2(60, 212)
 	v.add_theme_constant_override("separation", 10)
-	_page.add_child(v)
+	col.add_child(v)
 	v.add_child(UIKit.button("Race", func() -> void: _show_setup("race")))
 	v.add_child(UIKit.button("Time Trial", func() -> void: _show_setup("time_trial")))
 	v.add_child(UIKit.button("Practice", func() -> void: _show_setup("practice")))
@@ -126,22 +127,21 @@ func _show_main() -> void:
 	if not OS.has_feature("web"):
 		v.add_child(UIKit.button("Quit", func() -> void: get_tree().quit()))
 	for b in v.get_children():
-		(b as Control).custom_minimum_size.y = 64   # six buttons fit a 720 px tall screen
+		(b as Control).custom_minimum_size = Vector2(340, 62)
+	UIKit.side_panel(_page, col)
 	var ver := UIKit.label("v%s" % ProjectSettings.get_setting("application/config/version", "0.1"), 18, Color(1, 1, 1, 0.5), 4)
-	ver.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	ver.position = Vector2(-120, -40)
 	_page.add_child(ver)
+	ver.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 4)
 
 
 func _show_setup(mode: String) -> void:
 	Game.race.mode = mode
 	_clear()
 	var panel := PanelContainer.new()
-	panel.position = Vector2(60, 60)
-	_page.add_child(panel)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 16)
+	v.add_theme_constant_override("separation", 14)
 	panel.add_child(v)
+	UIKit.side_panel(_page, panel)
 	var titles := {"race": "GRAND PRIX RACE", "time_trial": "TIME TRIAL", "practice": "PRACTICE"}
 	v.add_child(UIKit.label(titles[mode], 46, UIKit.ORANGE, 10))
 	var names := []
@@ -172,11 +172,10 @@ func _start() -> void:
 func _show_garage() -> void:
 	_clear()
 	var panel := PanelContainer.new()
-	panel.position = Vector2(40, 40)
-	_page.add_child(panel)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
+	v.add_theme_constant_override("separation", 10)
 	panel.add_child(v)
+	UIKit.side_panel(_page, panel)
 	v.add_child(UIKit.label("GARAGE", 46, UIKit.ORANGE, 10))
 	var grid := GridContainer.new()
 	grid.columns = 4

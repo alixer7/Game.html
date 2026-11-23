@@ -51,8 +51,11 @@ func _page(name: String) -> VBoxContainer:
 func _graphics() -> Control:
 	var v := _page("Graphics")
 	var s := Game.settings
-	v.add_child(UIKit.row("Quality preset", UIKit.options(["Low", "Medium", "High"], int(s.quality), func(i: int) -> void: s.quality = i)))
+	v.add_child(UIKit.row("Quality preset", UIKit.options(["Low", "Medium", "High"], int(s.quality), func(i: int) -> void:
+		s.quality = i
+		Game.apply_settings())))
 	v.add_child(UIKit.label("(Quality changes vegetation density, view distance and shadows; applied on the next race.)", 20, Color(0.8, 0.85, 0.9), 4))
+	v.add_child(UIKit.label("(Render scale multiplies the preset's automatic 3D resolution; lower = smoother on hot or older phones.)", 20, Color(0.8, 0.85, 0.9), 4))
 	v.add_child(UIKit.row("Render scale", UIKit.slider(0.5, 1.0, 0.05, float(s.render_scale), func(x: float) -> void:
 		s.render_scale = x
 		Game.apply_settings())))

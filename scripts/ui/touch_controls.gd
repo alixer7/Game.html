@@ -39,8 +39,10 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Game.touch.active = DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") or OS.get_environment("WK_TOUCH") == "1"
 	visible = Game.touch.active or edit_mode
-	# the first draw happens before layout (size 0): redraw once the real size is known
+	# the first draw happens before layout (size 0): redraw once the real size is
+	# known, and whenever the screen changes (rotation, safe-area / margin changes)
 	resized.connect(queue_redraw)
+	get_viewport().size_changed.connect(queue_redraw)
 
 
 func _layout(id: String) -> Array:
@@ -52,13 +54,28 @@ func _layout(id: String) -> Array:
 
 func _btn_center(id: String) -> Vector2:
 	var l := _layout(id)
-	var r := get_rect().size
-	return Vector2(float(l[0]) * r.x, float(l[1]) * r.y)
+	var sr := _safe()
+	return sr.position + Vector2(float(l[0]) * sr.size.x, float(l[1]) * sr.size.y)
 
 
 func _btn_radius(id: String) -> float:
 	var l := _layout(id)
-	return get_rect().size.y * 0.075 * float(l[2]) * float(Game.settings["touch_scale"])
+	# sized from the short side, but never wider than the layout allows on tall
+	# (4:3 / 16:10) screens, where height-based sizing makes buttons collide
+	var sr := _safe()
+	return minf(sr.size.y, sr.size.x * 0.45) * 0.075 * float(l[2]) * float(Game.settings["touch_scale"])
+
+
+## Layout area: the screen minus notches / punch-hole / rounded corners.
+func _safe() -> Rect2:
+	if not is_inside_tree():
+		return Rect2(Vector2.ZERO, get_rect().size)
+	return UIKit.safe_rect(get_viewport())
+
+
+func _pause_tab() -> Vector2:
+	var sr := _safe()
+	return Vector2(sr.position.x + sr.size.x * 0.5, sr.position.y + 30.0)
 
 
 func _buttons() -> Array:
@@ -96,7 +113,8 @@ func _input(event: InputEvent) -> void:
 
 func _on_down(i: int, p: Vector2) -> void:
 	var r := get_rect().size
-	if p.y < r.y * 0.12 and absf(p.x - r.x * 0.5) < r.x * 0.08:
+	var pt := _pause_tab()
+	if absf(p.y - pt.y) < 55.0 and absf(p.x - pt.x) < 75.0:
 		pause_requested.emit()
 		return
 	if edit_mode:
@@ -141,11 +159,11 @@ func _on_move(i: int, p: Vector2) -> void:
 		return
 	var b: String = _touches[i].btn
 	if b == "edit" and _dragging != "":
-		var r := get_rect().size
+		var sr := _safe()
 		var lay: Dictionary = Game.settings.get("touch_layout", {}).duplicate(true)
 		var cur := _layout(_dragging).duplicate()
-		cur[0] = clampf(p.x / r.x, 0.03, 0.97)
-		cur[1] = clampf(p.y / r.y, 0.15, 0.97)
+		cur[0] = clampf((p.x - sr.position.x) / sr.size.x, 0.03, 0.97)
+		cur[1] = clampf((p.y - sr.position.y) / sr.size.y, 0.15, 0.97)
 		lay[_dragging] = cur
 		Game.settings["touch_layout"] = lay
 		queue_redraw()
@@ -237,7 +255,7 @@ func _draw() -> void:
 	draw_circle(knob, R * 0.42, Color(1, 1, 1, 0.55 * op))
 	# pause tab
 	var r2 := get_rect().size
-	var pc := Vector2(r2.x * 0.5, r2.y * 0.06)
+	var pc := _pause_tab()
 	draw_rect(Rect2(pc - Vector2(34, 22), Vector2(68, 44)), Color(0.05, 0.07, 0.12, 0.45 * op))
 	draw_rect(Rect2(pc + Vector2(-14, -12), Vector2(9, 24)), Color(1, 1, 1, 0.8 * op))
 	draw_rect(Rect2(pc + Vector2(5, -12), Vector2(9, 24)), Color(1, 1, 1, 0.8 * op))

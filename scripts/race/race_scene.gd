@@ -28,7 +28,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	var t0 := Time.get_ticks_msec()
 	_setup_environment()
-	_build_track()
+	await _build_track()
 	_spawn_karts()
 	_setup_ai()
 	_setup_ui()
@@ -67,6 +67,30 @@ func _show_loading() -> void:
 	l2.size = Vector2(1000, 60)
 	l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_loading.add_child(l2)
+	_load_bar = ProgressBar.new()
+	_load_bar.show_percentage = false
+	_load_bar.min_value = 0.0
+	_load_bar.max_value = 1.0
+	_load_bar.set_anchors_preset(Control.PRESET_CENTER)
+	_load_bar.position = Vector2(-300, 90)
+	_load_bar.size = Vector2(600, 18)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = UIKit.ORANGE
+	fill.set_corner_radius_all(9)
+	var bgs := StyleBoxFlat.new()
+	bgs.bg_color = Color(1, 1, 1, 0.12)
+	bgs.set_corner_radius_all(9)
+	_load_bar.add_theme_stylebox_override("fill", fill)
+	_load_bar.add_theme_stylebox_override("background", bgs)
+	_loading.add_child(_load_bar)
+
+
+var _load_bar: ProgressBar
+
+
+func _on_build_progress(_step: String, fraction: float) -> void:
+	if _load_bar:
+		_load_bar.value = fraction
 
 
 func _setup_environment() -> void:
@@ -78,18 +102,25 @@ func _setup_environment() -> void:
 	sm.shader = load("res://shaders/sky.gdshader")
 	sm.set_shader_parameter("cloud_tex", Mats.tex("clouds"))
 	sky.sky_material = sm
-	sky.radiance_size = Sky.RADIANCE_SIZE_128
-	sky.process_mode = Sky.PROCESS_MODE_QUALITY if q >= 2 else Sky.PROCESS_MODE_INCREMENTAL
 	e.background_mode = Environment.BG_SKY
 	e.sky = sky
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	if q >= 2:
+		# the sky shader animates clouds (TIME), which re-renders its radiance
+		# cubemap every frame: only the High preset pays for sky lighting
+		sky.radiance_size = Sky.RADIANCE_SIZE_64
+		sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		e.ambient_light_sky_contribution = 0.85
+		e.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	else:
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		e.ambient_light_color = Color(0.62, 0.7, 0.8)
+		e.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	e.ambient_light_energy = 0.85
-	e.ambient_light_sky_contribution = 0.85
-	e.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	e.tonemap_exposure = 1.05
 	e.tonemap_white = 6.0
-	e.glow_enabled = q >= 1
+	e.glow_enabled = q >= 2
 	e.glow_intensity = 0.55
 	e.glow_bloom = 0.06
 	e.glow_hdr_threshold = 1.1
@@ -111,9 +142,12 @@ func _setup_environment() -> void:
 	sun.light_energy = 1.3
 	sun.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(-142.0), 0)
 	sun.shadow_enabled = Game.settings["shadows"] and q >= 1
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 95.0 if q >= 2 else 60.0
-	sun.directional_shadow_blend_splits = q >= 2
+	# Medium: one cascade, 40 m, 1024 hard; High: two cascades, 55 m, 2048 soft
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if q >= 2 else DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.directional_shadow_max_distance = 55.0 if q >= 2 else 40.0
+	sun.directional_shadow_blend_splits = false
+	RenderingServer.directional_shadow_atlas_set_size(2048 if q >= 2 else 1024, true)
+	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW if q >= 2 else RenderingServer.SHADOW_QUALITY_HARD)
 	sun.shadow_bias = 0.04
 	sun.shadow_normal_bias = 1.2
 	sun.light_angular_distance = 0.6
@@ -122,9 +156,11 @@ func _setup_environment() -> void:
 
 func _build_track() -> void:
 	var tdef := Game.track_def(Game.race.track)
-	tb = TrackBuilder.new()
-	tb.load_track(tdef.data)
-	tb.build(self, int(Game.settings["quality"]))
+	var builder := TrackBuilder.new()
+	builder.load_track(tdef.data)
+	builder.progress.connect(_on_build_progress)
+	await builder.build_async(self, int(Game.settings["quality"]), get_tree())
+	tb = builder   # published only once complete (tests and tools wait on it)
 	race = RaceManager.new()
 	race.name = "Race"
 	add_child(race)

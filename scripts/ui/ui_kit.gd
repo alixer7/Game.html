@@ -184,14 +184,29 @@ static func safe_margins(ctrl: Control) -> void:
 		ctrl.tree_entered.connect(hook, CONNECT_ONE_SHOT)
 
 
-static func centered(parent: Node, panel: Control, max_frac := Vector2(0.94, 0.94)) -> Control:
+static func side_panel(parent: Node, panel: Control) -> Control:
+	## Panel on the left of the safe area, vertically centred, scrolling if it is
+	## taller than the screen (the right side stays free for the 3D preview).
+	return centered(parent, panel, Vector2(0.6, 1.0), true, false)
+
+
+static func centered(parent: Node, panel: Control, max_frac := Vector2(0.94, 0.94), left := false, inset := true) -> Control:
 	## Puts panel in the middle of the safe area, scrolling if it is taller than
 	## the screen. Works for any parent (CanvasLayer or Control) and any size.
 	var area := Control.new()
 	area.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(area)
-	safe_margins(area)
-	var cc := CenterContainer.new()
+	if inset:
+		safe_margins(area)
+	else:
+		area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var cc: Container
+	if left:
+		var col := VBoxContainer.new()
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		cc = col
+	else:
+		cc = CenterContainer.new()
 	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(cc)
@@ -200,6 +215,8 @@ static func centered(parent: Node, panel: Control, max_frac := Vector2(0.94, 0.9
 	sc.scroll_deadzone = 28
 	sc.mouse_filter = Control.MOUSE_FILTER_PASS
 	cc.add_child(sc)
+	if left:
+		sc.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	sc.add_child(panel)
 	var fit := func() -> void:
 		if not is_instance_valid(sc) or not area.is_inside_tree():

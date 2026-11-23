@@ -261,14 +261,18 @@ static func build_all(tb: TrackBuilder) -> void:
 
 	# ---------------------------------------------------------------- emit MultiMeshes
 	# per kind: [begin, end, cell size, casts shadow] for each LOD
-	var grass_end: float = [26.0, 36.0, 48.0][q]
+	var grass_end: float = [22.0, 30.0, 42.0][q]
+	# per quality: LOD distances shrink (fog hides the hand-over) and only the
+	# nearest trees cast shadows; everything small is shadow-less
+	var tr: Array = [[26.0, 72.0, 300.0], [36.0, 105.0, 380.0], [46.0, 135.0, 460.0]][q]
+	var sm: float = [0.6, 0.8, 1.0][q]
 	var specs := {
-		"tree": [[0.0, 62.0, 48.0, true], [54.0, 230.0, 160.0, false], [215.0, 520.0, 320.0, false]],
-		"bush": [[0.0, 70.0, 48.0, true], [60.0, 170.0, 128.0, false]],
-		"rock": [[0.0, 80.0, 64.0, true], [72.0, 260.0, 192.0, false]],
-		"fern": [[0.0, 62.0, 24.0, false]], "grass": [[0.0, grass_end + 8.0, 24.0, false]],
-		"flower": [[0.0, 60.0, 24.0, false]], "mushroom": [[0.0, 55.0, 24.0, false]], "reeds": [[0.0, 80.0, 32.0, false]],
-		"lily": [[0.0, 110.0, 32.0, false]], "stump": [[0.0, 80.0, 48.0, false]], "deadlog": [[0.0, 90.0, 48.0, false]],
+		"tree": [[0.0, tr[0], 48.0, q >= 1], [tr[0] - 6.0, tr[1], 128.0, false], [tr[1] - 8.0, tr[2], 320.0, false]],
+		"bush": [[0.0, 45.0 * sm, 48.0, false], [40.0 * sm, 100.0 * sm, 128.0, false]],
+		"rock": [[0.0, 55.0 * sm, 64.0, q >= 2], [48.0 * sm, 170.0 * sm, 192.0, false]],
+		"fern": [[0.0, 48.0 * sm, 24.0, false]], "grass": [[0.0, grass_end + 6.0, 24.0, false]],
+		"flower": [[0.0, 45.0 * sm, 24.0, false]], "mushroom": [[0.0, 40.0 * sm, 24.0, false]], "reeds": [[0.0, 60.0 * sm, 32.0, false]],
+		"lily": [[0.0, 80.0 * sm, 32.0, false]], "stump": [[0.0, 60.0 * sm, 48.0, false]], "deadlog": [[0.0, 70.0 * sm, 48.0, false]],
 	}
 	# variants that share a far mesh are merged so each far cell is one draw
 	var merged_far := {}   # ArrayMesh -> Array[Transform3D]

@@ -120,13 +120,24 @@ func _setup_inputs() -> void:
 	InputMap.action_add_event("brake", down)
 
 
+const SETTINGS_VERSION := 2
+
+
 func load_settings() -> void:
+	# phones start on the Medium preset (High is for tablets / desktop)
+	if OS.has_feature("mobile"):
+		settings["quality"] = 1
 	var cf := ConfigFile.new()
 	if cf.load(SETTINGS_PATH) != OK:
 		if OS.has_feature("pc"):
 			settings["auto_accel"] = false
 		return
+	# settings saved by 0.1.x used full-resolution High graphics on phones: those
+	# performance values are reset once to the new defaults
+	var old_version := int(cf.get_value("settings", "settings_version", 1)) < SETTINGS_VERSION
 	for k in settings.keys():
+		if old_version and k in ["quality", "render_scale", "fps_cap", "shadows"]:
+			continue
 		if cf.has_section_key("settings", k):
 			settings[k] = cf.get_value("settings", k)
 	for k in race.keys():
@@ -138,18 +149,35 @@ func save_settings() -> void:
 	var cf := ConfigFile.new()
 	for k in settings:
 		cf.set_value("settings", k, settings[k])
+	cf.set_value("settings", "settings_version", SETTINGS_VERSION)
 	for k in race:
 		cf.set_value("race", k, race[k])
 	cf.save(SETTINGS_PATH)
+
+
+## 3D render height per quality preset (Low/Medium/High). Phones have 1080-1440
+## pixel tall screens; drawing the 3D scene at full resolution is the single
+## biggest GPU cost, so it is rendered at this height and upscaled (FSR).
+const RENDER_HEIGHT := [600.0, 720.0, 900.0]
+
+
+func render_scale_for(window_h: float) -> float:
+	var q := clampi(int(settings["quality"]), 0, 2)
+	var auto := clampf(RENDER_HEIGHT[q] / maxf(window_h, 1.0), 0.4, 1.0)
+	return clampf(auto * float(settings["render_scale"]), 0.35, 1.0)
 
 
 func apply_settings() -> void:
 	Engine.max_fps = int(settings["fps_cap"])
 	var vp := get_viewport()
 	if vp:
-		vp.scaling_3d_scale = float(settings["render_scale"])
-		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR if float(settings["render_scale"]) < 0.99 else Viewport.SCALING_3D_MODE_BILINEAR
-		vp.msaa_3d = Viewport.MSAA_2X if int(settings["quality"]) >= 2 else Viewport.MSAA_DISABLED
+		var q := int(settings["quality"])
+		var sc := render_scale_for(float(DisplayServer.window_get_size().y))
+		vp.scaling_3d_scale = sc
+		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if sc < 0.97 and q >= 1 else Viewport.SCALING_3D_MODE_BILINEAR
+		vp.msaa_3d = Viewport.MSAA_2X if q >= 2 else Viewport.MSAA_DISABLED
+		if not vp.size_changed.is_connected(apply_settings):
+			vp.size_changed.connect(apply_settings)
 	var bus_master := AudioServer.get_bus_index("Master")
 	AudioServer.set_bus_volume_db(bus_master, linear_to_db(maxf(float(settings["vol_master"]), 0.0001)))
 	if has_node("/root/Sfx"):

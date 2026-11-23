@@ -5,20 +5,30 @@ extends RefCounted
 
 
 static func build_all(tb: TrackBuilder) -> void:
-	var root := Node3D.new()
-	root.name = "SetPieces"
-	tb.root.add_child(root)
-	_aqueduct(tb, root)
-	_start_gantry(tb, root)
-	_lower_falls(tb, root)
-	_river_arch(tb, root)
-	_giants_log(tb, root)
-	_ridge(tb, root)
-	_ruins(tb, root)
-	_mill(tb, root)
-	_cave(tb, root)
-	_elder_tree(tb, root)
-	_background(tb, root)
+	build_part(tb, 0)
+	build_part(tb, 1)
+
+
+## Two halves, so a loading screen can update between them.
+static func build_part(tb: TrackBuilder, part: int) -> void:
+	var root: Node3D = tb.root.get_node_or_null("SetPieces")
+	if root == null:
+		root = Node3D.new()
+		root.name = "SetPieces"
+		tb.root.add_child(root)
+	if part == 0:
+		_aqueduct(tb, root)
+		_start_gantry(tb, root)
+		_lower_falls(tb, root)
+		_river_arch(tb, root)
+		_giants_log(tb, root)
+	else:
+		_ridge(tb, root)
+		_ruins(tb, root)
+		_mill(tb, root)
+		_cave(tb, root)
+		_elder_tree(tb, root)
+		_background(tb, root)
 
 
 # =================================================================== Z1 Aqueduct

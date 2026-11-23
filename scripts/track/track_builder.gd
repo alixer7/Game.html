@@ -39,45 +39,74 @@ func load_track(json_path: String) -> void:
 
 
 func build(parent: Node3D, q := 2) -> Node3D:
+	_begin(parent, q)
+	for st in _stages():
+		(st[1] as Callable).call()
+		_t(st[0], _t0)
+	return root
+
+
+## Same build, yielding a frame between stages so a loading screen can animate
+## and the OS never sees a frozen app (Android shows "not responding" after ~5 s).
+func build_async(parent: Node3D, q: int, tree: SceneTree) -> Node3D:
+	_begin(parent, q)
+	var stages := _stages()
+	for i in stages.size():
+		(stages[i][1] as Callable).call()
+		_t(stages[i][0], _t0)
+		progress.emit(String(stages[i][0]), float(i + 1) / float(stages.size()))
+		await tree.process_frame
+	return root
+
+
+var _t0 := 0
+
+
+func _begin(parent: Node3D, q: int) -> void:
 	quality = q
-	var t0 := Time.get_ticks_msec()
+	_t0 = Time.get_ticks_msec()
 	root = Node3D.new()
 	root.name = "Track"
 	parent.add_child(root)
-	_make_paths()
-	_seat_branches()
-	_t("paths", t0)
-	terrain = TerrainBuilder.new()
-	var b := _bounds()
-	terrain.setup(b, 2.5 if quality >= 1 else 3.5, 2207)
-	_features()
-	terrain.stamp_path(main)
-	for id in branches:
-		terrain.stamp_path(branches[id])
-	for extra in _extra_water_paths():
-		terrain.stamp_path(extra)
-	terrain.finalize()
-	_punch_cave_holes()
-	_t("terrain_field", t0)
-	TrackGameplay.plan(self)   # obstacle placement first: water foam depends on it
-	_build_roads()
-	_t("roads", t0)
-	var tb := terrain.build_meshes(root, Mats.terrain())
-	_t("terrain_mesh", t0)
-	SetPieces.build_all(self)
-	_t("set_pieces", t0)
-	TrackGameplay.build_all(self)
-	_t("gameplay", t0)
-	Scatter.build_all(self)
-	_t("scatter", t0)
-	EnvLife.build_all(self)
-	_t("life", t0)
-	return root
+
+
+func _stages() -> Array:
+	return [
+		["paths", func() -> void:
+			_make_paths()
+			_seat_branches()],
+		["terrain_stamps", func() -> void:
+			terrain = TerrainBuilder.new()
+			terrain.setup(_bounds(), 2.5 if quality >= 1 else 3.5, 2207)
+			_features()
+			terrain.stamp_path(main)
+			for id in branches:
+				terrain.stamp_path(branches[id])
+			for extra in _extra_water_paths():
+				terrain.stamp_path(extra)],
+		["terrain_field", func() -> void:
+			terrain.finalize()
+			_punch_cave_holes()],
+		["roads", func() -> void:
+			TrackGameplay.plan(self)   # obstacle placement first: water foam depends on it
+			_build_roads()],
+		["terrain_mesh", func() -> void:
+			terrain.build_meshes(root, Mats.terrain())],
+		["set_pieces", func() -> void:
+			SetPieces.build_part(self, 0)],
+		["set_pieces_2", func() -> void:
+			SetPieces.build_part(self, 1)],
+		["gameplay", func() -> void:
+			TrackGameplay.build_all(self)],
+		["scatter", func() -> void:
+			Scatter.build_all(self)],
+		["life", func() -> void:
+			EnvLife.build_all(self)],
+	]
 
 
 func _t(step: String, t0: int) -> void:
 	timings[step] = Time.get_ticks_msec() - t0
-	progress.emit(step, 0.0)
 
 
 # ------------------------------------------------------------------ paths

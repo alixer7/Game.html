@@ -419,13 +419,15 @@ func build_meshes(parent: Node3D, material: Material, chunk_cells := 32, collisi
 				mi.position = centre
 				mi.name = "T_%d_%d_L%d" % [jx, jz, lod]
 				mi.mesh = mb.commit(null, material)
-				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if lod == 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				# the ground only receives shadows (casting would redraw every chunk
+				# into the shadow map); full detail near, half detail beyond 120 m
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				if lod == 0:
-					mi.visibility_range_end = 190.0
-					mi.visibility_range_end_margin = 10.0
+					mi.visibility_range_end = 120.0
+					mi.visibility_range_end_margin = 8.0
 				else:
-					mi.visibility_range_begin = 180.0
-					mi.visibility_range_begin_margin = 10.0
+					mi.visibility_range_begin = 112.0
+					mi.visibility_range_begin_margin = 8.0
 				mesh_root.add_child(mi)
 			if near_road:
 				var faces := _chunk_faces(x0, z0, x1, z1)
