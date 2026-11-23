@@ -1,0 +1,168 @@
+{
+  "physics": [
+    {
+      "detail": "v=26.00",
+      "ok": true,
+      "test": "top speed ~ base max (26 m/s)"
+    },
+    {
+      "detail": "t90=2.25 s, v@2s=22.4",
+      "ok": true,
+      "test": "0->90%% in 2.0-4.5 s"
+    },
+    {
+      "detail": "ratio=0.80",
+      "ok": true,
+      "test": "surface grass top speed ratio ~ 0.80"
+    },
+    {
+      "detail": "ratio=0.76",
+      "ok": true,
+      "test": "surface sand top speed ratio ~ 0.76"
+    },
+    {
+      "detail": "ratio=0.62",
+      "ok": true,
+      "test": "surface mud top speed ratio ~ 0.62"
+    },
+    {
+      "detail": "ratio=0.97",
+      "ok": true,
+      "test": "surface dirt top speed ratio ~ 0.97"
+    },
+    {
+      "detail": "R=22.7 m at 24.2 m/s",
+      "ok": true,
+      "test": "full-speed steering radius 20-32 m (slides needed for tight corners)"
+    },
+    {
+      "detail": null,
+      "ok": true,
+      "test": "hop + steer starts a slide"
+    },
+    {
+      "detail": "slip=41.5",
+      "ok": true,
+      "test": "steady slide angle 15-45 deg"
+    },
+    {
+      "detail": "perfect=3 taps=3",
+      "ok": true,
+      "test": "3 perfect sparks per slide"
+    },
+    {
+      "detail": "gained=2.30",
+      "ok": true,
+      "test": "3-stage chain adds ~2.3 s reserve"
+    },
+    {
+      "detail": "R_min=11.3",
+      "ok": true,
+      "test": "slide (steering in) is tighter than plain steering (< 16 m)"
+    },
+    {
+      "detail": "before=26.0 after=31.2",
+      "ok": true,
+      "test": "slide + sparks keep/raise speed"
+    },
+    {
+      "detail": null,
+      "ok": true,
+      "test": "early tap fizzles (no reserve, stage kept)"
+    },
+    {
+      "detail": "fizzles=2",
+      "ok": true,
+      "test": "waiting too long backfires (stage lost)"
+    },
+    {
+      "detail": "reserve=1.00",
+      "ok": true,
+      "test": "reserve drains ~1 s per s on road"
+    },
+    {
+      "detail": null,
+      "ok": true,
+      "test": "tier 1 while reserve lasts"
+    },
+    {
+      "detail": "v=32.2",
+      "ok": true,
+      "test": "boost raises speed toward +24%"
+    },
+    {
+      "detail": "v=30.7 0.33 s after the boost ended",
+      "ok": true,
+      "test": "reserve empty -> tier 0, speed bleeds gradually (momentum)"
+    },
+    {
+      "detail": "v=36.4 tier=2",
+      "ok": true,
+      "test": "Overdrive pad -> tier 2 & ~+40% speed"
+    },
+    {
+      "detail": "min reserve=0.45 end=0.45 tier=1",
+      "ok": true,
+      "test": "skilled slide chaining sustains boost (reserve never empties)"
+    },
+    {
+      "detail": "air=0.35 s",
+      "ok": true,
+      "test": "hop airtime 0.25-0.5 s"
+    },
+    {
+      "detail": null,
+      "ok": true,
+      "test": "hop without steer does not start a slide"
+    },
+    {
+      "detail": "air=0.67",
+      "ok": true,
+      "test": "ramp launch gives hang time > 0.5 s"
+    },
+    {
+      "detail": "[0.273, 0.153]",
+      "ok": true,
+      "test": "clean landing after hang time grants an air boost"
+    },
+    {
+      "detail": {
+        "retained": 0.97,
+        "sev": 0
+      },
+      "ok": true,
+      "test": "8 deg contact = graze, small loss"
+    },
+    {
+      "detail": {
+        "retained": 0.69,
+        "sev": 1
+      },
+      "ok": true,
+      "test": "30 deg contact = glance, medium loss"
+    },
+    {
+      "detail": {
+        "retained": 0.05,
+        "sev": 2
+      },
+      "ok": true,
+      "test": "80 deg contact = head-on, big loss"
+    },
+    {
+      "detail": "slide=2.40 hook=3.30 rad/s v=25.6",
+      "ok": true,
+      "test": "hook turn rotates much faster than a slide"
+    },
+    {
+      "detail": "v=31.0 (road max 26.0)",
+      "ok": true,
+      "test": "river current: faster than the road cap (flow pushes)"
+    },
+    {
+      "detail": "delta=0.0000",
+      "ok": true,
+      "test": "same inputs -> same result (deterministic)"
+    }
+  ]
+}

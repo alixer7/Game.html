@@ -52,13 +52,13 @@ static func make(width: float, tb_rng: RandomNumberGenerator) -> Node3D:
 	var height := 8.5
 	var frame := MeshBuilder.new()
 	var wood := Color(0.6, 0.45, 0.32, 0.3)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		MeshLib.box(frame, Transform3D(Basis(), Vector3(side * (width * 0.5 + 0.9), height * 0.5, 0)), Vector3(0.8, height + 0.4, 0.8), wood, 0.1)
 	MeshLib.box(frame, Transform3D(Basis(), Vector3(0, height + 0.2, 0)), Vector3(width + 2.8, 0.8, 0.9), wood, 0.1)
 	var fm := MeshInstance3D.new()
 	fm.mesh = frame.commit(null, Mats.triplanar("wood"))
 	n.add_child(fm)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var post := StaticBody3D.new()
 		post.collision_layer = 1
 		var cs := CollisionShape3D.new()
@@ -86,7 +86,7 @@ static func make(width: float, tb_rng: RandomNumberGenerator) -> Node3D:
 	rm.rotation = Vector3(0, 0, 0)
 	body.add_child(rm)
 	var chains := MeshBuilder.new()
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		MeshLib.tube(chains, PackedVector3Array([Vector3(side * 0.5, 0, 0), Vector3(side * 0.5, -5.6, 0)]), PackedFloat32Array([0.06, 0.06]), 4,
 			func(_t: float, _a: float, _p: Vector3) -> Color: return Color(0.3, 0.3, 0.32))
 	var cm := MeshInstance3D.new()

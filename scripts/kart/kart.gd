@@ -497,7 +497,10 @@ func _ground_motion(dt: float) -> void:
 		vf = move_toward(vf, 0.0, p.coast_decel * dt)
 	if vf > cap:
 		vf = move_toward(vf, cap, (p.overspeed_decel + float(info.drag) * 2.0) * dt)
-	vf = move_toward(vf, 0.0, float(info.drag) * dt)
+	# surface drag only bites when coasting: on throttle the surface's speed
+	# multiplier is the cap (drag above the cap is in overspeed_decel above)
+	if throttle <= 0.01:
+		vf = move_toward(vf, 0.0, float(info.drag) * dt)
 	if spin_time > 0.0:
 		vf = move_toward(vf, 0.0, 14.0 * dt)
 	# slopes

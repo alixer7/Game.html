@@ -47,7 +47,7 @@ static func _aqueduct(tb: TrackBuilder, root: Node3D) -> void:
 	var deco := MeshBuilder.new()
 	# outer wall profile (lateral offset beyond hw, height relative to deck)
 	var prof := [[0.58, 0.0], [0.85, -0.55], [0.85, -1.0], [0.6, -1.05], [0.6, -60.0]]
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		var base := walls.vcount()
 		var rows := 0
 		for k in range(r.x, r.y + 1):
@@ -156,7 +156,7 @@ static func _portal(tb: TrackBuilder, node: Node3D, lip_i: int) -> void:
 		var o0 := mb.add_vertex(outer_pts[i], fwd, Vector2.ZERO, c)
 		mb.quad(a0, o0, o1, a1)
 	# side panels down to the ground outside the arch
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		var top := face + right * hw * side + Vector3.UP * (deck + 0.1 - face.y)
 		var foot := face + right * arch_w * side + Vector3.UP * (river_y - face.y)
 		var corner := face + right * hw * side + Vector3.UP * (river_y - 2.0 - face.y)
@@ -219,7 +219,7 @@ static func _start_gantry(tb: TrackBuilder, root: Node3D) -> void:
 	var b := Basis.looking_at(sp.tan[k], Vector3.UP)
 	var hw := sp.width[k] * 0.5 + 1.2
 	var mb := MeshBuilder.new()
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		var pp := pos + sp.right[k] * hw * side
 		MeshLib.box(mb, Transform3D(b, pp + Vector3.UP * 3.5), Vector3(1.3, 7.0, 1.3), Color(0.95, 0.92, 0.88), 0.2)
 		MeshLib.box(mb, Transform3D(b, pp + Vector3.UP * 7.2), Vector3(1.7, 0.5, 1.7), Color(1, 1, 1))
@@ -316,7 +316,7 @@ static func _lower_falls(tb: TrackBuilder, root: Node3D) -> void:
 	_pond_disc(tb, node, Vector3(pool_c.x, pool_y, pool_c.z), 13.0, "pond", 0.8)
 	# framing boulders on both sides of the lip
 	var rocks := MeshBuilder.new()
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		for i in 3:
 			var rp := p + right * float(side) * (hw + 1.5 + i * 2.2) + fwd * (i * 2.5 - 1.0)
 			var gy := tb.ground_y(rp.x, rp.z)
@@ -377,7 +377,7 @@ static func _river_arch(tb: TrackBuilder, root: Node3D) -> void:
 	node.name = "MossArch"
 	root.add_child(node)
 	tb.add_static_mesh(node, mb, Mats.triplanar("rock"), "Arch")
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		var foot := p + right * span * side
 		tb.add_cylinder_collider(node, Vector3(foot.x, tb.ground_y(foot.x, foot.z) - 1.0, foot.z), 3.6, 10.0)
 		tb.obstacles.append([foot, 3.6, "arch_leg"])
@@ -454,7 +454,7 @@ static func _giants_log(tb: TrackBuilder, root: Node3D) -> void:
 	# shelf fungus on the trunk sides (decor)
 	var fungus := MeshBuilder.new()
 	for i in range(2, path.size() - 1):
-		for side in [-1, 1]:
+		for side: int in [-1, 1]:
 			if tb.rng.randf() < 0.6:
 				var b := Basis.looking_at((path[i + 1] - path[i]).normalized(), Vector3.UP)
 				var sidev := b.x * float(side)
@@ -476,7 +476,7 @@ static func _ridge(tb: TrackBuilder, root: Node3D) -> void:
 	root.add_child(node)
 	var mb := MeshBuilder.new()
 	for k in range(rr.x, rr.y, 5):
-		for side in [-1, 1]:
+		for side: int in [-1, 1]:
 			if tb.rng.randf() < 0.35:
 				continue   # gaps: falling off into the hollow is possible
 			var hw := sp.width[k] * 0.5
@@ -512,7 +512,7 @@ static func _ruins(tb: TrackBuilder, root: Node3D) -> void:
 	var hw := sp.width[k0] * 0.5 + 1.2
 	var b := Basis.looking_at(sp.tan[k0], Vector3.UP)
 	var mb := MeshBuilder.new()
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		var pp := p + sp.right[k0] * hw * side
 		mb.append_builder(MeshLib.ruin_pillar(70 + side, false), Transform3D(b, pp + Vector3.DOWN * 0.3))
 		tb.add_cylinder_collider(node, pp + Vector3.DOWN * 0.3, 0.7, 6.0)
@@ -532,7 +532,7 @@ static func _ruins(tb: TrackBuilder, root: Node3D) -> void:
 	var deco := MeshBuilder.new()
 	var k1 := tb.mark_index("od_pad")
 	for kk in range(k0, k1, 7):
-		for side in [-1, 1]:
+		for side: int in [-1, 1]:
 			if tb.rng.randf() < 0.45:
 				continue
 			var hw2 := sp.width[kk] * 0.5
@@ -567,7 +567,7 @@ static func _owl_statue(tb: TrackBuilder, node: Node3D) -> void:
 	var tmp := MeshBuilder.new()
 	MeshLib.blob(tmp, Vector3(0, 6.0, 0), Vector3(3.6, 4.4, 3.2), 2, nz, 0.06, c0, c1)        # body
 	MeshLib.blob(tmp, Vector3(0, 11.0, 0.2), Vector3(3.0, 2.6, 2.7), 2, nz, 0.05, c0, c1)     # head
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		MeshLib.blob(tmp, Vector3(3.3 * s, 6.2, -0.4), Vector3(1.0, 3.6, 2.4), 2, nz, 0.08, c0, c1)  # wings
 		MeshLib.tube(tmp, PackedVector3Array([Vector3(1.8 * s, 12.8, 0), Vector3(2.4 * s, 14.6, -0.3)]), PackedFloat32Array([0.8, 0.05]), 6,
 			func(_t: float, _a: float, _p: Vector3) -> Color: return c1)  # ear tufts
@@ -603,7 +603,7 @@ static func _mill(tb: TrackBuilder, root: Node3D) -> void:
 		var hw := sp.width[k] * 0.5 + 0.1
 		var b := Basis.looking_at(sp.tan[k], Vector3.UP)
 		var top := sp.pos[k].y - (0.45 if st == "flume" else 0.4)
-		for side in [-1, 1]:
+		for side: int in [-1, 1]:
 			var lp := sp.pos[k] + sp.right[k] * float(side) * hw
 			var gy := tb.ground_y(lp.x, lp.z) - 0.5
 			var h := top - gy
@@ -633,7 +633,7 @@ static func _mill(tb: TrackBuilder, root: Node3D) -> void:
 	tb.add_static_mesh(node, upper, wood, "MillUpper")
 	var roof := MeshBuilder.new()
 	var rc := Color(0.62, 0.25, 0.18)
-	for s2 in [-1.0, 1.0]:
+	for s2: float in [-1.0, 1.0]:
 		var rb := b * Basis(Vector3(0, 0, 1), s2 * 0.62)
 		MeshLib.box(roof, Transform3D(rb, hp + b * Vector3(s2 * 2.3, 9.4, 0)), Vector3(5.8, 0.35, 11.2), rc)
 	MeshLib.box(roof, xf * Transform3D(Basis(), Vector3(2.2, 10.5, 2.5)), Vector3(1.0, 3.0, 1.0), Color(0.6, 0.55, 0.5))
@@ -648,7 +648,7 @@ static func _mill(tb: TrackBuilder, root: Node3D) -> void:
 		var sb := Basis(Vector3.RIGHT, a)
 		MeshLib.box(wmb, Transform3D(sb, sb * Vector3(0, R, 0)), Vector3(1.8, 0.12, 0.9), Color(0.7, 0.55, 0.4))
 		MeshLib.box(wmb, Transform3D(sb, sb * Vector3(0, R * 0.5, 0)), Vector3(0.18, R, 0.18), Color(0.55, 0.4, 0.3))
-	for ring in [-0.85, 0.85]:
+	for ring: float in [-0.85, 0.85]:
 		var path := PackedVector3Array()
 		var rr := PackedFloat32Array()
 		for i in 25:
@@ -664,7 +664,7 @@ static func _mill(tb: TrackBuilder, root: Node3D) -> void:
 	pivot.name = "WheelPivot"
 	node.add_child(pivot)
 	pivot.add_child(wheel)
-	var spin := load("res://scripts/env/spinner.gd").new()
+	var spin: Node = load("res://scripts/env/spinner.gd").new()
 	spin.axis = Vector3.RIGHT
 	spin.speed = -0.6
 	spin.target_path = NodePath("../WaterWheel")
@@ -706,7 +706,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	tb.add_trimesh_collider(node, mb, Surfaces.ROCK)
 	# portal rocks framing both mouths
 	var rocks := MeshBuilder.new()
-	for end in [0, n - 1]:
+	for end: int in [0, n - 1]:
 		var hw := sp.width[end] * 0.5 + 2.0
 		for i in 7:
 			var a := PI * float(i) / 6.0
@@ -717,7 +717,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	# glowing crystals (also light the way)
 	var crystals := MeshBuilder.new()
 	for k in range(3, n - 3, 3):
-		for side in [-1, 1]:
+		for side: int in [-1, 1]:
 			if tb.rng.randf() < 0.4:
 				continue
 			var hw := sp.width[k] * 0.5 + 0.9

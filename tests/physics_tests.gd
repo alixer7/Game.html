@@ -86,7 +86,7 @@ func _accel() -> void:
 func _surfaces() -> void:
 	var res := {}
 	var x := 300.0
-	for sid in [Surfaces.GRASS, Surfaces.SAND, Surfaces.MUD, Surfaces.DIRT]:
+	for sid: int in [Surfaces.GRASS, Surfaces.SAND, Surfaces.MUD, Surfaces.DIRT]:
 		var plate := _ground(Vector3(x, -0.45, -600), Vector3(30, 1, 1400), sid)
 		var k := _kart(Vector3(x, 0.1, 0), 0.0)
 		await _settle(k)
@@ -126,8 +126,8 @@ func _drift_sparks() -> void:
 	R.check("physics", "hop + steer starts a slide", started >= 0)
 	var slips: Array = []
 	var radii: Array = []
-	var gained := 0.0
-	var conn := k.boost_gained.connect(func(a: float, _s: StringName) -> void: gained += a)
+	var gained_acc := [0.0]   # lambdas capture locals by value -> use a container
+	k.boost_gained.connect(func(a: float, _s: StringName) -> void: gained_acc[0] += a)
 	var stage_taps := 0
 	for i in 400:
 		await T.physics_frame
@@ -143,6 +143,7 @@ func _drift_sparks() -> void:
 	mean_slip /= maxf(slips.size() - 60, 1)
 	R.check("physics", "steady slide angle 15-45 deg", mean_slip > 15.0 and mean_slip < 45.0, "slip=%.1f" % mean_slip)
 	R.check("physics", "3 perfect sparks per slide", k.stat_perfect >= 3, "perfect=%d taps=%d" % [k.stat_perfect, stage_taps])
+	var gained: float = gained_acc[0]
 	R.check("physics", "3-stage chain adds ~2.3 s reserve", absf(gained - 2.3) < 0.3, "gained=%.2f" % gained)
 	var min_r := 1e9
 	for r in radii:
@@ -183,8 +184,10 @@ func _reserve_and_tiers() -> void:
 	R.check("physics", "tier 1 while reserve lasts", k.tier == 1)
 	var boosted := k.speed
 	R.check("physics", "boost raises speed toward +24%", boosted > k.params.max_speed * 1.12, "v=%.1f" % boosted)
+	await _drive_until(k, 200, func() -> bool: return k.tier == 0)
+	await R.frames(20)
+	R.check("physics", "reserve empty -> tier 0, speed bleeds gradually (momentum)", k.tier == 0 and k.speed > k.params.max_speed + 1.0, "v=%.1f 0.33 s after the boost ended" % k.speed)
 	await R.frames(150)
-	R.check("physics", "reserve empty -> tier 0, speed bleeds gradually (momentum)", k.tier == 0 and k.speed > k.params.max_speed, "v=%.1f" % k.speed)
 	k.apply_pad(3.4, 2)
 	await R.frames(150)
 	R.check("physics", "Overdrive pad -> tier 2 & ~+40% speed", k.tier == 2 and k.speed > k.params.max_speed * 1.3, "v=%.1f tier=%d" % [k.speed, k.tier])
@@ -259,31 +262,32 @@ func _walls() -> void:
 	var results := {}
 	var angles := [8.0, 30.0, 80.0]
 	var x := -1500.0
-	for ang in angles:
-		_ground(Vector3(x, 1.5, -100), Vector3(1, 3, 400), Surfaces.ROCK)   # wall along Z at x
-		var yaw := deg_to_rad(ang)   # heading rotated toward +X (the wall)
-		var k := _kart(Vector3(x - 30, 0, 100), 0.0)
+	for ang: float in angles:
+		_ground(Vector3(x, 1.5, -100), Vector3(1, 3, 600), Surfaces.ROCK)   # wall along Z at x
+		var gap := 10.0 if ang < 20.0 else 30.0
+		var k := _kart(Vector3(x - gap, 0, 150), 0.0)
 		await _settle(k)
 		k.in_throttle = 1.0
 		await R.frames(240)
-		k.yaw = -yaw
+		k.yaw = -deg_to_rad(ang)   # heading rotated toward +X (the wall)
 		k.rotation.y = k.yaw
 		var hv := Vector3(k.velocity.x, 0, k.velocity.z)
 		k.velocity = Vector3(-sin(k.yaw), 0, -cos(k.yaw)) * hv.length()
-		var sev := -1
+		var sev_acc := [-1]
+		k.impact.connect(func(s: int, _st: float, _p: Vector3) -> void:
+			if sev_acc[0] < 0:
+				sev_acc[0] = s)
 		var pre := k.speed
 		var post := 0.0
-		var c := func(s: int, _st: float, _p: Vector3) -> void:
-			if sev < 0:
-				sev = s
-		k.impact.connect(c)
-		for i in 240:
+		for i in 600:
 			await T.physics_frame
-			if sev >= 0:
+			if sev_acc[0] < 0:
+				pre = k.speed
+			else:
 				await R.frames(2)
 				post = k.speed
 				break
-		results[ang] = {"sev": sev, "retained": snappedf(post / maxf(pre, 0.1), 0.01)}
+		results[ang] = {"sev": sev_acc[0], "retained": snappedf(post / maxf(pre, 0.1), 0.01)}
 		k.queue_free()
 		x -= 80.0
 	R.check("physics", "8 deg contact = graze, small loss", int(results[8.0].sev) == 0 and float(results[8.0].retained) > 0.85, results[8.0])

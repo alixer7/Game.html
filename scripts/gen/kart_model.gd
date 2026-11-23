@@ -28,7 +28,7 @@ static func build(ch: Dictionary) -> Node3D:
 	MeshLib.box(mech, Transform3D(Basis(), Vector3(0, 0.17, -0.02)), Vector3(0.95, 0.08, 1.7), dark, 0.08)
 	MeshLib.blob(body, Vector3(0, 0.34, -0.72), Vector3(0.43, 0.19, 0.5), 2, null, 0.0, paint * 0.75, paint)
 	MeshLib.blob(body, Vector3(0, 0.42, -0.42), Vector3(0.34, 0.16, 0.34), 2, null, 0.0, paint * 0.8, paint * 1.08)
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		MeshLib.blob(body, Vector3(0.44 * s, 0.33, 0.02), Vector3(0.18, 0.15, 0.52), 2, null, 0.0, paint * 0.7, paint)
 		MeshLib.blob(body, Vector3(0.47 * s, 0.4, 0.05), Vector3(0.1, 0.05, 0.4), 1, null, 0.0, accent * 0.9, accent)
 	# number badge
@@ -44,14 +44,14 @@ static func build(ch: Dictionary) -> Node3D:
 	# engine + exhausts
 	MeshLib.box(mech, Transform3D(Basis(), Vector3(0, 0.46, 0.64)), Vector3(0.52, 0.28, 0.34), Color(0.35, 0.35, 0.38), 0.05)
 	MeshLib.box(mech, Transform3D(Basis(), Vector3(0, 0.63, 0.64)), Vector3(0.42, 0.08, 0.26), Color(0.8, 0.25, 0.15))
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		var ex := PackedVector3Array([Vector3(0.2 * s, 0.5, 0.74), Vector3(0.25 * s, 0.56, 0.92), Vector3(0.27 * s, 0.68, 1.04)])
 		MeshLib.tube(mech, ex, PackedFloat32Array([0.05, 0.055, 0.07]), 7, _c(metal), 1.0, false)
 	# rear wing
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		MeshLib.box(mech, Transform3D(Basis(), Vector3(0.32 * s, 0.82, 0.9)), Vector3(0.05, 0.36, 0.12), dark)
 	MeshLib.box(body, Transform3D(Basis(Vector3.RIGHT, -0.12), Vector3(0, 1.0, 0.94)), Vector3(1.05, 0.05, 0.32), accent, 0.0)
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		MeshLib.box(body, Transform3D(Basis(), Vector3(0.54 * s, 0.98, 0.94)), Vector3(0.04, 0.2, 0.38), paint)
 	# steering column + wheel
 	MeshLib.tube(mech, PackedVector3Array([Vector3(0, 0.42, -0.42), Vector3(0, 0.62, -0.14)]), PackedFloat32Array([0.025, 0.025]), 5, _c(dark), 1.0, false)
@@ -96,7 +96,7 @@ static func build(ch: Dictionary) -> Node3D:
 		mi.rotation = Vector3(0, 0, PI * 0.5)
 		spin.add_child(mi)
 	# exhaust anchor points for flames
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		var ex := Marker3D.new()
 		ex.name = "ExhaustL" if s < 0 else "ExhaustR"
 		ex.position = Vector3(0.27 * s, 0.7, 1.08)
@@ -143,7 +143,7 @@ static func build_driver(ch: Dictionary) -> Node3D:
 	# torso + arms + gloves
 	MeshLib.blob(mb, Vector3(0, 0.36, 0.0), Vector3(0.25, 0.3, 0.2), 2, null, 0.0, jacket * 0.8, jacket)
 	MeshLib.blob(mb, Vector3(0, 0.45, -0.17), Vector3(0.12, 0.08, 0.04), 1, null, 0.0, accent, accent)
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		var arm := PackedVector3Array([Vector3(0.22 * s, 0.52, 0.0), Vector3(0.27 * s, 0.38, -0.2), Vector3(0.14 * s, 0.32, -0.32)])
 		MeshLib.tube(mb, arm, PackedFloat32Array([0.075, 0.065, 0.06]), 6, _c(jacket), 1.0, false)
 		MeshLib.blob(mb, Vector3(0.13 * s, 0.32, -0.34), Vector3(0.065, 0.06, 0.07), 1, null, 0.0, Color(0.95, 0.95, 0.95), Color(1, 1, 1))
@@ -191,55 +191,55 @@ static func _head(mb: MeshBuilder, species: String, fur: Color, accent: Color, k
 		"fox":
 			MeshLib.blob(mb, Vector3(0, -0.06, -0.2), Vector3(0.11, 0.08, 0.15), 1, null, 0.0, accent * 0.9, accent)
 			MeshLib.blob(mb, Vector3(0, -0.03, -0.35), Vector3(0.035, 0.03, 0.03), 0, null, 0.0, black, black)
-			for s in [-1.0, 1.0]:
+			for s: float in [-1.0, 1.0]:
 				MeshLib.tube(mb, PackedVector3Array([Vector3(0.13 * s, 0.14, 0.0), Vector3(0.2 * s, 0.38, 0.02)]), PackedFloat32Array([0.075, 0.0]), 5,
 					func(t: float, _a: float, _p: Vector3) -> Color: return fur.lerp(black, smoothstep(0.6, 0.9, t)))
 		"raccoon":
 			MeshLib.blob(mb, Vector3(0, 0.03, -0.17), Vector3(0.21, 0.07, 0.08), 1, null, 0.0, accent, accent)
 			MeshLib.blob(mb, Vector3(0, -0.07, -0.19), Vector3(0.09, 0.07, 0.1), 1, null, 0.0, white * 0.9, white)
 			MeshLib.blob(mb, Vector3(0, -0.04, -0.3), Vector3(0.03, 0.025, 0.025), 0, null, 0.0, black, black)
-			for s in [-1.0, 1.0]:
+			for s: float in [-1.0, 1.0]:
 				MeshLib.blob(mb, Vector3(0.16 * s, 0.2, 0.03), Vector3(0.08, 0.08, 0.04), 1, null, 0.0, fur * 0.6, fur)
 		"frog":
 			eye_y = 0.16
 			eye_x = 0.13
 			eye_z = -0.1
 			eye_r = 0.085
-			for s in [-1.0, 1.0]:
+			for s: float in [-1.0, 1.0]:
 				MeshLib.blob(mb, Vector3(eye_x * s, eye_y - 0.02, eye_z + 0.02), Vector3(0.1, 0.09, 0.1), 1, null, 0.0, fur * 0.9, fur)
 			MeshLib.blob(mb, Vector3(0, -0.09, -0.2), Vector3(0.2, 0.025, 0.06), 1, null, 0.0, accent * 0.8, accent)
 		"bear":
 			MeshLib.blob(mb, Vector3(0, -0.07, -0.19), Vector3(0.11, 0.08, 0.11), 1, null, 0.0, accent * 0.9, accent)
 			MeshLib.blob(mb, Vector3(0, -0.04, -0.3), Vector3(0.045, 0.035, 0.03), 0, null, 0.0, black, black)
-			for s in [-1.0, 1.0]:
+			for s: float in [-1.0, 1.0]:
 				MeshLib.blob(mb, Vector3(0.17 * s, 0.19, 0.02), Vector3(0.075, 0.075, 0.045), 1, null, 0.0, fur * 0.7, fur)
 		"owl":
 			eye_r = 0.075
 			eye_x = 0.1
 			MeshLib.blob(mb, Vector3(0, 0.02, -0.12), Vector3(0.22, 0.17, 0.12), 1, null, 0.0, accent * 0.9, accent)
 			MeshLib.tube(mb, PackedVector3Array([Vector3(0, -0.02, -0.22), Vector3(0, -0.1, -0.3)]), PackedFloat32Array([0.04, 0.0]), 4, _c(Color(1.0, 0.75, 0.2)))
-			for s in [-1.0, 1.0]:
+			for s: float in [-1.0, 1.0]:
 				MeshLib.tube(mb, PackedVector3Array([Vector3(0.14 * s, 0.15, 0.0), Vector3(0.22 * s, 0.32, 0.05)]), PackedFloat32Array([0.05, 0.0]), 4, _c(fur * 0.8))
 		"rabbit":
 			MeshLib.blob(mb, Vector3(0, -0.07, -0.18), Vector3(0.09, 0.07, 0.09), 1, null, 0.0, white, white)
 			MeshLib.blob(mb, Vector3(0, -0.04, -0.27), Vector3(0.03, 0.022, 0.02), 0, null, 0.0, Color(1, 0.5, 0.6), Color(1, 0.6, 0.7))
-			for s in [-1.0, 1.0]:
+			for s: float in [-1.0, 1.0]:
 				MeshLib.tube(mb, PackedVector3Array([Vector3(0.08 * s, 0.15, 0.03), Vector3(0.1 * s, 0.35, 0.06), Vector3(0.14 * s, 0.52, 0.12)]), PackedFloat32Array([0.05, 0.055, 0.02]), 6,
 					func(_t: float, a: float, _p: Vector3) -> Color: return accent if absf(a - PI * 1.5) < 0.8 else fur)
 		"boar":
 			MeshLib.tube(mb, PackedVector3Array([Vector3(0, -0.04, -0.15), Vector3(0, -0.05, -0.32)]), PackedFloat32Array([0.1, 0.085]), 8, _c(fur.lerp(Color(0.9, 0.6, 0.55), 0.5)))
-			for s in [-1.0, 1.0]:
+			for s: float in [-1.0, 1.0]:
 				MeshLib.tube(mb, PackedVector3Array([Vector3(0.07 * s, -0.1, -0.28), Vector3(0.1 * s, -0.02, -0.34), Vector3(0.12 * s, 0.05, -0.33)]), PackedFloat32Array([0.022, 0.016, 0.0]), 4, _c(white))
 				MeshLib.blob(mb, Vector3(0.16 * s, 0.18, 0.02), Vector3(0.06, 0.09, 0.03), 1, null, 0.0, fur * 0.7, fur)
 		"otter":
 			MeshLib.blob(mb, Vector3(0, -0.06, -0.18), Vector3(0.14, 0.08, 0.1), 1, null, 0.0, accent * 0.9, accent)
 			MeshLib.blob(mb, Vector3(0, -0.03, -0.28), Vector3(0.04, 0.03, 0.025), 0, null, 0.0, black, black)
-			for s in [-1.0, 1.0]:
+			for s: float in [-1.0, 1.0]:
 				MeshLib.blob(mb, Vector3(0.19 * s, 0.1, 0.05), Vector3(0.045, 0.045, 0.03), 1, null, 0.0, fur * 0.7, fur)
 				for w in 3:
 					MeshLib.tube(mb, PackedVector3Array([Vector3(0.08 * s, -0.06 + w * 0.02, -0.25), Vector3(0.25 * s, -0.03 + w * 0.04, -0.22)]), PackedFloat32Array([0.006, 0.003]), 3, _c(white))
 	# eyes
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		var ep := Vector3(eye_x * s, eye_y, eye_z)
 		MeshLib.blob(mb, ep, Vector3.ONE * eye_r, 1, null, 0.0, white * 0.9, white)
 		MeshLib.blob(mb, ep + Vector3(0.0, 0.0, -eye_r * 0.7), Vector3.ONE * eye_r * 0.55, 1, null, 0.0, black, black)
@@ -254,7 +254,7 @@ static func _head(mb: MeshBuilder, species: String, fur: Color, accent: Color, k
 			band.append(Vector3(cos(a) * 0.255, 0.16, sin(a) * 0.24))
 			br.append(0.02)
 		MeshLib.tube(mb, band, br, 4, _c(Color(0.2, 0.2, 0.22)), 1.0, false)
-		for s in [-1.0, 1.0]:
+		for s: float in [-1.0, 1.0]:
 			MeshLib.blob(mb, Vector3(0.09 * s, 0.19, -0.2), Vector3(0.07, 0.055, 0.04), 1, null, 0.0, Color(0.3, 0.75, 0.95), Color(0.75, 0.95, 1.0))
 	else:
 		MeshLib.blob(mb, Vector3(0, 0.08, 0.08), Vector3(0.2, 0.1, 0.16), 1, null, 0.0, kart_col * 0.85, kart_col)

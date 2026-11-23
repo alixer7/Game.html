@@ -44,7 +44,7 @@ func _process(dt: float) -> void:
 static func _build_mesh() -> ArrayMesh:
 	var mb := MeshBuilder.new()
 	MeshLib.blob(mb, Vector3.ZERO, Vector3(0.18, 0.16, 0.45), 1, null, 0.0, Color(0.2, 0.18, 0.2, 0.0), Color(0.35, 0.3, 0.32, 0.0))
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var root := Vector3(side * 0.12, 0.05, 0.0)
 		var tip := Vector3(side * 0.95, 0.1, 0.15)
 		var back := Vector3(side * 0.3, 0.05, 0.28)

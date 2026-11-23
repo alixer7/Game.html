@@ -144,7 +144,7 @@ static func _build_run(path: SplinePath, root: Node3D, name_prefix: String, styl
 
 
 static func _build_walls(path: SplinePath, root: Node3D, styles: PackedStringArray) -> void:
-	for side in [-1, 1]:
+	for side: int in [-1, 1]:
 		var arr: PackedStringArray = path.wall_l if side == -1 else path.wall_r
 		var n := path.size()
 		var i := 0

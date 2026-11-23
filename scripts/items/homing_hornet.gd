@@ -19,7 +19,7 @@ static func make(is_charged: bool) -> HomingHornet:
 	var mb := MeshBuilder.new()
 	MeshLib.blob(mb, Vector3(0, 0, 0.15), Vector3(0.18, 0.16, 0.32), 1, null, 0.0, Color(0.95, 0.75, 0.1), Color(1.0, 0.9, 0.2))
 	MeshLib.blob(mb, Vector3(0, 0, -0.22), Vector3(0.14, 0.13, 0.16), 1, null, 0.0, Color(0.1, 0.1, 0.1), Color(0.2, 0.2, 0.2))
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		MeshLib.blob(mb, Vector3(0.22 * s, 0.14, 0.05), Vector3(0.2, 0.02, 0.1), 0, null, 0.0, Color(0.8, 0.9, 1.0), Color(0.9, 0.95, 1.0))
 	var mi := MeshInstance3D.new()
 	mi.mesh = mb.commit(null, Mats.vcol(0.4))

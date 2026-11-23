@@ -98,7 +98,7 @@ func _speed_profile() -> void:
 		speed[i] = v
 	# backward pass: braking distance (decel ~16 m/s^2 incl. slide scrub)
 	var ds := path.spacing
-	for pass in 2:
+	for _pass in 2:
 		for k in range(n - 1, -1, -1):
 			var i := k
 			var nxt := (i + 1) % n if closed else mini(i + 1, n - 1)

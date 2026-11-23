@@ -20,7 +20,7 @@ static func theme() -> Theme:
 	var hover := _box(Color(0.2, 0.26, 0.4, 0.98), ORANGE, 18)
 	var pressed := _box(ORANGE.darkened(0.2), CREAM, 18)
 	var focus := _box(Color(0.2, 0.26, 0.4, 0.98), TEAL, 18)
-	for cls in ["Button", "OptionButton", "CheckButton"]:
+	for cls: String in ["Button", "OptionButton", "CheckButton"]:
 		t.set_stylebox("normal", cls, normal)
 		t.set_stylebox("hover", cls, hover)
 		t.set_stylebox("pressed", cls, pressed)

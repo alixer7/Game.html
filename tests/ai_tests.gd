@@ -56,7 +56,7 @@ func _add_ai(w: Dictionary, slot: int, diff: int, ch: int, forced := {}) -> Kart
 
 
 func _field() -> void:
-	for diff in [1, 3]:
+	for diff: int in [1, 3]:
 		var w := _world()
 		var race: RaceManager = w.race
 		var karts: Array = []

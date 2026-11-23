@@ -73,7 +73,7 @@ func _physics_process(dt: float) -> void:
 func _countdown(dt: float) -> void:
 	var prev := count_t
 	count_t += dt
-	for n in [3, 2, 1]:
+	for n: int in [3, 2, 1]:
 		var t := float(3 - n)
 		if prev < t and count_t >= t:
 			countdown_tick.emit(n)

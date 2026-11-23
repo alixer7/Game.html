@@ -242,7 +242,7 @@ func _paint() -> void:
 				sand = 1.0
 			else:
 				# wet banks around water
-				for o in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2)]:
+				for o: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2)]:
 					var jx: int = ix + o.x
 					var jz: int = iz + o.y
 					if jx >= 0 and jx < nx and jz >= 0 and jz < nz and water[idx(jx, jz)] == 1:

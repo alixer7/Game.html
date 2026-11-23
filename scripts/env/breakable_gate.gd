@@ -67,7 +67,7 @@ static func make(width: float) -> Node3D:
 		mi.rotation = Vector3(0, PI * 0.5, (i % 2) * 0.06 - 0.03)
 		logs.add_child(mi)
 	var ropes := MeshBuilder.new()
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		MeshLib.box(ropes, Transform3D(Basis(), Vector3(side * (width * 0.5 + 0.2), 1.3, 0)), Vector3(0.5, 2.8, 0.5), Color(0.5, 0.36, 0.24))
 		for j in 3:
 			MeshLib.box(ropes, Transform3D(Basis(), Vector3(side * (width * 0.5), 0.6 + j * 0.8, 0)), Vector3(0.6, 0.12, 0.62), Color(0.85, 0.75, 0.5))

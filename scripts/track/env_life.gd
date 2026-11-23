@@ -206,12 +206,12 @@ static func build_all(tb: TrackBuilder) -> void:
 		flock.position = spots[i]
 		root.add_child(flock)
 	# butterflies over flower-rich road edges
-	for name in ["bank_split", "crest_1", "rollers", "hairpin_exit"]:
+	for name: String in ["bank_split", "crest_1", "rollers", "hairpin_exit"]:
 		var k := tb.mark_index(name)
 		var p := tb.main.pos[k] + tb.main.right[k] * (tb.main.width[k] * 0.5 + 5.0)
 		butterflies(root, p)
 	# leaping fish in the river and the mill pond
-	for name in ["rock_garden_1", "rock_garden_2"]:
+	for name: String in ["rock_garden_1", "rock_garden_2"]:
 		var fish: Node3D = load("res://scripts/env/fish_jumper.gd").new()
 		var k := tb.mark_index(name)
 		fish.position = tb.main.pos[k] + Vector3.UP * 0.4

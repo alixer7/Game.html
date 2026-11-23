@@ -40,7 +40,7 @@ func setup(k: Kart, ch: Dictionary) -> void:
 	add_child(_tilt)
 	model = KartModel.build(ch)
 	_tilt.add_child(model)
-	for n in ["WheelFL", "WheelFR", "WheelRL", "WheelRR"]:
+	for n: String in ["WheelFL", "WheelFR", "WheelRL", "WheelRR"]:
 		_wheels[n] = model.get_node(n)
 	_steer_wheel = model.get_node("SteeringWheel")
 	_head = model.get_node("Driver/Head")
@@ -75,7 +75,7 @@ func _build_fx() -> void:
 	_dust_mat.vertex_color_use_as_albedo = true
 	_dust_mat.albedo_texture = EnvLife.soft_texture()
 	_dust_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	for s in [-1.0, 1.0]:
+	for s: float in [-1.0, 1.0]:
 		var sp := _make_particles(26, 0.35, 0.12, _spark_mat)
 		var pm := ParticleProcessMaterial.new()
 		pm.direction = Vector3(-s * 0.6, 0.6, 1.0)
@@ -131,7 +131,7 @@ func _build_fx() -> void:
 	MeshLib.tube(fmb, PackedVector3Array([Vector3(0, 0, 0), Vector3(0, 0.02, 0.35), Vector3(0, 0.05, 0.8)]), PackedFloat32Array([0.09, 0.11, 0.0]), 7,
 		func(t: float, _a: float, _p: Vector3) -> Color: return Color(1, 1, 0.9, 1).lerp(Color(1, 0.4, 0.1, 0.0), t), 1.0, false)
 	var fmesh := fmb.commit()
-	for n in ["ExhaustL", "ExhaustR"]:
+	for n: String in ["ExhaustL", "ExhaustR"]:
 		var m := model.get_node(n) as Marker3D
 		var fi := MeshInstance3D.new()
 		fi.mesh = fmesh

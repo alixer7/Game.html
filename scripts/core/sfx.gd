@@ -27,7 +27,7 @@ func _ready() -> void:
 
 
 func _ensure_buses() -> void:
-	for name in ["SFX", "Music"]:
+	for name: String in ["SFX", "Music"]:
 		if AudioServer.get_bus_index(name) < 0:
 			AudioServer.add_bus()
 			var i := AudioServer.bus_count - 1
