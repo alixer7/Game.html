@@ -391,13 +391,13 @@ def build_branches(t):
         along(22, 0, 3.6, 4.4),
         along(30, 0, 4.4, 4.2, {"tag": "log_lip"}),
         along(33, 0, 4.5, 4.2, {"style": "gap", "tag": "log_gap"}),
-        along(50, 0, 1.3, 10.0, {"s": ROCK, "style": "ridge", "tag": "ridge"}),
-        along(64, 0, 1.0, 9.0, {"tag": "shelf_split"}),
+        along(50, 0, -1.0, 10.0, {"s": ROCK, "style": "ridge", "tag": "ridge"}),
+        along(64, 0, -0.8, 9.0, {"tag": "shelf_split"}),
     ]
     # rest of ridge descends to the merge point on the main road
     for k in range(1, 4):
         f = k / 3
-        q = (lerp(pe[0] + ux * 68, px[0], f), lerp(pe[1] + 1.0, px[1], smooth(f)), lerp(pe[2] + uz * 68, px[2], f))
+        q = (lerp(pe[0] + ux * 64, px[0], f), lerp(pe[1] - 0.8, px[1], smooth(f)), lerp(pe[2] + uz * 64, px[2], f))
         log.append([round(q[0], 3), round(q[1], 3), round(q[2], 3), 9.0, 0.0, {}])
     br.append({"id": "giants_log", "style": "ridge", "points": log})
 
@@ -406,11 +406,18 @@ def build_branches(t):
     ph, th, rh, wh = m.at(hp["dist"] + 6)
     sx = pe[0] + ux * 60
     sz = pe[2] + uz * 60
+    sdx, sdz = ph[0] - sx, ph[2] - sz
+    SL = math.hypot(sdx, sdz)
+    sux, suz = sdx / SL, sdz / SL
+    ry = pe[1] - 0.8
+    def sh(d, y, w, attrs=None):
+        return [round(sx + sux * d, 3), round(y, 3), round(sz + suz * d, 3), w, 0.0, attrs or {}]
     shelf = [
-        [round(sx, 3), round(pe[1] + 1.0, 3), round(sz, 3), 6.0, 0.0, {"s": ROCK, "style": "slab", "tm": "none", "tag": "shelf"}],
-        [round(lerp(sx, ph[0], 0.12), 3), round(pe[1] + 2.6, 3), round(lerp(sz, ph[2], 0.12), 3), 5.5, 0.0, {"tag": "shelf_lip"}],
-        [round(lerp(sx, ph[0], 0.16), 3), round(pe[1] + 2.8, 3), round(lerp(sz, ph[2], 0.16), 3), 5.5, 0.0, {"style": "gap", "tag": "shelf_gap"}],
-        [round(lerp(sx, ph[0], 0.75), 3), round(ph[1] + 0.2, 3), round(lerp(sz, ph[2], 0.75), 3), 9.0, 0.0, {"s": DIRT, "style": "landing", "tm": "conform", "tag": "shelf_land"}],
+        sh(0, ry, 6.0, {"s": ROCK, "style": "slab", "tm": "none", "tag": "shelf"}),
+        sh(8, ry + 1.4, 5.5, {"tag": "shelf_lip"}),
+        sh(10, ry + 1.75, 5.5, {"style": "gap", "tag": "shelf_gap"}),
+        sh(26, ry - 1.25, 9.0, {"s": DIRT, "style": "landing", "tm": "conform", "tag": "shelf_land"}),
+        sh(36, lerp(ry - 1.25, ph[1], 0.3), 9.0),
         [round(ph[0], 3), round(ph[1], 3), round(ph[2], 3), 9.0, 0.0, {}],
     ]
     br.append({"id": "shelf_rock", "style": "slab", "points": shelf})
@@ -429,16 +436,17 @@ def build_branches(t):
         return [round(pk[0] + fux * s_ + rk[0] * kick_off, 3), round(y, 3), round(pk[2] + fuz * s_ + rk[1] * kick_off, 3), w, 0.0, attrs or {}]
     flume = [
         fl(0, y0, 6.0, {"s": WOOD, "style": "kicker", "tm": "none", "tag": "flume_kicker"}),
-        fl(8, y0 + 2.0, 5.5, {"tag": "flume_kick_lip"}),
-        fl(10, y0 + 2.4, 5.5, {"style": "gap", "tag": "flume_gap"}),
-        fl(24, y0 + 5.2, 6.0, {"s": CURRENT, "style": "flume", "tag": "flume"}),
+        fl(4, y0 + 1.0, 5.5),
+        fl(7.4, y0 + 2.6, 5.5, {"tag": "flume_kick_lip"}),
+        fl(9.0, y0 + 3.0, 5.5, {"style": "gap", "tag": "flume_gap"}),
+        fl(30, y0 + 4.0, 6.0, {"s": CURRENT, "style": "flume", "tag": "flume"}),
     ]
     steps = 4
     for i in range(1, steps + 1):
-        s_ = lerp(24, FL - 26, i / steps)
-        flume.append(fl(s_, y0 + 5.2 - lerp(0, 1.0, i / steps), 6.0))
-    flume.append(fl(FL - 22, y0 + 4.2, 6.0, {"tag": "flume_lip"}))
-    flume.append(fl(FL - 19, y0 + 4.2, 6.0, {"style": "gap", "s": ROAD, "tag": "flume_drop"}))
+        s_ = lerp(30, FL - 26, i / steps)
+        flume.append(fl(s_, y0 + 4.0 - lerp(0, 1.0, i / steps), 6.0))
+    flume.append(fl(FL - 22, y0 + 3.0, 6.0, {"tag": "flume_lip"}))
+    flume.append(fl(FL - 19, y0 + 3.0, 6.0, {"style": "gap", "s": ROAD, "tag": "flume_drop"}))
     pl, tl, rl, wl = m.at(ce["dist"] + 2)
     flume.append([round(pl[0] + rl[0] * 2, 3), round(pl[1] + 0.1, 3), round(pl[2] + rl[1] * 2, 3), 11.0, 0.0, {"style": "landing", "tm": "conform", "tag": "flume_land"}])
     pl2, _, _, _ = m.at(ce["dist"] + 10)

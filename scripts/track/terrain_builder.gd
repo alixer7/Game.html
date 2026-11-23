@@ -18,6 +18,7 @@ var road_sum_k := PackedFloat32Array()
 var dist := PackedFloat32Array()        # metres to the nearest road footprint (any road)
 var occ := PackedByteArray()            # 1 = inside a road footprint (any road, incl. elevated)
 var water := PackedByteArray()          # 1 = river/pond water cell
+var carve := PackedFloat32Array()       # max allowed height (elevated roads / jump gaps)
 var surf := PackedByteArray()
 var splat := PackedColorArray()
 var hole := PackedByteArray()
@@ -38,6 +39,8 @@ func setup(bounds: Rect2, cell_size := 2.5, seed := 1234) -> void:
 	road_w.resize(n)
 	road_sum_h.resize(n)
 	road_sum_k.resize(n)
+	carve.resize(n)
+	carve.fill(1e9)
 	dist.resize(n)
 	occ.resize(n)
 	water.resize(n)
@@ -87,6 +90,8 @@ func stamp_path(path: SplinePath, is_main_river_level := false) -> void:
 		# occupancy (any road, also elevated ones) for scatter exclusion & distance field
 		_mark_occ(p, hw + 0.8)
 		if mode == "none":
+			# elevated road or jump gap: the ground may never rise into it
+			_carve(p, hw + 1.2, p.y - 0.8)
 			continue
 		var inner := hw + 0.4
 		var shoulder := 10.0
@@ -130,6 +135,24 @@ func stamp_path(path: SplinePath, is_main_river_level := false) -> void:
 				if mode == "river" and d < hw + 1.0:
 					water[id] = 1
 					surf[id] = Surfaces.SAND
+
+
+func _carve(p: Vector3, r: float, max_y: float) -> void:
+	var outer := r + 6.0
+	var ix0 := maxi(int(floor((p.x - outer - origin.x) / cell)), 0)
+	var ix1 := mini(int(ceil((p.x + outer - origin.x) / cell)), nx - 1)
+	var iz0 := maxi(int(floor((p.z - outer - origin.y) / cell)), 0)
+	var iz1 := mini(int(ceil((p.z + outer - origin.y) / cell)), nz - 1)
+	for iz in range(iz0, iz1 + 1):
+		for ix in range(ix0, ix1 + 1):
+			var c := cell_pos(ix, iz)
+			var d := Vector2(c.x - p.x, c.y - p.z).length()
+			if d > outer:
+				continue
+			# full clamp inside the footprint, a slope back up to the ground outside it
+			var limit := max_y + maxf(d - r, 0.0) * 1.1
+			var id := idx(ix, iz)
+			carve[id] = minf(carve[id], limit)
 
 
 func _mark_occ(p: Vector3, r: float) -> void:
@@ -223,6 +246,9 @@ func finalize() -> void:
 			if road_sum_k[id] > 0.0:
 				var rh := road_sum_h[id] / road_sum_k[id]
 				y = lerpf(base, rh, road_w[id])
+			# carve under elevated roads/gaps, but never through a road that is stamped here
+			if carve[id] < y and road_w[id] < 0.95:
+				y = lerpf(carve[id], y, road_w[id])
 			h[id] = y
 	_paint()
 

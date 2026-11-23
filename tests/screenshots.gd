@@ -82,10 +82,16 @@ func _run() -> void:
 	var race: RaceManager = scene.get("race")
 	race.start_countdown()
 	var player: Kart = scene.get("player")
+	# let an Expert AI drive the player's kart so gameplay shots show real racing
+	(scene.get_node("PlayerDriver") as PlayerDriver).enabled = false
+	var ai := AIDriver.new()
+	scene.add_child(ai)
+	ai.setup(player, scene.get("lanes"), 3, (scene.get("tb") as TrackBuilder).obstacles, 99)
+	ai.race = race
+	player.set_meta("ai", ai)
 	var race_frames := int(OS.get_environment("WK_RACE_FRAMES")) if OS.get_environment("WK_RACE_FRAMES") != "" else 40
 	await _wait(race_frames)
 	for i in 3:
-		player.in_throttle = 1.0
 		await _wait(race_frames)
 		await _shot("race_%d" % i)
 	var f := FileAccess.open("res://tests/results/render.json", FileAccess.WRITE)

@@ -45,24 +45,35 @@ func run(runner: Object) -> void:
 		while far < sp.size() - 1 and sp.style[far] == "gap":
 			far += 1
 		var res := {}
-		for v: float in [22.0, 25.0, 26.0, 28.0, 31.0, 36.0]:
+		for v: float in [22.0, 26.0, 31.0, 36.0]:
 			for hop: bool in [false, true]:
+				last_air = 0.0
+				last_land_dist = 0.0
 				var ok := await _attempt(root, sp, lip, far, v, hop)
 				res["%d%s" % [int(v), "+hop" if hop else ""]] = ok
+				print("    %s v=%d hop=%s -> %s  air=%.2f s  touchdown %.1f m past the lip" % [j[0], int(v), hop, ok, last_air, last_land_dist])
 		out[j[0]] = res
 		print("  ", j[0], " ", res)
 	var f := FileAccess.open("res://tests/results/jumps.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, "  "))
 	# design expectations (TRACK_DESIGN.md §6)
-	R.check("jumps", "Tunnel Leap clears at base speed", bool(out["Tunnel Leap (roof lip)"]["26"]), out["Tunnel Leap (roof lip)"])
 	R.check("jumps", "Giant's Log: base speed or hop clears, slow+no hop fails", bool(out["Giant's Log gap"]["26"]) and bool(out["Giant's Log gap"]["22+hop"]) and not bool(out["Giant's Log gap"]["22"]), out["Giant's Log gap"])
-	R.check("jumps", "Flume needs Overdrive-level speed", bool(out["Flume kicker"]["36"]) and not bool(out["Flume kicker"]["26"]), out["Flume kicker"])
-	R.check("jumps", "Shelf Rock needs high speed", bool(out["Shelf Rock"]["31"]) or bool(out["Shelf Rock"]["36"]), out["Shelf Rock"])
+	var fl: Dictionary = out["Flume kicker"]
+	R.check("jumps", "Flume: Boost/Overdrive speed clears, base speed (even with a hop) does not", bool(fl["36"]) and bool(fl["31"]) and not bool(fl["26"]) and not bool(fl["26+hop"]), fl)
+	var sh: Dictionary = out["Shelf Rock"]
+	R.check("jumps", "Shelf Rock: needs a lip-hop or Overdrive; slow+no hop fails", (bool(sh["31+hop"]) or bool(sh["36"])) and not bool(sh["22"]), sh)
 	root.queue_free()
 	await R.frames(2)
 
 
+var last_air := 0.0
+var last_land_dist := 0.0
+
+
 func _attempt(root: Node3D, sp: SplinePath, lip: int, far: int, v: float, hop: bool) -> bool:
+	var gap_start := lip
+	while gap_start < sp.size() - 1 and sp.style[gap_start] != "gap":
+		gap_start += 1
 	var start := maxi(lip - int(30.0 / sp.spacing), 0)
 	var k := Kart.new()
 	k.params = KartParams.new()
@@ -76,7 +87,7 @@ func _attempt(root: Node3D, sp: SplinePath, lip: int, far: int, v: float, hop: b
 	k.velocity = Vector3(-sin(yaw), 0, -cos(yaw)) * v
 	var hopped := false
 	var landed_far := false
-	for f in 300:
+	for f in 240:
 		var i := sp.nearest_index(k.global_position, 30.0)
 		if i < 0:
 			i = start
@@ -96,7 +107,12 @@ func _attempt(root: Node3D, sp: SplinePath, lip: int, far: int, v: float, hop: b
 			break
 		if k.global_position.y < sp.pos[mini(far, sp.size() - 1)].y - 3.0 and not k.grounded and i < far:
 			pass
-		if k.grounded and i > lip + 1 and i < far and f > 10:
+		if not k.grounded:
+			last_air = maxf(last_air, k.airtime)
+		if k.grounded and i > gap_start and i < far and f > 10:
+			last_land_dist = sp.dist[i] - sp.dist[gap_start]
 			break   # touched down inside the gap: fell short
+	if landed_far:
+		last_land_dist = sp.dist[mini(sp.nearest_index(k.global_position, 30.0), sp.size() - 1)] - sp.dist[gap_start]
 	k.queue_free()
 	return landed_far

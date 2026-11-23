@@ -22,7 +22,7 @@ case "${1:-}" in
     export VK_ICD_FILENAMES=/opt/lavapipe/lvp_icd.json
     xvfb-run -a -s "-screen 0 1600x720x24" "$GODOT" --path . --rendering-driver vulkan --resolution 1600x720 res://tests/screenshots.tscn ;;
   apk)
-    export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="${GODOT_ANDROID_KEYSTORE_DEBUG_PATH:-$HOME/tools/debug.keystore}"
+    export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="${GODOT_ANDROID_KEYSTORE_DEBUG_PATH:-$(dirname "$GODOT")/debug.keystore}"
     export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
     export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
     "$GODOT" --headless --path . --export-debug "Android" export/WildsparkKart.apk

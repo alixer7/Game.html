@@ -36,7 +36,7 @@ var _pressed := {}
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Game.touch.active = DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
+	Game.touch.active = DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") or OS.get_environment("WK_TOUCH") == "1"
 	visible = Game.touch.active or edit_mode
 
 
