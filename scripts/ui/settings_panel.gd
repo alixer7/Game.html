@@ -9,7 +9,7 @@ var _editor: TouchControls
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = UIKit.theme()
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.6)

@@ -1,10 +1,10 @@
 {
   "all shortcuts (cave)": {
-    "boost_time": 12.1,
+    "boost_time": 13.0,
     "impacts": [
-      1,
-      15,
-      8
+      0,
+      14,
+      10
     ],
     "lanes": {
       "giants_log": 0.97,
@@ -12,16 +12,63 @@
       "right_bank": 0.99,
       "rootway_cave": 0.97
     },
-    "lap2": 60.97,
+    "lap2": 63.18,
     "od_time": 5.9,
-    "perfect": 0,
-    "sparks": 0
+    "perfect": 1,
+    "sparks": 1
   },
-  "all shortcuts (flume)": {
-    "boost_time": 16.5,
+  "baseline (river lane)": {
+    "boost_time": 14.7,
     "impacts": [
-      6,
-      9,
+      2,
+      11,
+      7
+    ],
+    "lanes": {
+      "main": 1.0
+    },
+    "lap2": 63.02,
+    "od_time": 5.9,
+    "perfect": 2,
+    "sparks": 3
+  },
+  "cave": {
+    "boost_time": 11.7,
+    "impacts": [
+      3,
+      19,
+      14
+    ],
+    "lanes": {
+      "main": 1.0,
+      "rootway_cave": 0.97
+    },
+    "lap2": 72.88,
+    "od_time": 5.9,
+    "perfect": 2,
+    "sparks": 3
+  },
+  "flume": {
+    "boost_time": 12.0,
+    "impacts": [
+      5,
+      17,
+      7
+    ],
+    "lanes": {
+      "main": 1.0,
+      "millrace_flume": 0.98
+    },
+    "lap2": 64.57,
+    "od_time": 5.9,
+    "perfect": 2,
+    "sparks": 4
+  },
+  "gate + flume": {
+    "boost_time": 17.8,
+    "impacts": [
+      8,
+      7,
       0
     ],
     "lanes": {
@@ -30,122 +77,94 @@
       "main": 1.0,
       "millrace_flume": 0.98
     },
-    "lap2": 60.65,
+    "lap2": 58.7,
     "od_time": 5.9,
     "perfect": 3,
     "sparks": 4
   },
-  "baseline (river lane)": {
-    "boost_time": 12.8,
-    "impacts": [
-      2,
-      11,
-      13
-    ],
-    "lanes": {
-      "main": 1.0
-    },
-    "lap2": 75.27,
-    "od_time": 5.9,
-    "perfect": 5,
-    "sparks": 6
-  },
-  "cave": {
-    "boost_time": 11.6,
-    "impacts": [
-      3,
-      14,
-      10
-    ],
-    "lanes": {
-      "main": 1.0,
-      "rootway_cave": 0.97
-    },
-    "lap2": 62.45,
-    "od_time": 5.9,
-    "perfect": 2,
-    "sparks": 2
-  },
-  "flume": {
-    "boost_time": 12.2,
-    "impacts": [
-      1,
-      16,
-      9
-    ],
-    "lanes": {
-      "main": 1.0,
-      "millrace_flume": 0.98
-    },
-    "lap2": 67.98,
-    "od_time": 5.9,
-    "perfect": 2,
-    "sparks": 2
-  },
   "giants log": {
-    "boost_time": 12.0,
+    "boost_time": 10.5,
     "impacts": [
-      2,
-      14,
-      14
+      0,
+      11,
+      18
     ],
     "lanes": {
       "giants_log": 0.97,
       "main": 1.0
     },
-    "lap2": 64.1,
+    "lap2": 71.18,
     "od_time": 5.9,
-    "perfect": 3,
-    "sparks": 4
+    "perfect": 1,
+    "sparks": 1
   },
   "left bank": {
-    "boost_time": 13.5,
+    "boost_time": 15.4,
     "impacts": [
-      0,
+      2,
       4,
-      4
+      3
     ],
     "lanes": {
       "left_bank": 0.98,
       "main": 1.0
     },
-    "lap2": 63.25,
+    "lap2": 61.25,
     "od_time": 5.9,
-    "perfect": 3,
-    "sparks": 4
+    "perfect": 4,
+    "sparks": 6
   },
   "log + shelf": {
-    "boost_time": 18.6,
+    "boost_time": 19.1,
     "impacts": [
       1,
-      5,
-      2
+      7,
+      1
+    ],
+    "lanes": {
+      "giants_log": 0.49,
+      "left_bank": 0.98,
+      "main": 1.0,
+      "shelf_rock": 0.97
+    },
+    "lap2": 54.53,
+    "od_time": 5.9,
+    "perfect": 2,
+    "sparks": 4
+  },
+  "log + shelf + flume": {
+    "boost_time": 18.9,
+    "impacts": [
+      3,
+      11,
+      1
     ],
     "lanes": {
       "giants_log": 0.5,
       "left_bank": 0.98,
       "main": 1.0,
+      "millrace_flume": 0.98,
       "shelf_rock": 0.97
     },
-    "lap2": 56.38,
+    "lap2": 57.27,
     "od_time": 5.9,
-    "perfect": 2,
-    "sparks": 3
+    "perfect": 0,
+    "sparks": 1
   },
   "right bank": {
-    "boost_time": 12.9,
+    "boost_time": 9.4,
     "impacts": [
       1,
-      8,
+      9,
       3
     ],
     "lanes": {
       "main": 1.0,
       "right_bank": 0.99
     },
-    "lap2": 60.68,
+    "lap2": 59.9,
     "od_time": 5.9,
-    "perfect": 4,
-    "sparks": 4
+    "perfect": 2,
+    "sparks": 3
   }
 }

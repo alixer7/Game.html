@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 0.2.0 — 2026-11-23 (session 2, first compiled & tested build)
+### Toolchain
+- Official Godot 4.7.2 + export templates (SHA-512 verified), Android SDK, debug keystore; all GDScript compile errors fixed.
+### Physics
+- Floating CharacterBody3D with its own ground ray/snap (no downhill speed bleed), hop clears the contact push, drag only when coasting.
+- Collision capsule tilts with the ground normal (karts no longer stall on steep ramps).
+### Track
+- Jumps measured at 4 speeds × hop/no-hop and tuned (Giant's Log, Shelf Rock, Lower Falls, Tunnel Leap).
+- Millrace Flume rebuilt: big-air kicker 20° off the road with a straight run-up, foot stamped into the ground, 22 m run-out, curved channel, earth chute onto the road (old exit was below the road).
+- Rootway Cave rebuilt: tunnel inside the hairpin with a tight U-turn (hook-turn test); shell, terrain holes, stalagmites start at the real mouth; outer rock skin.
+- River banks rejoin the road at shallow angles; mill house placed by road clearance.
+- Terrain carve under elevated paths also clears road shoulders; road skirts have no collision (except in the cave).
+- Lead-in guide paths from the road onto every side entrance.
+### AI
+- Lane graph with lead-ins, slide decisions by turn-ahead, hook when needed, lip-hops, stuck/lost/progress watchdogs with respawn → all 8 AI finish (Normal, Expert).
+### UI
+- Fixed: touch controls and settings panel had size 0 when anchored inside `_ready`; main menu buttons overflowed 720 px; garage stat bars coloured.
+### Tests & tools
+- Suites: physics 33, track 14, jumps 3 (40 attempts), ai 2, routes 26 — all pass. Route test checks each forced shortcut is driven to its end.
+- Screenshot harness with render metrics, touch UI, view filter; menu screenshots; AI trace with forced routes; jump trace; `--smoke-race` for exported packs.
+- APK exported and verified with apksigner.
+
 ## 0.1.0 — 2026-11-23 (session 1, unverified build)
 ### Added
 - Project setup for Godot 4.7 (Mobile renderer, Jolt physics, 60 Hz physics, landscape, ETC2/ASTC).

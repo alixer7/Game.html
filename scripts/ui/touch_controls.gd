@@ -15,7 +15,7 @@ const DEFAULT := {
 	"drift": [0.885, 0.70, 1.25],
 	"boost": [0.745, 0.83, 0.85],
 	"item": [0.80, 0.47, 0.8],
-	"brake": [0.94, 0.42, 0.65],
+	"brake": [0.955, 0.62, 0.65],   # below the minimap (which ends at ~49 % height)
 	"accel": [0.95, 0.92, 0.75],
 	"look": [0.68, 0.62, 0.55],
 	"stick": [0.14, 0.70, 1.2],
@@ -34,10 +34,13 @@ var _pressed := {}
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# anchors AND offsets: a Control under a CanvasLayer otherwise keeps size 0
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Game.touch.active = DisplayServer.is_touchscreen_available() or OS.has_feature("mobile") or OS.get_environment("WK_TOUCH") == "1"
 	visible = Game.touch.active or edit_mode
+	# the first draw happens before layout (size 0): redraw once the real size is known
+	resized.connect(queue_redraw)
 
 
 func _layout(id: String) -> Array:

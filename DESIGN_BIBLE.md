@@ -19,7 +19,7 @@ Pillars (in priority order): 1) handling feel, 2) one deep interconnected track,
 - **Surfaces** (scripts/kart/surfaces.gd): grip, slide grip, top-speed, accel, drag, drain, charge-rate and flow multipliers; each surface is a strategic trade-off, not decoration.
 - **Determinism:** fixed 60 Hz physics, no randomness in kart physics.
 
-### Handling targets (asserted by tests/physics_tests.gd)
+### Handling targets (asserted by tests/physics_tests.gd — 33/33 pass in Godot 4.7.2, 2026-11-23)
 top speed ±0.6 m/s · 0→90 % in 2.0–4.5 s · steering R at top speed 20–32 m · slide slip 15–45° · slide R < 16 m · 3 perfect sparks ≈ 2.3 s reserve · early tap fizzles / late backfires · reserve drains 1 s/s · Overdrive ≈ +40 % · chained slides sustain boost · hop 0.25–0.5 s · ramp air boost · graze/glance/head-on classification · hook > 1.3× slide yaw · current exceeds road cap · determinism.
 
 ## 3. Track design rules

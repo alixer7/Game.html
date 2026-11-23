@@ -19,6 +19,9 @@ func _ready() -> void:
 	cl.add_child(_ui)
 	_show_main()
 	Sfx.play_music("music_race")
+	# smoke test of an exported package: `godot --main-pack x.pck -- --smoke-race`
+	if "--smoke-race" in OS.get_cmdline_user_args():
+		_start.call_deferred()
 
 
 func _build_stage() -> void:
@@ -105,15 +108,15 @@ func _clear() -> void:
 
 func _show_main() -> void:
 	_clear()
-	var title := UIKit.label("WILDSPARK", 110, UIKit.ORANGE, 20)
-	title.position = Vector2(60, 30)
+	var title := UIKit.label("WILDSPARK", 96, UIKit.ORANGE, 18)
+	title.position = Vector2(60, 18)
 	_page.add_child(title)
-	var sub := UIKit.label("KART", 70, UIKit.TEAL, 16)
-	sub.position = Vector2(70, 150)
+	var sub := UIKit.label("KART", 60, UIKit.TEAL, 14)
+	sub.position = Vector2(68, 122)
 	_page.add_child(sub)
 	var v := VBoxContainer.new()
-	v.position = Vector2(60, 260)
-	v.add_theme_constant_override("separation", 14)
+	v.position = Vector2(60, 212)
+	v.add_theme_constant_override("separation", 10)
 	_page.add_child(v)
 	v.add_child(UIKit.button("Race", func() -> void: _show_setup("race")))
 	v.add_child(UIKit.button("Time Trial", func() -> void: _show_setup("time_trial")))
@@ -122,6 +125,8 @@ func _show_main() -> void:
 	v.add_child(UIKit.button("Settings", _settings))
 	if not OS.has_feature("web"):
 		v.add_child(UIKit.button("Quit", func() -> void: get_tree().quit()))
+	for b in v.get_children():
+		(b as Control).custom_minimum_size.y = 64   # six buttons fit a 720 px tall screen
 	var ver := UIKit.label("v%s" % ProjectSettings.get_setting("application/config/version", "0.1"), 18, Color(1, 1, 1, 0.5), 4)
 	ver.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	ver.position = Vector2(-120, -40)
@@ -220,6 +225,14 @@ func _update_stats() -> void:
 		bar.value = clampf(float(s[1]) * 0.8 + 0.15, 0.05, 1.0)
 		bar.show_percentage = false
 		bar.custom_minimum_size = Vector2(300, 22)
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = UIKit.TEAL
+		fill.set_corner_radius_all(6)
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = Color(1, 1, 1, 0.12)
+		bg.set_corner_radius_all(6)
+		bar.add_theme_stylebox_override("fill", fill)
+		bar.add_theme_stylebox_override("background", bg)
 		h.add_child(bar)
 		_stats.add_child(h)
 

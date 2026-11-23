@@ -34,6 +34,11 @@ func _ready() -> void:
 	_setup_ui()
 	build_ms = Time.get_ticks_msec() - t0
 	print("[race] world built in %d ms  %s" % [build_ms, tb.timings])
+	if "--smoke-race" in OS.get_cmdline_user_args():
+		# exported-package smoke test: run the race for a while, report, quit
+		get_tree().create_timer(25.0).timeout.connect(func() -> void:
+			print("[smoke] state=%s race_time=%.1f karts=%d player_pos=%s" % [race.state, race.race_time, get_tree().get_nodes_in_group("karts").size(), player.global_position.snapped(Vector3.ONE)])
+			get_tree().quit())
 	_loading.queue_free()
 	_state = "intro"
 	_intro_t = 0.0

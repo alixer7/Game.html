@@ -1,30 +1,37 @@
 # NEXT_SESSION
 
 ## ملخص بالعربية
-الخطوة التالية الإلزامية: الحصول على Godot 4.7.2 الرسمي وقوالب التصدير، ثم تشغيل الاستيراد والاختبارات، وإصلاح أخطاء الترجمة (متوقعة في كود كبير لم يُشغَّل بعد)، ثم ضبط الفيزياء والمسار بالأرقام الفعلية، ثم اللقطات وبناء APK.
+الأولوية التالية: تثبيت الـ APK على هاتف حقيقي (Galaxy S24 Ultra) وقياس معدل الإطارات ودرجة الحرارة وزمن تحميل المسار، ثم خفض عدد المضلّعات إن لزم، ثم تجربة اللمس يدوياً وضبط التوازن بين الطرق والاختصارات بعدة جولات لكل طريق.
 
-## Last done (session 1)
-Wrote the whole game in code (see PROJECT_STATE.md). Generated textures, audio, track data and design diagrams. Installed the Android SDK in the session container. Commits on branch `ccr-4cebcfbd-f8qfva`.
+## Last done (session 2)
+- Got the official Godot 4.7.2 + export templates (SHA-512 verified) and the Android SDK; fixed every compile error.
+- Physics rewritten onto a floating CharacterBody3D with its own ground snap; 33 physics tests pass.
+- Measured every jump and retuned geometry; jump suite passes.
+- Redesigned the Millrace Flume (big-air kicker, run-out, curved channel, chute exit), the Rootway Cave (tunnel with a tight U-turn inside the hairpin) and the river-bank merges after tests and traces exposed real defects.
+- AI: racing-line lanes with lead-ins onto every shortcut, slide decisions, stuck/lost/progress watchdogs → all 8 AI finish (Normal and Expert).
+- Rendered landmarks, races and menus with lavapipe; fixed touch-control and settings-panel layout bugs and the main menu overflow.
+- Built and verified the APK; smoke-ran the exported pack on desktop.
 
 ## Exact next steps
-1. **Get Godot 4.7.2-stable + export templates.** Either:
-   - allow this cloud session to attach `godotengine/godot` read-only (so `github.com/godotengine/godot/releases/...` is reachable), then run `tools/setup_toolchain.sh /home/user/tools`; or
-   - run `tools/setup_toolchain.sh` on your own Linux machine (needs github.com + dl.google.com).
-2. `tools/build.sh import` — imports textures/audio (creates `.godot/`). Watch the output for script parse errors and fix them first; ~10 k lines of GDScript have never been compiled.
-3. `tools/build.sh test physics` → tune `kart_params.gd` until every handling target passes.
-4. `tools/build.sh test track` → fix any holes/discontinuities in roads or set pieces.
-5. `tools/build.sh test ai` then `routes` → balance shortcuts/lanes (TRACK_DESIGN §4–5) using the measured lap times.
-6. `tools/build.sh shots` (Xvfb + lavapipe) → check shaders compile, inspect every landmark view, fix visuals, record draw calls/primitives in `tests/results/render.json`.
-7. Measure build time of the track (`[race] world built in … ms`). If > ~4 s on desktop, bake the generated world to `res://generated/*.scn` at export time.
-8. `tools/build.sh apk` → `export/WildsparkKart.apk`; `tools/build.sh zip` → project ZIP.
-9. Real-device test on Galaxy S24 Ultra: FPS (enable Settings → Show FPS), touch feel, safe areas, heat.
+1. **Device test (S24 Ultra):** `adb install -r export/WildsparkKart.apk`; Settings → Show FPS. Record FPS on the start grid, river, Millrace and in a full 8-kart race at High/Medium/Low, plus load time and temperature after 10 minutes. Put the numbers in PROJECT_STATE.md.
+2. If FPS < 60: lower scatter density for Medium/High (`scripts/track/scatter.gd` specs), shorten LOD1 ranges, cut far tree share; target < 800 k primitives on High.
+3. If load time is long on the phone: bake the generated world into `res://generated/*.scn` at export time.
+4. Touch play-test: stick dead-zone, drift re-tap window (`RETAP_WINDOW`), button sizes; adjust defaults in `scripts/ui/touch_controls.gd`.
+5. Balance: run `tools/build.sh test routes` 5× and average per route; target river ≈ banks ± 1 s, log/shelf/flume/cave each a clear but risky gain.
+6. Items: add a test suite (hit rates, shield timing, trap placement) and tune.
+7. Time-trial ghost, second track.
 
-## Known risks / likely issues
-- GDScript static-typing errors (unverified code). Most likely spots: lambdas inside call arguments, Variant→typed assignments, dictionary-dot access.
-- Shader compile errors (unverified): `shaders/*.gdshader` (common include, `BACKLIGHT`, `CAMERA_POSITION_WORLD`).
-- Winding of procedural meshes was reasoned by hand (MeshBuilder `tri()/quad()` take CCW-from-front and store CW). If a mesh appears inside-out, flip its quad order.
-- Runtime world generation time on phones (GDScript). Plan B: bake.
-- `Jolt Physics` + `CharacterBody3D` interplay with rotating the body each tick (yaw only) — verify floor snapping on the rollers/crests.
+## Useful commands
+```bash
+tools/build.sh test physics track jumps ai routes     # headless suites (~6 min total)
+tools/build.sh shots                                  # screenshots + render metrics (lavapipe, ~12 min)
+godot --path . res://tests/debug/menu_shots.tscn       # menu screenshots
+godot --headless --path . res://tests/debug/ai_trace.tscn -- 3 90 rootway_cave   # trace one AI on a forced route
+godot --headless --path . res://tests/debug/jump_trace.tscn -- millrace_flume flume_kick_lip 31 0
+tools/build.sh apk && tools/build.sh zip
+```
 
-## Files changed this session
-Everything (initial build). See CHANGELOG.md.
+## Known risks
+- GPU differences (Mali/Adreno vs lavapipe) in the custom shaders.
+- GDScript world generation time on phones (~2.9 s on a desktop CPU).
+- AI lap times vary run-to-run by several seconds (collision-driven).

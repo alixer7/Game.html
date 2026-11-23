@@ -714,6 +714,7 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 	root.add_child(node)
 	var nz := MeshLib.make_noise(1313, 0.35, 3)
 	var mb := MeshBuilder.new()
+	var outer := MeshBuilder.new()
 	var ring := 14
 	var cr := _style_range(sp, "cave")
 	# shell only over the cave section (not the lead-in, not the merge ramp)
@@ -731,14 +732,20 @@ static func _cave(tb: TrackBuilder, root: Node3D) -> void:
 			p += -inward * absf(nz.get_noise_3dv(p * 1.3)) * 0.9   # bulges outward only
 			var c := Color(0.75, 0.72, 0.78, 0.3)
 			mb.add_vertex(p, inward, Vector2.ZERO, c)
+			# outer skin 0.8 m further out: the tunnel reads as a rocky root ridge from outside
+			outer.add_vertex(p - inward * 0.8, -inward, Vector2.ZERO, Color(0.7, 0.72, 0.62, 0.45))
 	for k in n - 1:
 		for s in ring:
 			var a := k * (ring + 1) + s
 			var b := a + ring + 1
 			mb.quad(a, b, b + 1, a + 1)
+			outer.quad(a, a + 1, b + 1, b)
 	mb.recompute_normals()
+	outer.recompute_normals()
 	tb.add_static_mesh(node, mb, Mats.triplanar("rock"), "CaveShell")
 	tb.add_trimesh_collider(node, mb, Surfaces.ROCK)
+	tb.add_static_mesh(node, outer, Mats.triplanar("rock"), "CaveShellOuter")
+	tb.add_trimesh_collider(node, outer, Surfaces.ROCK)
 	# portal rocks framing both mouths
 	var rocks := MeshBuilder.new()
 	for end: int in [k0, k0 + n - 1]:

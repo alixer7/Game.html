@@ -58,11 +58,17 @@ func _run() -> void:
 		["fernway", "crest_1", Vector3(0, 3, 12), Vector3(0, 0, -30)],
 		["giants_log", "log_entry", Vector3(-10, 6, 16), Vector3(10, 2, -30)],
 		["ruins_owl", "flytraps", Vector3(-6, 4, 16), Vector3(8, 4, -30)],
-		["millrace", "flume_kicker", Vector3(10, 8, 20), Vector3(-20, 0, -30)],
+		["millrace", "flume_kicker", Vector3(-4, 4.5, 16), Vector3(14, 2, -30)],
 		["hairpin", "hairpin", Vector3(8, 10, 18), Vector3(-15, 0, -20)],
 		["elder_tree", "crest_1", Vector3(-20, 25, 60), Vector3(-60, 18, -40)],
 	]
+	var tc: Control = scene.get("touch")
+	if tc:
+		print("touch ui: visible=%s size=%s active=%s" % [tc.visible, tc.size, Game.touch.active])
+	var only := OS.get_environment("WK_VIEWS")   # quick check: "a,b" renders just these views
 	for v in views:
+		if only != "" and not (String(v[0]) in only.split(",")):
+			continue
 		var m: String = v[1]
 		if not tb.marks.has(m):
 			continue
@@ -76,6 +82,9 @@ func _run() -> void:
 		cam.global_position = eye
 		cam.look_at(tgt, Vector3.UP)
 		await _shot(v[0])
+	if only != "" and not ("race" in only.split(",")):
+		get_tree().quit()
+		return
 	# gameplay views: race behind the player for a while
 	cam.set_physics_process(true)
 	scene.set("_state", "countdown")
@@ -94,6 +103,9 @@ func _run() -> void:
 	for i in 3:
 		await _wait(race_frames)
 		await _shot("race_%d" % i)
+	if only != "":   # partial runs don't overwrite the full metrics file
+		get_tree().quit()
+		return
 	var f := FileAccess.open("res://tests/results/render.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify({"views": out, "build_ms": scene.get("build_ms"), "timings": tb.timings, "adapter": RenderingServer.get_video_adapter_name(), "renderer": ProjectSettings.get_setting("rendering/renderer/rendering_method")}, "  "))
 	get_tree().quit()
