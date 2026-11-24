@@ -198,16 +198,31 @@ class MujassamModel:
         brain = self.brain
         if hasattr(brain, "model") and hasattr(brain, "processor"):
             model = brain.model
-            if cfg.brain_lora and hasattr(model, "save_pretrained") and not merge_lora:
+            brain_dir = out / "brain"
+            same_base = Path(cfg.brain_model).exists() and Path(cfg.brain_model).resolve() == brain_dir.resolve()
+            is_peft = hasattr(model, "peft_config")
+            if is_peft and not merge_lora:
                 model.save_pretrained(out / "brain_lora")       # adapter only
-                base = model.get_base_model() if hasattr(model, "get_base_model") else model
-                base.save_pretrained(out / "brain", safe_serialization=True)
+                cfg.brain_lora = str(out / "brain_lora")
+                if not same_base:                               # base weights unchanged -> keep existing copy
+                    base = model.unload()                       # strip LoRA layers (no merge)
+                    base.save_pretrained(brain_dir, safe_serialization=True)
+                    from peft import PeftModel
+                    brain.model = PeftModel.from_pretrained(base, str(out / "brain_lora"))
+                    brain.model.eval()
             else:
-                if merge_lora and hasattr(model, "merge_and_unload"):
+                if is_peft:
                     model = model.merge_and_unload()
-                model.save_pretrained(out / "brain", safe_serialization=True)
+                    brain.model = model
+                tmp = out / "brain.tmp" if same_base else brain_dir
+                model.save_pretrained(tmp, safe_serialization=True)
+                if same_base:
+                    shutil.rmtree(brain_dir)
+                    tmp.rename(brain_dir)
                 cfg.brain_lora = None
-            brain.processor.save_pretrained(out / "brain")
+                if (out / "brain_lora").is_dir():
+                    shutil.rmtree(out / "brain_lora")
+            brain.processor.save_pretrained(brain_dir)
         rec = self.reconstructor
         if rec is not None and cfg.recon_backend == "triposr":
             (out / "recon").mkdir(exist_ok=True)
@@ -217,11 +232,9 @@ class MujassamModel:
             else:
                 from huggingface_hub import hf_hub_download
                 files = [Path(hf_hub_download(cfg.recon_model, f)) for f in ("config.yaml", "model.ckpt")]
-            for f in files:
-                shutil.copy2(f, out / "recon" / f.name)
             u2 = Path(os.environ.get("U2NET_HOME", Path.home() / ".u2net")) / f"{cfg.rembg_model}.onnx"
-            if u2.exists():
-                shutil.copy2(u2, out / "recon" / u2.name)
+            for f in files + ([u2] if u2.exists() else []):
+                _copy(f, out / "recon" / f.name)
         cfg.save(out / CONFIG_NAME)
         try:
             counts = self.num_parameters()
@@ -229,6 +242,13 @@ class MujassamModel:
             counts = {}
         (out / "MODEL_CARD.md").write_text(_model_card(cfg, counts), encoding="utf-8")
         return out
+
+
+def _copy(src: Path, dst: Path) -> None:
+    """Copy unless src and dst are the same file (re-saving a package in place)."""
+    if dst.exists() and src.resolve() == dst.resolve():
+        return
+    shutil.copy2(src, dst)
 
 
 def _model_card(cfg: MujassamConfig, counts: dict[str, int]) -> str:
