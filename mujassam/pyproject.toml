@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mujassam"
+version = "1.0.0"
+description = "Mujassam: a hybrid neural 3D-modelling model for Blender (text/image -> editable 3D, with visual self-critique)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["numpy", "pillow"]
+
+[project.optional-dependencies]
+brain = ["torch>=2.3", "transformers>=4.57.1", "accelerate>=1.0", "bitsandbytes>=0.45", "peft>=0.13"]
+recon = ["rembg", "onnxruntime", "omegaconf", "einops", "trimesh", "huggingface_hub"]
+server = ["fastapi", "uvicorn", "python-multipart"]
+dev = ["pytest", "httpx", "fastapi", "python-multipart"]
+
+[project.scripts]
+mujassam = "mujassam.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["mujassam*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

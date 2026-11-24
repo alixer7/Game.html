@@ -1,0 +1,341 @@
+{
+ "name": "showcase",
+ "materials": {
+  "ceramic": {
+   "color": "#e8e2d4",
+   "roughness": 0.3
+  },
+  "leaf": {
+   "color": "green"
+  },
+  "bark": {
+   "color": "dark_brown"
+  },
+  "neon": {
+   "color": "#ffffff",
+   "emission": "#ff3080",
+   "emission_strength": 4
+  },
+  "fur": {
+   "color": "orange",
+   "roughness": 0.8
+  }
+ },
+ "parts": [
+  {
+   "id": "vase",
+   "type": "lathe",
+   "profile": [
+    [
+     0,
+     0
+    ],
+    [
+     0.08,
+     0
+    ],
+    [
+     0.12,
+     0.08
+    ],
+    [
+     0.1,
+     0.2
+    ],
+    [
+     0.05,
+     0.28
+    ],
+    [
+     0.06,
+     0.32
+    ]
+   ],
+   "location": [
+    -0.6,
+    0,
+    0
+   ],
+   "material": "ceramic"
+  },
+  {
+   "id": "branch",
+   "type": "tube",
+   "path": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0.05,
+     0,
+     0.2
+    ],
+    [
+     0.0,
+     0.05,
+     0.4
+    ],
+    [
+     0.1,
+     0.1,
+     0.55
+    ]
+   ],
+   "radius": 0.03,
+   "radius_end": 0.01,
+   "location": [
+    0,
+    0,
+    0
+   ],
+   "material": "bark"
+  },
+  {
+   "id": "crown",
+   "type": "sphere",
+   "radius": 0.15,
+   "location": [
+    0.1,
+    0.1,
+    0.62
+   ],
+   "scale": [
+    1,
+    1,
+    0.8
+   ],
+   "material": "leaf"
+  },
+  {
+   "id": "star",
+   "type": "extrude",
+   "polygon": [
+    [
+     0,
+     0.1
+    ],
+    [
+     0.03,
+     0.03
+    ],
+    [
+     0.1,
+     0.03
+    ],
+    [
+     0.045,
+     -0.015
+    ],
+    [
+     0.065,
+     -0.09
+    ],
+    [
+     0,
+     -0.045
+    ],
+    [
+     -0.065,
+     -0.09
+    ],
+    [
+     -0.045,
+     -0.015
+    ],
+    [
+     -0.1,
+     0.03
+    ],
+    [
+     -0.03,
+     0.03
+    ]
+   ],
+   "depth": 0.03,
+   "rotation": [
+    90,
+    0,
+    0
+   ],
+   "location": [
+    0.6,
+    0,
+    0.095
+   ],
+   "material": "neon"
+  },
+  {
+   "id": "cat_body",
+   "type": "skin",
+   "nodes": [
+    [
+     0,
+     -0.15,
+     0.15,
+     0.08
+    ],
+    [
+     0,
+     0,
+     0.16,
+     0.1
+    ],
+    [
+     0,
+     0.12,
+     0.15,
+     0.08
+    ],
+    [
+     0,
+     -0.22,
+     0.25,
+     0.07
+    ],
+    [
+     0.05,
+     0.12,
+     0.04,
+     0.03
+    ],
+    [
+     -0.05,
+     0.12,
+     0.04,
+     0.03
+    ],
+    [
+     0.05,
+     -0.12,
+     0.04,
+     0.03
+    ],
+    [
+     -0.05,
+     -0.12,
+     0.04,
+     0.03
+    ],
+    [
+     0,
+     0.25,
+     0.3,
+     0.02
+    ]
+   ],
+   "edges": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     0,
+     3
+    ],
+    [
+     2,
+     4
+    ],
+    [
+     2,
+     5
+    ],
+    [
+     0,
+     6
+    ],
+    [
+     0,
+     7
+    ],
+    [
+     2,
+     8
+    ]
+   ],
+   "location": [
+    0,
+    -0.6,
+    -0.038
+   ],
+   "material": "fur"
+  },
+  {
+   "id": "label",
+   "type": "text",
+   "body": "MJ",
+   "size": 0.15,
+   "depth": 0.03,
+   "rotation": [
+    90,
+    0,
+    0
+   ],
+   "location": [
+    0,
+    0.5,
+    0.0795
+   ],
+   "material": "ceramic"
+  },
+  {
+   "id": "ring",
+   "type": "torus",
+   "major_radius": 0.1,
+   "minor_radius": 0.025,
+   "location": [
+    0.6,
+    -0.5,
+    0.025
+   ],
+   "material": "neon"
+  },
+  {
+   "id": "pill",
+   "type": "capsule",
+   "radius": 0.05,
+   "depth": 0.3,
+   "location": [
+    -0.6,
+    -0.5,
+    0.15
+   ],
+   "material": "fur"
+  },
+  {
+   "id": "block",
+   "type": "box",
+   "size": [
+    0.3,
+    0.3,
+    0.2
+   ],
+   "location": [
+    0.6,
+    0.5,
+    0.1
+   ],
+   "material": "ceramic",
+   "cutters": [
+    "hole"
+   ]
+  },
+  {
+   "id": "hole",
+   "type": "cylinder",
+   "radius": 0.08,
+   "depth": 0.5,
+   "location": [
+    0.6,
+    0.5,
+    0.1
+   ]
+  }
+ ]
+}

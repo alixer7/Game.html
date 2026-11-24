@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.egg-info/
+mujassam_out/
+mujassam_jobs/
+data/
+runs/
+*.blend1

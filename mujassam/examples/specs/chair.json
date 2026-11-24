@@ -1,0 +1,16 @@
+{
+  "name": "wooden_chair",
+  "style": "clean modern furniture",
+  "materials": {
+    "oak": {"color": "#a8743f", "roughness": 0.6},
+    "fabric": {"color": "#2f5d8a", "roughness": 0.9}
+  },
+  "parts": [
+    {"id": "seat", "type": "box", "size": [0.46, 0.44, 0.04], "location": [0, 0, 0.45], "material": "oak", "bevel": 0.008},
+    {"id": "cushion", "type": "box", "size": [0.42, 0.40, 0.05], "location": [0, 0, 0.495], "material": "fabric", "bevel": 0.02, "bevel_segments": 3},
+    {"id": "leg_front", "type": "cylinder", "radius": 0.02, "depth": 0.43, "location": [0.2, -0.18, 0.215], "material": "oak", "mirror": "x"},
+    {"id": "leg_back", "type": "cylinder", "radius": 0.02, "depth": 0.9, "location": [0.2, 0.19, 0.45], "material": "oak", "mirror": "x"},
+    {"id": "back_rail", "type": "box", "size": [0.42, 0.025, 0.08], "location": [0, 0.19, 0.84], "material": "oak", "bevel": 0.006},
+    {"id": "back_slat", "type": "box", "size": [0.03, 0.02, 0.3], "location": [-0.12, 0.19, 0.64], "material": "oak", "array": {"count": 4, "offset": [0.08, 0, 0]}}
+  ]
+}
