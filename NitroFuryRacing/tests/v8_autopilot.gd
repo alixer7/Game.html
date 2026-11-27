@@ -9,7 +9,7 @@ var spline: TrackSpline
 var obstacles: Array = []
 var lane := 0.0
 var speed_scale := 1.0
-var stats := {"respawns": 0, "stuck_events": 0, "wall_hits": 0, "max_air": 0.0, "jumps": 0, "hits": 0, "min_speed_moving": 999.0}
+var stats := {"events": [], "respawns": 0, "stuck_events": 0, "wall_hits": 0, "max_air": 0.0, "jumps": 0, "hits": 0, "min_speed_moving": 999.0}
 var _stuck_t := 0.0
 var _was_air := false
 var _air_t := 0.0
@@ -27,8 +27,8 @@ func step(delta: float) -> void:
 	# --- lane choice: dodge static obstacles in the next 45 m
 	var target_lane := 0.0
 	for ob in obstacles:
-		var dt := fposmod(float(ob["t"]) - t, 1.0) * spline.total_length
-		if dt > 2.0 and dt < 48.0:
+		var dt := fposmod(float(ob["t"]) - t + 0.5, 1.0) * spline.total_length - 0.5 * spline.total_length
+		if dt > -4.0 and dt < 48.0:
 			var olat := float(ob["lat"])
 			var r := float(ob["r"])
 			if absf(olat - target_lane) < r + 3.2:
@@ -61,6 +61,7 @@ func step(delta: float) -> void:
 	# --- stats
 	if kart.respawn_timer > 0.0 and not _was_resp:
 		stats["respawns"] += 1
+		(stats["events"] as Array).append(["respawn", snappedf(kart.spline_t, 0.001), kart.global_position.snapped(Vector3(0.1, 0.1, 0.1)), kart.surface_type])
 	_was_resp = kart.respawn_timer > 0.0
 	if kart.is_grounded:
 		if _was_air and _air_t > 0.3:
@@ -75,6 +76,7 @@ func step(delta: float) -> void:
 		_stuck_t += delta
 		if _stuck_t > 1.2:
 			stats["stuck_events"] += 1
+			(stats["events"] as Array).append(["stuck", snappedf(kart.spline_t, 0.001), kart.global_position.snapped(Vector3(0.1, 0.1, 0.1)), kart.surface_type])
 			_stuck_t = -3.0
 	else:
 		_stuck_t = maxf(0.0, _stuck_t)

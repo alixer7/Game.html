@@ -44,8 +44,8 @@ def build():
 
     def f_pillars(T):
         d = T.here()
-        for k, lat in enumerate((-4.2, 4.2, -4.2)):
-            T.obstacle("temple_pillar", at=d + 10 + k * 14, lat=lat, r=1.5, strength="heavy")
+        for k, lat in enumerate((-4.4, 4.4, -4.4)):
+            T.obstacle("temple_pillar", at=d + 10 + k * 16, lat=lat, r=1.3, strength="heavy")
 
     def f_hall(T):
         d = T.here()
@@ -60,8 +60,8 @@ def build():
 
     def f_cave(T):
         d = T.here()
-        T.obstacle("stalagmite", at=d + 4, lat=0.0, r=2.2, strength="heavy")
-        T.obstacle("stalagmite", at=d + 40, lat=-5.0, r=1.8, strength="heavy")
+        T.obstacle("stalagmite", at=d + 22, lat=-2.5, r=2.0, strength="heavy")
+        T.obstacle("stalagmite", at=d + 48, lat=5.0, r=1.7, strength="heavy")
 
     def f_lagoon(T):
         T.crates(at=T.here() + 30)
@@ -195,8 +195,8 @@ def _world(T):
                dict(d=T.zone_start("Market Chicane") - 4, glb="res://assets/models/prop_tiki_arch.glb")],
         landmarks=[],
         scatter=[
-            dict(kind="canopy_tree", spacing=15, prob=0.75, dmin=9, dmax=170, scale=(0.9, 1.7), yscale=(0.9, 1.3), max_slope=0.7, col_within=40),
-            dict(kind="palm", spacing=17, prob=0.8, dmin=5, dmax=70, scale=(0.8, 1.3), biomes=["lagoon", "jungle_village", "jungle_river", "ruins"], col_within=40),
+            dict(kind="canopy_tree", crown=9.0, spacing=15, prob=0.75, dmin=9, dmax=170, scale=(0.9, 1.7), yscale=(0.9, 1.3), max_slope=0.7, col_within=40),
+            dict(kind="palm", crown=5.0, spacing=17, prob=0.8, dmin=5, dmax=70, scale=(0.8, 1.3), biomes=["lagoon", "jungle_village", "jungle_river", "ruins"], col_within=40),
             dict(kind="bush", spacing=8, prob=0.5, dmin=3, dmax=35, scale=(0.7, 1.4), max_slope=0.8),
             dict(kind="fern", spacing=5.5, prob=0.45, dmin=1.5, dmax=28, scale=(0.8, 1.7), max_slope=0.9),
             dict(kind="rock", spacing=20, prob=0.45, dmin=4, dmax=150, scale=(0.6, 2.4), max_slope=1.4),

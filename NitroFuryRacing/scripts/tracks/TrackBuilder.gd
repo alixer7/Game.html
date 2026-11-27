@@ -302,8 +302,8 @@ func _process(delta: float) -> void:
 	var idx := spline.index_at_t(t)
 	var target := 1.0 if float(spline.samples[idx]["ceil"]) > 0.0 else 0.0
 	_indoor_mix = move_toward(_indoor_mix, target, delta * 2.2)
-	_sun.light_energy = lerpf(_sun_energy, _sun_energy * 0.22, _indoor_mix)
-	_env.ambient_light_energy = lerpf(_amb_energy, _amb_energy * 0.75, _indoor_mix)
+	_sun.light_energy = lerpf(_sun_energy, _sun_energy * 0.4, _indoor_mix)
+	_env.ambient_light_energy = lerpf(_amb_energy, _amb_energy * 0.95, _indoor_mix)
 
 # ------------------------------------------------------------------------------------------------ road
 func _lat_stations(hw: float) -> Array[float]:
@@ -669,12 +669,12 @@ func _build_indoor_lights(spots: Array[Dictionary]) -> void:
 			for side in [-1.0, 1.0]:
 				torch_xf.append(Transform3D(basis, s["pos"] + s["right"] * (side * (hw - 0.3)) + s["up"] * 4.2))
 		# a few real lights (no shadows) so karts & props catch light inside
-		if int(sp["i"]) % 3 == 0 and lit_count < 24:
+		if int(sp["i"]) % 2 == 0 and lit_count < 36:
 			lit_count += 1
 			var ol := OmniLight3D.new()
 			ol.light_color = Color(1.0, 0.72, 0.42) if style in ["temple", "cave", "rock", "volcano", "wood"] else (Color(0.5, 1.0, 0.7) if style == "lab" else Color(0.6, 0.75, 1.0))
-			ol.light_energy = 2.4
-			ol.omni_range = 22.0
+			ol.light_energy = 3.2 if style in ["volcano", "cave"] else 2.6
+			ol.omni_range = 24.0
 			ol.shadow_enabled = false
 			ol.position = s["pos"] + s["up"] * (ceil_h * 0.6)
 			add_child(ol)

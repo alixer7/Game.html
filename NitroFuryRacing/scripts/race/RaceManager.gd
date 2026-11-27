@@ -83,7 +83,14 @@ func _build_race_world() -> void:
 			add_child(ai)
 			var skill := 0.93 + float(i) * 0.025
 			ai.setup(kart, spline, built_data["turbo_pads"], GameState.ai_difficulty, 100 + i * 37, player_kart, skill)
-			ai.obstacles = built_data.get("obstacles", [])
+			var ai_obs: Array = built_data.get("obstacles", []).duplicate()
+			for hz in built_data.get("hazards", []):
+				if str(hz.get("kind", "")) in ["frost_geyser", "flame_vent", "chomper", "crusher"] and hz.has("lateral"):
+					ai_obs.append({"t": float(hz["t"]), "lat": float(hz["lateral"]), "r": 2.6, "kind": str(hz["kind"])})
+			for sc in built_data.get("shortcuts", []):
+				ai_obs.append({"t": float(sc["launch_t"]), "lat": float(sc["launch_lat"]), "r": 4.2, "kind": "kicker"})
+				ai_obs.append({"t": fposmod(float(sc["launch_t"]) + 6.0 / spline.total_length, 1.0), "lat": float(sc["launch_lat"]), "r": 4.2, "kind": "kicker"})
+			ai.obstacles = ai_obs
 			ai.on_use_item = Callable(self, "_on_kart_use_item")
 			ai_controllers.append(ai)
 

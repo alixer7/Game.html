@@ -158,6 +158,7 @@ var world_ref = null                 # TrackBuilder (terrain surface lookup, liq
 var surf_info: Dictionary = Surfaces.info("stone")
 var surface_class: String = "road"
 var _oob_timer: float = 0.0
+var _pinned_t: float = 0.0
 
 func _ready() -> void:
 	collision_layer = 16
@@ -914,6 +915,28 @@ func _execute_move_and_walls(_delta: float) -> void:
 	move_and_slide()
 	var fwd := Vector3(-sin(heading_yaw), 0.0, -cos(heading_yaw))
 	var right := Vector3(cos(heading_yaw), 0.0, -sin(heading_yaw))
+	# v8: when a solid object really blocks the kart, the engine speed follows the real motion
+	# (no more "spinning at 12 m/s" while pinned against a pillar or wall)
+	if get_slide_collision_count() > 0 and is_grounded:
+		var real_fwd := Vector3(velocity.x, 0.0, velocity.z).dot(fwd)
+		var blocked := false
+		for ci in range(get_slide_collision_count()):
+			var cc := get_slide_collision(ci)
+			var co = cc.get_collider()
+			var nrm := cc.get_normal()
+			var flat_n := Vector3(nrm.x, 0.0, nrm.z)
+			if co is CollisionObject3D and ((co as CollisionObject3D).collision_layer & 2) != 0 and nrm.y < 0.55 and flat_n.length_squared() > 0.01:
+				# only a (near) head-on block counts; scraping along a wall keeps its speed
+				if -fwd.dot(flat_n.normalized()) > 0.75:
+					blocked = true
+		if blocked and forward_speed > 0.0 and real_fwd < forward_speed * 0.5:
+			_pinned_t += _delta
+			if _pinned_t > 0.25:
+				forward_speed = maxf(real_fwd, 0.0)
+		else:
+			_pinned_t = 0.0
+	else:
+		_pinned_t = 0.0
 
 	for i in range(get_slide_collision_count()):
 		var col := get_slide_collision(i)

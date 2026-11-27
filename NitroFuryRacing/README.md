@@ -15,18 +15,30 @@ A mobile-first 3D arcade kart racing game built in **Godot Engine 4.4.1**, craft
 - **Off-Road Hop Preservation**: Grounded off-road (sand/deep snow) slows your kart and drains Reserves rapidly — bunny-hopping across off-road cuts preserves your Reserves!
 - **Ticking TNT Shake-Off**: Hit a TNT crate? Rapidly tap **HOP** 5 times to fling it off before it detonates!
 
-## 3 Interconnected Tracks & 6 Semi-Hidden Aerial Shortcuts
-Every track is engineered as interlocking zones where your exit speed, fire tier, and drift angle dictate your attack on the next zone. None of the shortcuts can be casually driven into at base speed — every one requires CTR fire speed, timed hops, and mid-air alignment or U-Turns:
+## v8 — Rebuilt CTR:NF-style Tracks (see `docs/TRACK_DESIGN_V8.md`, Arabic)
+All three tracks were redesigned from scratch with a new track designer (`tools/trackgen/`) and are verified with
+**real physics** (`tests/VerifyV8.tscn`): an autopilot laps every track with zero stalls/falls, every shortcut is
+actually driven at 5 speed tiers, and a 6-kart AI race keeps every kart racing.
 
-1. **Tiki Cove Canyon (خليج تيكي الصخري)** — Tropical beach, lagoon split, over-under wooden Tiki overpass, waterfall tunnel.
-   - *Lagoon Kicker Leap*: Carry Sacred Fire from the lagoon pad, spot the angled coral/stone kicker on the inside curve, Hop & air-steer left over turquoise ocean onto the Temple Plateau.
-   - *Tiki Cliff Cut*: Carrying Sacred Fire off the Tiki Overpass, launch off the broken canyon parapet and execute a Mid-Air Right U-Turn across the gorge onto Pirate Ridge.
-2. **Glacier Peak Pass (ممر القمة الجليدية)** — Alpine lodge hairpins, slippery Aurora Ice Cavern with **Blue Fire**, figure-8 ice overpass, snowbank rollers.
-   - *Ice Wall Chasm Vault*: Exit the Ice Cavern with **Blue Fire**, Hop off the tilted crystal snowbank kicker to vault diagonals across the frozen chasm onto the figure-8 bridge.
-   - *Aurora Fence-Hop*: Catch the second snow roller crest at Sacred/Blue Fire speed, Hop over the fence break and pull a Mid-Air Left U-Turn onto the alpine cliff bridge.
-3. **Volcano Sky Temple (معبد السماء البركاني)** — Technical obsidian spiral climb, open cloud skybridges, **drivable curved volcanic half-pipe**, and **Ultra Blue Fire** hairpins.
-   - *Half-Pipe Sky Tube*: Climb high up the curved left magma half-pipe wall at Sacred/Blue Fire speed and Hop at the apex lip to launch onto the hanging ancient Sky-Arch bridge!
-   - *Cloud Abyss U-Turn*: Carry **Blue Fire** to the high cloud spire edge, launch off the angled obsidian lip out over empty clouds, and carve a 115° Mid-Air Left U-Turn onto the far Temple Plunge deck!
+| Track | Length | Highlights |
+|---|---|---|
+| **Emerald Temple Circuit** | 2.54 km | jungle village, river-gorge jump, INSIDE the stepped pyramid, open summit U-turn, canopy trestle crossing 14 m over the gorge, drive behind a waterfall, lagoon beach, ruins |
+| **Bio-Lab Hydro Speedway** | 2.36 km | reactor atrium & crusher hall (indoor), 4x90-degree acid catwalks, hydro half-pipes on stilts, 7.5 m drop out of the lab, snow switchbacks over a crevasse with an avalanche gallery, frozen lake, ice cave, 22 m return climb |
+| **Cosmic Citadel Starway** | 2.42 km | neon city on a floating asteroid, skyline highway, launch tube into space, floating glass orbital ring with gap jumps & a void U-turn, asteroid mine, lava causeways, plasma half-pipe |
+
+**9 jump-only shortcuts** (no side roads, no bridges): elevated corner leaps, floating stepping stones, a ruin-wall
+vault, a straight leap across the acid pool detour, a drop over the avalanche gallery roof, a skyscraper rooftop hop,
+a Blue-Fire void leap and a lava-lake leap. Each kicker is placed by a ballistic solver so base speed falls short and
+the required fire tier + hop makes it.
+
+**Surfaces matter** (`scripts/physics/Surfaces.gd`): stone, cobble, dirt, wood, wet stone, metal, grating, asphalt,
+neon, glass, basalt, packed snow, ice; off-road grass / sand / mud / snow / ash / gravel bleed speed and Reserves;
+lava / acid / deep water respawn you.
+
+**Collisions**: every prop, tree, wall, pillar and the terrain itself is solid, with soft / medium / heavy impact tiers;
+the whole road + shoulders is one seamless collider so nothing on the floor can stop a kart.
+
+Rebuild track data after editing a track: `cd tools/trackgen && python3 build_all.py` (numpy, scipy, matplotlib).
 
 ## Opening the Project in Godot
 1. Extract `NitroFuryRacing_GodotProject.zip`.

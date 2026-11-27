@@ -353,6 +353,10 @@ func _test_ai(ti: int) -> void:
 			for kk2 in race.all_karts:
 				pp.append(snappedf(kk2.total_progress, 0.01))
 			print("    [ai t=%.0fs wall=%.1fs] %s" % [t, float(Time.get_ticks_msec() - wall0) / 1000.0, str(pp)])
+		if OS.get_environment("NFR_AIDBG") != "" and int(t * 60.0) % 3 == 0:
+			var kd: KartPhysics = race.all_karts[int(OS.get_environment("NFR_AIDBG"))]
+			var qd: Dictionary = race.built_data["spline"].project_point(kd.global_position, kd.spline_t)
+			printt("    aidbg", kd.racer_id, snappedf(t, 0.01), snappedf(kd.spline_t, 0.001), "lat", snappedf(float(qd["lateral"]), 0.1), "hw", snappedf(float(qd["half_width"]), 0.1), "v", snappedf(kd.forward_speed, 0.1), "st", snappedf(kd.input_steer, 0.01), "acc", kd.input_accel, "brk", kd.input_brake_uturn, "dr", kd.is_drifting, "g", kd.is_grounded, kd.surface_type, "fire", kd.fire_tier, "resp", kd.respawn_timer > 0.0)
 		for kk in race.all_karts:
 			if kk.is_player:
 				continue
@@ -368,6 +372,9 @@ func _test_ai(ti: int) -> void:
 					still[id] = -3.0
 			else:
 				still[id] = maxf(0.0, float(still.get(id, 0.0)))
+	for kk in race.all_karts:
+		if not kk.is_player:
+			print("    kart %s t=%.3f pos=%s v=%.1f vel=%s surf=%s gnd=%s drift=%s steer=%.2f acc=%s brake=%s" % [kk.racer_id, kk.spline_t, str(kk.global_position.snapped(Vector3(0.1, 0.1, 0.1))), kk.forward_speed, str(kk.velocity.snapped(Vector3(0.1, 0.1, 0.1))), kk.surface_type, str(kk.is_grounded), str(kk.is_drifting), kk.input_steer, str(kk.input_accel), str(kk.input_brake_uturn)])
 	var prog := []
 	var min_prog := 99.0
 	for kk in race.all_karts:

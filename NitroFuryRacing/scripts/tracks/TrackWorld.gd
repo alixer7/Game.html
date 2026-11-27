@@ -319,9 +319,39 @@ func build_scatter() -> void:
 				cs.position = p + Vector3(0.0, col_h * sy * 0.5, 0.0)
 				(bodies[key] as StaticBody3D).add_child(cs)
 				builder.spawned_prop_bounds.append({"pos": p, "radius": col_r * sc})
-		spawn_multimesh(mesh, xforms, bool(entry.get("shadow", false)))
+		_spawn_chunked(kind, mesh, xforms, bool(entry.get("shadow", false)))
 	for key in bodies.keys():
 		add_child(bodies[key])
+
+## Scatter is split into 220 m chunks with per-kind view distances: far chunks are skipped entirely and frustum
+## culling works per chunk (thousands of trees in one MultiMesh would always be drawn whole on a phone).
+const SMALL_KINDS := ["fern", "bush", "reeds", "snowdrift"]
+const MID_KINDS := ["rock", "boulder", "hut", "tank", "pipes", "crate_stack", "barrel", "lamp", "neon_sign", "spire", "crystal", "runestone", "tiki_statue", "brazier", "log", "hover_pad", "snow_rock", "mine_cart_static"]
+const SKY_KINDS := ["asteroid"]
+
+func _spawn_chunked(kind: String, mesh: Mesh, xforms: Array[Transform3D], shadows: bool) -> void:
+	var vis := 450.0
+	if kind in SMALL_KINDS:
+		vis = 120.0
+	elif kind in MID_KINDS:
+		vis = 230.0
+	elif kind in SKY_KINDS:
+		vis = 0.0
+	if vis <= 0.0:
+		spawn_multimesh(mesh, xforms, shadows)
+		return
+	var buckets: Dictionary = {}
+	for xf in xforms:
+		var key := Vector2i(int(floor(xf.origin.x / 220.0)), int(floor(xf.origin.z / 220.0)))
+		if not buckets.has(key):
+			buckets[key] = [] as Array[Transform3D]
+		(buckets[key] as Array[Transform3D]).append(xf)
+	for key in buckets.keys():
+		var mmi := spawn_multimesh(mesh, buckets[key], shadows and kind not in SMALL_KINDS)
+		if mmi:
+			mmi.visibility_range_end = vis
+			mmi.visibility_range_end_margin = 30.0
+			mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 # ------------------------------------------------------------------------------------------------ landmarks
 func build_landmarks() -> void:

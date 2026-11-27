@@ -103,6 +103,12 @@ def build_world(T, out_dir):
             k = smoothstep(c["r"] + c.get("bank", 25.0), c["r"], d)
             bed = c["level"] - c["depth"] + (d / c["r"]) ** 2 * c["depth"] * 0.6
             nat = nat * (1 - k) + np.minimum(nat, bed) * k
+        elif c["type"] == "island":
+            # floating asteroid island: everything outside the radius is the void of space (holes below -400)
+            d = np.hypot(X - c["x"], Z - c["z"]) * (1.0 + 0.18 * (value_noise2(X, Z, 70.0, seed + 41) - 0.5))
+            rim = smoothstep(c["r"] - 30.0, c["r"], d)
+            nat = nat - rim * 25.0
+            nat = np.where(d > c["r"], -600.0, nat)
         elif c["type"] == "plateau":
             d = np.hypot(X - c["x"], Z - c["z"])
             k = smoothstep(c["r"] + c.get("bank", 25.0), c["r"], d)
@@ -155,9 +161,16 @@ def build_world(T, out_dir):
     clr = np.where(gnd == "elevated", 5.5, np.where(gnd == "void", 8.0, 0.55))
     clr = np.where(is_gap, 12.0, clr)
     margin_lat = np.where(gnd == "elevated", 4.0, np.where(is_gap, 7.0, 0.4))
+    margin_lat = np.where(ceil[idx_c] > 0, 2.5, margin_lat)
     inside = perp & (excess <= margin_lat)
-    cval = np.where(inside, y_at - clr - np.maximum(0.0, excess) * 0.0, 1e9)
+    roof_top = y_at + ceil[idx_c] + 1.6
+    # NOTE: a heightmap cannot represent a tunnel through a hill (the slope between an "above the roof" cell and a
+    # trimmed cell would cut through the corridor), so indoor corridors always sit in a trimmed trench; their rock
+    # roof caps the trench.
+    underground = np.zeros_like(inside)
+    cval = np.where(inside & ~underground, y_at - clr, 1e9)
     clamp = np.minimum(clamp, cval.min(1))
+    keep_ground = (inside & underground).any(1)
     # ---- shaping by the nearest grounded/indoor cross-section
     shape_ok = perp & np.isin(gnd, ["terrain", "indoor"]) & (~is_gap)
     score = np.where(shape_ok, alat, 1e9)
@@ -176,7 +189,7 @@ def build_world(T, out_dir):
     t = smoothstep(0.0, blend_w, np.maximum(0.0, b_exc))
     flush = y_edge - 0.5
     newH = H.copy()
-    under = has & (b_exc <= 0)
+    under = has & (b_exc <= 0) & ~keep_ground
     newH[under] = (b_yat[under] - 0.45)
     # flush shoulders / walls / fences -> blend to nature
     m = near & ~under & np.isin(b_edge, ["shoulder", "wall", "fence", "rail", "none"]) & (b_ceil <= 0)
@@ -192,7 +205,7 @@ def build_world(T, out_dir):
     drop = y_edge - 2.5 - np.maximum(0.0, b_exc) * 0.9
     newH[m] = np.minimum(H[m], drop[m] * (1 - t[m]) + H[m] * t[m])
     # indoor: hill / mass over the hall (outside the walls)
-    m = near & ~under & (b_ceil > 0)
+    m = near & ~under & (b_ceil > 0) & ~keep_ground
     hill = b_yat + b_ceil + 2.0 + smoothstep(0, 6, b_exc) * 3.0
     k_in = smoothstep(blend_w * 1.2, 2.0, b_exc)
     newH[m] = np.maximum(H[m], hill[m] * k_in[m] + H[m] * (1 - k_in[m]))
@@ -338,9 +351,13 @@ def build_world(T, out_dir):
                 e = abs(la) - ext
                 hy = h_at(x, z)
                 if ground[si] in ("elevated", "void") and pos[si, 1] - hy > rule.get("max_h", 12.0) + 2.0:
-                    e2 = abs(la) - hw[si] - 3.0
+                    # prop fits under the deck height-wise: only keep it out of the deck's shadow footprint
+                    e2 = abs(la) - hw[si] - 3.0 - rule.get("crown", 0.0)
                     if e2 < 0:
                         ok = False
+                    dmin_edge = min(dmin_edge, e)
+                    if biome is None:
+                        biome = A[si]["biome"]
                     continue
                 if ceil[si] > 0 and abs(la) < hw[si] + 3.0:
                     ok = False

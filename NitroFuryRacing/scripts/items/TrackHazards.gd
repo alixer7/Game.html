@@ -197,6 +197,54 @@ func setup(spline: TrackSpline, karts: Array[KartPhysics], hazard_defs: Array) -
 					"max_ang": deg_to_rad(52.0)
 				})
 
+			"crusher":
+				# Hydraulic lab piston: hangs from the ceiling over one lane, flashes, then slams down
+				var lat_c: float = float(hd.get("lateral", 0.0))
+				var root_c := Node3D.new()
+				root_c.position = base_pos + right * lat_c
+				root_c.basis = Basis(right, up, -fwd).orthonormalized()
+				add_child(root_c)
+				var steel := StandardMaterial3D.new()
+				steel.albedo_color = Color(0.42, 0.45, 0.5)
+				steel.metallic = 0.8
+				steel.roughness = 0.35
+				var warn := StandardMaterial3D.new()
+				warn.albedo_color = Color(1.0, 0.72, 0.08)
+				warn.emission_enabled = true
+				warn.emission = Color(1.0, 0.5, 0.05)
+				warn.emission_energy_multiplier = 0.4
+				var head := Node3D.new()
+				root_c.add_child(head)
+				var hb := MeshInstance3D.new()
+				var hbm := BoxMesh.new()
+				hbm.size = Vector3(6.0, 1.8, 5.0)
+				hb.mesh = hbm
+				hb.material_override = steel
+				head.add_child(hb)
+				var stripe := MeshInstance3D.new()
+				var sbm := BoxMesh.new()
+				sbm.size = Vector3(6.05, 0.35, 5.05)
+				stripe.mesh = sbm
+				stripe.material_override = warn
+				stripe.position = Vector3(0, -0.75, 0)
+				head.add_child(stripe)
+				var shaft := MeshInstance3D.new()
+				var cm2 := CylinderMesh.new()
+				cm2.top_radius = 0.7; cm2.bottom_radius = 0.7; cm2.height = 12.0; cm2.radial_segments = 10
+				shaft.mesh = cm2
+				shaft.material_override = steel
+				shaft.position = Vector3(0, 6.9, 0)
+				head.add_child(shaft)
+				_hazards.append({
+					"kind": "crusher",
+					"root": root_c,
+					"head": head,
+					"warn": warn,
+					"period": float(hd.get("period", 2.8)),
+					"phase": float(hd.get("phase", 0.0)),
+					"cooldowns": {}
+				})
+
 			"frost_geyser", "flame_vent":
 				var is_frost := (kind == "frost_geyser")
 				var pos: Vector3 = base_pos + right * float(hd.get("lateral", 0.0))
@@ -303,6 +351,38 @@ func _physics_process(delta: float) -> void:
 				if not is_instance_valid(k): continue
 				if k.global_position.distance_squared_to(head_world) < 2.55 * 2.55:
 					k.apply_hit("pendulum", false)
+
+		elif kind == "crusher":
+			var per_c: float = h["period"]
+			var u_c := fposmod((_time + float(h["phase"])) / per_c, 1.0)
+			var hy := 6.6
+			if u_c < 0.45:
+				hy = 6.6
+			elif u_c < 0.55:
+				hy = lerpf(6.6, 0.95, pow((u_c - 0.45) / 0.10, 2.0))
+			elif u_c < 0.72:
+				hy = 0.95
+			else:
+				hy = lerpf(0.95, 6.6, (u_c - 0.72) / 0.28)
+			var head_n: Node3D = h["head"]
+			head_n.position = Vector3(0.0, hy, 0.0)
+			var wm: StandardMaterial3D = h["warn"]
+			wm.emission_energy_multiplier = (1.5 + absf(sin(_time * 22.0)) * 2.5) if (u_c > 0.30 and u_c < 0.55) else 0.4
+			var cds_c: Dictionary = h["cooldowns"]
+			for kid in cds_c.keys():
+				cds_c[kid] = float(cds_c[kid]) - delta
+				if float(cds_c[kid]) <= 0.0:
+					cds_c.erase(kid)
+			if hy < 2.2:
+				var rc: Node3D = h["root"]
+				for k in _karts:
+					if not is_instance_valid(k): continue
+					var key_c := k.get_instance_id()
+					if cds_c.has(key_c): continue
+					var lp := rc.global_transform.affine_inverse() * k.global_position
+					if absf(lp.x) < 3.3 and absf(lp.z) < 2.9 and lp.y < 3.0 and lp.y > -1.5:
+						cds_c[key_c] = 1.2
+						k.apply_hit("crusher", false)
 
 		elif kind == "frost_geyser" or kind == "flame_vent":
 			var per: float = float(h["period"])

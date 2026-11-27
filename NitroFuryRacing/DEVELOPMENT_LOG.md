@@ -145,3 +145,11 @@
     - `VerifyMobileUI.tscn` — **109/109 PASS (0 failures)** on 20:9 Arabic phone.
     - `VisualSmoke.tscn` — 7 live OpenGL screenshots (`v7_01`–`v7_07`) visually inspected & polished.
     - Exported & signature-verified **Signed Android APK v7.0.0** (`D:\NitroFuryRacing_Builds\NitroFuryRacing.apk` — `78.48 MB`, `versionCode=8`, ARM64 + ARMv7, v1/v2/v3 verified via `apksigner`) & rebuilt clean Godot project **ZIP** (`D:\NitroFuryRacing_Builds\NitroFuryRacing_GodotProject.zip`).
+
+- [x] **Step 14.0 (`v8.0.0` — CTR:NF Track Design Rebuild, verified with real physics)**:
+  - Analysis first: `docs/CTR_GAP_ANALYSIS.md` (Arabic) compares the v7 tracks with CTR:NF design point by point (measured maps/profiles/screenshots).
+  - New track pipeline: `tools/trackgen` polygon+fillet designer (exact corner radii, ramps, gaps, bumps, crests, banking, width, surfaces, edges, indoor ceilings, elevated/void decks, zones), ballistic shortcut solver, world generator (terrain conforming to the road with collision, rivers/lakes/lava/acid, ~6000 scatter instances per track, stepped pyramid massif with carved corridors).
+  - New Godot builders: `TrackSpline` (JSON, spatial grid, surface lookup), `TrackBuilder` (chunked crowned road, shoulders, walls/fences/rails/cliffs/half-pipes/open edges, indoor ceilings + lights + ambience, supports, roofs), `TrackWorld`, `TrackProps`, `TrackShortcuts`, `TrackMats`; 11 new PBR texture sets (`tools/texgen.py`).
+  - Physics: `Surfaces.gd` per-surface speed/grip/accel/steer/drain; hop no longer double-counts ramp slope; liquids/void/pit respawn; gap-aware respawn; pinned karts no longer keep phantom speed; wall tops are never ground; taller invisible wall collision.
+  - Hazards: new hydraulic crusher. AI: curvature + grip speed control, open-edge safety, nearest-obstacle lanes, avoids shortcut kickers & vents.
+  - Tests: `tests/VerifyV8.tscn` — structure, autopilot lap, real shortcut attempts at 5 tiers, 6-kart AI race, collision tiers — ALL PASS on all three tracks.
