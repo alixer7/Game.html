@@ -8,6 +8,7 @@ extends Node
 var kart: KartPhysics
 var spline: TrackSpline
 var turbo_pads: Array = []
+var obstacles: Array = []
 var difficulty: int = 1 # 0=Rookie, 1=Nitro, 2=CTR Legend
 var preferred_lane: float = 0.0
 var _lane_timer: float = 0.0

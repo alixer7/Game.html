@@ -479,6 +479,8 @@ func trigger_collision_jolt(side_dir: float, strength: float = 0.8) -> void:
 		_collision_spark.position = Vector3(-side_dir * 0.98, 0.55, -0.35)
 		_collision_spark.scale = Vector3.ONE * (0.65 + s * 0.75)
 
+var _dust_col: Color = Color(0.90, 0.84, 0.74)
+
 func update_anim(delta: float, st: Dictionary) -> void:
 	_time += delta
 	var speed: float = float(st.get("speed", 0.0))
@@ -494,6 +496,7 @@ func update_anim(delta: float, st: Dictionary) -> void:
 	var weight_roll: float = float(st.get("weight_roll", 0.0))
 	var spinout: bool = bool(st.get("spinout", false))
 	var surf_type: String = str(st.get("surface_type", "road"))
+	_dust_col = st.get("dust_col", Color(0.90, 0.84, 0.74))
 	var accelerating: bool = bool(st.get("accelerating", false))
 	var w_offsets: Array = st.get("wheel_y_offsets", [0.0, 0.0, 0.0, 0.0])
 
@@ -758,12 +761,8 @@ func _update_skidmarks_and_dust(delta: float, speed: float, is_drifting: bool, i
 					p["vel"] = Vector3(randf_range(-2.2, 2.2), randf_range(1.4, 3.0), randf_range(-2.2, 2.2)) + global_basis.z * 3.4
 					if is_drifting and drift_charge >= 0.72:
 						p["base_col"] = Color(0.98, 0.82, 0.62)
-					elif surf_type == "ice":
-						p["base_col"] = Color(0.88, 0.96, 1.0)
-					elif surf_type == "offroad":
-						p["base_col"] = Color(0.76, 0.64, 0.42)
 					else:
-						p["base_col"] = Color(0.90, 0.84, 0.74)
+						p["base_col"] = _dust_col
 					break
 
 	for p in _dust_puffs:

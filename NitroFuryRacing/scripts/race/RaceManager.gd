@@ -64,6 +64,7 @@ func _build_race_world() -> void:
 		var kart := KartPhysics.new()
 		add_child(kart)
 		kart.setup_racer(entry["racer"], bool(entry["is_player"]), spline, total_laps)
+		kart.world_ref = track_builder
 		var row := i / 2
 		var col_side := -1.0 if (i % 2 == 0) else 1.0
 		var grid_pos: Vector3 = start_s["pos"] - start_fwd * (float(row) * 5.2 + 2.5) + start_right * (col_side * 3.1) + Vector3(0.0, 0.35, 0.0)
@@ -72,6 +73,7 @@ func _build_race_world() -> void:
 
 		if bool(entry["is_player"]):
 			player_kart = kart
+			track_builder.set_focus(kart)
 			kart.shortcut_triggered.connect(_on_player_shortcut)
 			kart.hit_taken.connect(_on_player_hit)
 			kart.boost_triggered.connect(_on_player_boost)
@@ -81,6 +83,7 @@ func _build_race_world() -> void:
 			add_child(ai)
 			var skill := 0.93 + float(i) * 0.025
 			ai.setup(kart, spline, built_data["turbo_pads"], GameState.ai_difficulty, 100 + i * 37, player_kart, skill)
+			ai.obstacles = built_data.get("obstacles", [])
 			ai.on_use_item = Callable(self, "_on_kart_use_item")
 			ai_controllers.append(ai)
 

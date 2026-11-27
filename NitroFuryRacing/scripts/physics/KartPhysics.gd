@@ -153,6 +153,12 @@ var shortcut_cooldowns: Dictionary = {}
 var visuals: Node3D = null
 var _col_shape: CollisionShape3D = null
 
+# --- v8 world / surface awareness ---
+var world_ref = null                 # TrackBuilder (terrain surface lookup, liquids, gaps)
+var surf_info: Dictionary = Surfaces.info("stone")
+var surface_class: String = "road"
+var _oob_timer: float = 0.0
+
 func _ready() -> void:
 	collision_layer = 16
 	collision_mask = 1 | 2 | 4 | 8
@@ -223,10 +229,12 @@ func get_current_top_speed() -> float:
 	var base := float(TIER_SPEEDS[fire_tier])
 	var fruit_mult := 1.0 + (float(fruit_count) / float(FRUIT_MAX)) * FRUIT_SPEED_BONUS
 	var mask_mult := 1.15 if mask_timer > 0.0 else 1.0
-	var offroad_mult := 1.0
-	if is_grounded and surface_type == "offroad" and mask_timer <= 0.0:
-		offroad_mult = 0.62
-	return base * top_speed_mult * fruit_mult * mask_mult * offroad_mult
+	var surf_mult := 1.0
+	if is_grounded and mask_timer <= 0.0:
+		surf_mult = float(surf_info["speed"])
+	elif is_grounded:
+		surf_mult = maxf(1.0, float(surf_info["speed"]))
+	return base * top_speed_mult * fruit_mult * mask_mult * surf_mult
 
 func get_speed_kmh() -> int:
 	return int(round(absf(forward_speed) * 3.4))
@@ -604,25 +612,49 @@ func _probe_ground(delta: float) -> void:
 			coyote_timer = 0.09
 			ground_normal = ground_normal.lerp(hit_normal, minf(1.0, delta * 13.0)).normalized()
 			var col = hit["collider"]
-			if col and col.has_meta("surface_type"):
-				surface_type = str(col.get_meta("surface_type"))
-			else:
-				surface_type = "road"
-			if surface_type == "turbo_pad":
-				trigger_turbo_pad(false)
-			elif surface_type == "super_turbo_pad":
-				trigger_turbo_pad(true)
+			_resolve_surface(col, hit_pos)
 			return
 
 	if floor_hit and vertical_speed <= 1.6:
 		is_grounded = true
 		coyote_timer = 0.09
 		ground_normal = ground_normal.lerp(get_floor_normal(), minf(1.0, delta * 13.0)).normalized()
+		var fc := get_last_slide_collision()
+		if fc:
+			_resolve_surface(fc.get_collider(), fc.get_position())
 	else:
 		is_grounded = false
 		coyote_timer = maxf(0.0, coyote_timer - delta)
 		air_time += delta
 		ground_normal = ground_normal.lerp(Vector3.UP, minf(1.0, delta * 3.5)).normalized()
+
+func _resolve_surface(col, hit_pos: Vector3) -> void:
+	## v8: road / shoulder surfaces come from the track description, terrain from the world surface map.
+	var meta := "stone"
+	if col and col is Object and col.has_meta("surface_type"):
+		meta = str(col.get_meta("surface_type"))
+	var sid := meta
+	if meta == "track" and track_spline != null:
+		sid = track_spline.surface_at(hit_pos, spline_t)
+	elif meta == "terrain" and world_ref != null and world_ref.world != null:
+		sid = world_ref.world.terrain_surface_at(hit_pos)
+	elif meta == "turbo_pad":
+		trigger_turbo_pad(false)
+		sid = "stone"
+	elif meta == "super_turbo_pad":
+		trigger_turbo_pad(true)
+		sid = "stone"
+	elif meta in ["road", "prop_obstacle", "wall"]:
+		sid = "stone"
+	surface_type = sid
+	surf_info = Surfaces.info(sid)
+	surface_class = str(surf_info["cls"])
+	if col and col is Object and col.has_meta("oob"):
+		_oob_timer += get_physics_process_delta_time()
+	else:
+		_oob_timer = 0.0
+	if bool(surf_info.get("deadly", false)) and respawn_timer <= 0.0:
+		force_respawn(true)
 
 func _handle_landing(impact_vy: float) -> void:
 	# Heavy realistic suspension compression & tactile landing thud on touchdown!
@@ -672,8 +704,9 @@ func _process_hop_and_drift(delta: float) -> void:
 		var fwd := Vector3(-sin(heading_yaw), 0.0, -cos(heading_yaw))
 		var slope_vec := fwd - ground_normal * fwd.dot(ground_normal)
 		var slope_lift := maxf(0.0, slope_vec.normalized().y * forward_speed)
-		var kicker_bonus := 6.4 if surface_type == "kicker" else 0.0
-		vertical_speed = maxf(vertical_speed, 0.0) + HOP_IMPULSE + slope_lift * 0.62 + kicker_bonus
+		var kicker_bonus := 2.6 if surface_type == "kicker" else 0.0
+		# v8: launch keeps the ramp's own vertical velocity (once) + the hop impulse -> predictable jump arcs
+		vertical_speed = maxf(maxf(vertical_speed, 0.0), slope_lift) + HOP_IMPULSE + kicker_bonus
 		susp_vel += 2.6 # Spring extension on launch!
 		is_grounded = false
 		coyote_timer = 0.0
@@ -731,8 +764,8 @@ func _end_drift(_completed_triple: bool) -> void:
 func _process_reserves(delta: float) -> void:
 	if reserves > 0.0:
 		var drain := 1.0
-		if is_grounded and surface_type == "offroad" and mask_timer <= 0.0:
-			drain = 5.2
+		if is_grounded and mask_timer <= 0.0:
+			drain = float(surf_info["drain"])
 		reserves -= delta * drain
 		if reserves <= 0.0:
 			reserves = 0.0
@@ -740,7 +773,9 @@ func _process_reserves(delta: float) -> void:
 
 func _process_steering_and_velocity(delta: float) -> void:
 	var target_top := get_current_top_speed()
-	var on_ice := is_grounded and surface_type == "ice"
+	var on_ice := is_grounded and surface_class == "ice"
+	var s_grip: float = float(surf_info["grip"]) if is_grounded else 1.0
+	var s_steer: float = float(surf_info["steer"]) if is_grounded else 1.0
 
 	air_uturn_active = input_brake_uturn and (not is_grounded or uturn_ground_grace > 0.0)
 	if not is_grounded and input_brake_uturn:
@@ -767,11 +802,9 @@ func _process_steering_and_velocity(delta: float) -> void:
 		yaw_responsiveness = 8.4
 	else:
 		var speed_factor := clampf(absf(forward_speed) / 16.0, 0.0, 1.0)
-		var base_steer := 1.65 * turn_mult
+		var base_steer := 1.65 * turn_mult * s_steer
 		if not is_grounded:
 			base_steer = 1.38 * turn_mult
-		elif on_ice:
-			base_steer *= 0.74
 		elif fire_tier >= FireTier.SACRED:
 			base_steer *= 0.84 if fire_tier == FireTier.BLUE else 0.92
 		var dir_sign := 1.0 if forward_speed >= -0.5 else -1.0
@@ -798,7 +831,7 @@ func _process_steering_and_velocity(delta: float) -> void:
 	elif input_accel and start_stall_timer <= 0.0:
 		if forward_speed < target_top:
 			# Strong heavy torque curve — brisk climb up to full top speed with zero sluggishness!
-			var accel_rate := 28.0 * accel_mult + maxf(-4.0, slope_gravity_pull * 0.45)
+			var accel_rate := 28.0 * accel_mult * (float(surf_info["accel"]) if is_grounded else 1.0) + maxf(-4.0, slope_gravity_pull * 0.45)
 			if fire_tier >= FireTier.SACRED:
 				accel_rate *= 1.52
 			elif fire_tier >= FireTier.RED:
@@ -807,7 +840,7 @@ func _process_steering_and_velocity(delta: float) -> void:
 				accel_rate += 16.0
 			forward_speed = move_toward(forward_speed, target_top, maxf(14.0, accel_rate) * delta)
 		else:
-			var bleed := 26.0 if (is_grounded and surface_type == "offroad" and mask_timer <= 0.0) else 11.5
+			var bleed := 26.0 if (is_grounded and surface_class == "offroad" and mask_timer <= 0.0) else 11.5
 			forward_speed = move_toward(forward_speed, target_top, bleed * delta)
 	else:
 		# Realistic rolling tire resistance + slope pull when coasting!
@@ -832,13 +865,11 @@ func _process_steering_and_velocity(delta: float) -> void:
 		# - POWER-SLIDE DRIFT: 21.0 road / 9.5 ice (~3x-4.3x INCREASED TIRE BITE!)
 		#   Rear racing slicks dig hard into the tarmac during Power-Slide, eliminating sloppy
 		#   outward slide and locking the kart onto a planted, weighty obtuse drift arc!
-		var tire_lat_friction := 7.6
+		var tire_lat_friction := 7.6 * s_grip
 		if is_drifting:
-			tire_lat_friction = 10.0 if on_ice else 22.5
+			tire_lat_friction = 10.0 if on_ice else 22.5 * clampf(s_grip * 1.1, 0.55, 1.1)
 		elif on_ice:
 			tire_lat_friction = 2.2
-		elif surface_type == "offroad":
-			tire_lat_friction = 5.2
 		current_tire_friction = tire_lat_friction
 
 		# Exponential lateral tire friction damping!
@@ -994,13 +1025,24 @@ func _check_fall_and_progress() -> void:
 	var lateral_dist: float = query["lateral_dist"]
 	var y_below: float = track_pos.y - global_position.y
 
-	if is_grounded and surface_type != "offroad" and lateral_dist < float(query["half_width"]) + 2.5 and y_below < 3.5:
-		safe_respawn_pos = track_pos + Vector3(0.0, 0.65, 0.0)
-		safe_respawn_yaw = atan2(-track_fwd.x, -track_fwd.z)
+	if is_grounded and surface_class != "offroad" and lateral_dist < float(query["half_width"]) + 2.5 and y_below < 3.5 and not bool(query.get("gap", false)) and _oob_timer <= 0.0:
+		_store_safe_respawn(int(query["index"]))
 
-	if y_below > 22.0 or global_position.y < -48.0:
+	if y_below > 22.0 or global_position.y < -120.0:
 		force_respawn(true)
 		return
+	if _oob_timer > 0.45:
+		_oob_timer = 0.0
+		force_respawn(false)
+		return
+	if world_ref != null and world_ref.world != null and respawn_timer <= 0.0:
+		var liq: Dictionary = world_ref.world.liquid_at(global_position.x, global_position.z)
+		if not liq.is_empty():
+			var depth_below := float(liq["y"]) - global_position.y
+			var kind := str(liq["kind"])
+			if (kind in ["lava", "acid"] and depth_below > -0.2) or depth_below > float(liq.get("deep", 1.6)):
+				force_respawn(true)
+				return
 
 	var kart_fwd := Vector3(-sin(heading_yaw), 0.0, -cos(heading_yaw))
 	wrong_way = (kart_fwd.dot(track_fwd) < -0.45) and forward_speed > 8.0
@@ -1039,6 +1081,24 @@ func _check_fall_and_progress() -> void:
 	if current_lap == 1 and adjusted_t > 0.85 and checkpoint_mask == 0:
 		adjusted_t -= 1.0
 	total_progress = float(current_lap - 1) + adjusted_t
+
+func _store_safe_respawn(idx: int) -> void:
+	## Remember a safe on-track point; never right in front of a gap you cannot clear from a standing start.
+	var S: Array = track_spline.samples
+	var n := S.size()
+	var j := idx
+	for k in range(40):
+		var probe := (idx + k) % n
+		if bool(S[probe]["gap"]):
+			j = probe
+			while bool(S[j % n]["gap"]):
+				j = (j + 1) % n
+			j = (j + 6) % n
+			break
+	var s: Dictionary = S[j]
+	safe_respawn_pos = (s["pos"] as Vector3) + (s["up"] as Vector3) * 0.65
+	var f: Vector3 = s["forward"]
+	safe_respawn_yaw = atan2(-f.x, -f.z)
 
 func notify_shortcut(sc_id: String, sc_name: String) -> void:
 	if shortcut_cooldowns.has(sc_id):
@@ -1084,7 +1144,8 @@ func _update_visuals(delta: float) -> void:
 			"mask": mask_timer > 0.0,
 			"tnt": tnt_attached,
 			"tnt_timer": tnt_timer,
-			"surface_type": surface_type,
+			"surface_type": surface_class,
+			"dust_col": surf_info["dust"],
 			"finished": race_finished_flag
 		})
 
