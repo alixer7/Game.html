@@ -134,6 +134,9 @@ table.mv tr:hover td{background:rgba(120,0,0,.18)}
 #touch .tb.on{background:rgba(200,30,20,.75)}
 #touch .tb.sp{background:rgba(120,30,0,.6);border-color:#ff7030}
 #touch .pause{position:absolute;top:max(84px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:40px;height:30px;pointer-events:auto;background:rgba(30,0,0,.6);border:1px solid #7a6440;color:#fff;display:flex;align-items:center;justify-content:center}
+body.touch .mtr{bottom:auto;top:max(76px,calc(env(safe-area-inset-top) + 68px));width:28%}
+body.touch #train{font-size:10px;top:auto;bottom:190px;min-width:0;max-width:40vw;padding:4px 8px}
+body.touch #inputLog{display:none}
 @media (max-width:700px){.info{top:12%;width:44vw}.info .d{display:none}.hpw{height:20px;width:41%}.nm{top:25px;font-size:11px}.wins{top:26px}.wins i{width:11px;height:11px}#timer{width:58px;height:44px;font-size:26px}.mtr{width:38%}}
 </style>
 </head>
@@ -3318,6 +3321,7 @@ function showMoves(back, startId) {
 }
 function togglePause() {
   if (G.f.length !== 2 || G.phase === 'over') return;
+  for (const F of G.f) F._st = true;
   if (G.paused) { G.paused = false; hideMenu(); for (const F of G.f) F.input.clear(); return; }
   G.paused = true; if (window.speechSynthesis) speechSynthesis.cancel();
   const s = screen(`<div class="sub" style="font-size:36px">إيقاف مؤقت</div>`); s.style.background = 'rgba(0,0,0,.6)';
@@ -3337,7 +3341,7 @@ function showPostMatch(W) {
 //  TOUCH CONTROLS
 // =====================================================================
 function setupTouch() {
-  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0; if (!isTouch) return;
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0; if (!isTouch) return; document.body.classList.add('touch');
   const T = $('#touch'), pad = T.querySelector('.pad'), knob = pad.querySelector('i');
   const obs = new MutationObserver(() => T.classList.toggle('hide', $('#hud').classList.contains('hide'))); obs.observe($('#hud'), { attributes: true });
   let pid = null;
