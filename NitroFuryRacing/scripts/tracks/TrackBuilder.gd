@@ -446,6 +446,14 @@ func _build_edges() -> void:
 	var cliff_faces := PackedVector3Array()
 	var post_xf: Array[Transform3D] = []
 	var rail_post_xf: Array[Transform3D] = []
+	# broken barriers where a shortcut kicker leaves the road (visual hint + no snag on the rail)
+	var breaks := {}
+	for sc in data.get("features", {}).get("shortcuts", []):
+		var li := spline.index_at_t(spline.t_of_dist(float(sc["launch_d"])))
+		var side_key := "l" if float(sc["launch_lat"]) * mx < 0.0 else "r"
+		var span := int(ceil((float(sc.get("kl", 8.0)) + 10.0) / spline.step))
+		for k in range(-3, span + 1):
+			breaks["%d%s" % [(li + k + n) % n, side_key]] = true
 	for i in range(n):
 		if _seg_skipped(i):
 			continue
@@ -461,6 +469,8 @@ func _build_edges() -> void:
 			var edge: String = a["edge_" + sk]
 			if edge != str(b["edge_" + sk]) and edge != "halfpipe":
 				edge = str(b["edge_" + sk]) if edge in ["open", "none", "shoulder"] else edge
+			if breaks.has("%d%s" % [i, sk]) and edge in ["rail", "fence", "wall"] and float(a["ceil"]) <= 0.0:
+				edge = "open"
 			var inward: Vector3 = a["right"] * (-side)
 			var inward_b: Vector3 = b["right"] * (-side)
 			var ba := _edge_base(a, side)
@@ -490,7 +500,10 @@ func _build_edges() -> void:
 					quad_flat(st, ta, oa, tb, ob, a["up"], 0.0, 0.9 / rep, v0 / rep, v1 / rep)
 					if not indoor:
 						quad_flat(st, oa, oa - a["up"] * (ha + 2.0), ob, ob - b["up"] * (hb + 2.0), -inward, 0.0, (ha + 2.0) / rep, v0 / rep, v1 / rep)
-					col_quad(cliff_faces if edge == "cliff" else wall_faces, down_a, ta, down_b, tb, inward)
+					# collision is taller than the visual wall so hops / bumps can never carry a kart over it
+					var cta: Vector3 = ba + a["up"] * maxf(ha, 3.4)
+					var ctb: Vector3 = bb + b["up"] * maxf(hb, 3.4)
+					col_quad(cliff_faces if edge == "cliff" else wall_faces, down_a, cta, down_b, ctb, inward)
 				"fence":
 					var hf := 1.15
 					var mat_f := TrackMats.wall_mat("wood")
@@ -505,7 +518,7 @@ func _build_edges() -> void:
 					if i % 2 == 0:
 						var basis := Basis(a["right"], a["up"], -a["forward"]).orthonormalized()
 						post_xf.append(Transform3D(basis, ba - inward * 0.08))
-					col_quad(fence_faces, ba - a["up"] * 0.5, ba + a["up"] * hf, bb - b["up"] * 0.5, bb + b["up"] * hf, inward)
+					col_quad(fence_faces, ba - a["up"] * 0.5, ba + a["up"] * 1.6, bb - b["up"] * 0.5, bb + b["up"] * 1.6, inward)
 				"rail":
 					var hr := float(a["wall_h_" + sk])
 					hr = clampf(hr, 0.7, 1.4)
@@ -521,7 +534,7 @@ func _build_edges() -> void:
 					if i % 2 == 0:
 						var basis2 := Basis(a["right"], a["up"], -a["forward"]).orthonormalized()
 						rail_post_xf.append(Transform3D(basis2.scaled(Vector3(1.0, hr / 1.15, 1.0)), ba - inward * 0.1))
-					col_quad(fence_faces, ba - a["up"] * 0.5, ba + a["up"] * (hr + 0.1), bb - b["up"] * 0.5, bb + b["up"] * (hr + 0.1), inward)
+					col_quad(fence_faces, ba - a["up"] * 0.5, ba + a["up"] * maxf(hr + 0.1, 1.5), bb - b["up"] * 0.5, bb + b["up"] * maxf(hr + 0.1, 1.5), inward)
 				"halfpipe":
 					_add_halfpipe(batch, hp_faces, a, b, side, chunk, indoor)
 				"open":
@@ -598,6 +611,7 @@ func _build_indoor() -> void:
 	var batch := Batch.new()
 	var light_spots: Array[Dictionary] = []
 	var last_light := -999.0
+	var roof_faces := PackedVector3Array()
 	for i in range(n):
 		var a: Dictionary = S[i]
 		var b: Dictionary = S[(i + 1) % n]
@@ -618,12 +632,22 @@ func _build_indoor() -> void:
 		var roof := batch.get_st("roof|%s|%d" % [style, chunk], TrackMats.wall_mat("rock" if style == "cave" else style), false)
 		var lift_a: Vector3 = a["up"] * 1.2
 		var lift_b: Vector3 = b["up"] * 1.2
-		quad_flat(roof, la + lift_a - a["right"] * 1.0, ra + lift_a + a["right"] * 1.0, lb + lift_b - b["right"] * 1.0, rb + lift_b + b["right"] * 1.0, a["up"], 0, 2, float(a["dist"]) / 8.0, float(b["dist"]) / 8.0)
+		var r0: Vector3 = la + lift_a - a["right"] * 1.0
+		var r1: Vector3 = ra + lift_a + a["right"] * 1.0
+		var r2: Vector3 = lb + lift_b - b["right"] * 1.0
+		var r3: Vector3 = rb + lift_b + b["right"] * 1.0
+		quad_flat(roof, r0, r1, r2, r3, a["up"], 0, 2, float(a["dist"]) / 8.0, float(b["dist"]) / 8.0)
+		col_quad(roof_faces, r0, r1, r2, r3, a["up"])
 		# ceiling beams / light strips every ~14 m
 		if float(a["dist"]) - last_light >= 14.0:
 			last_light = float(a["dist"])
 			light_spots.append({"s": a, "style": style, "i": i})
 	batch.commit(self)
+	if roof_faces.size() > 0:
+		# landing on a roof (failed jump over a tunnel / gallery) is out of bounds -> quick respawn
+		var rb2 := _static_body(roof_faces, OFFROAD_LAYER, "rock")
+		rb2.set_meta("oob", true)
+		rb2.name = "RoofCollider"
 	_build_indoor_lights(light_spots)
 
 func _build_indoor_lights(spots: Array[Dictionary]) -> void:

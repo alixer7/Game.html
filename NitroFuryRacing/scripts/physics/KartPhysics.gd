@@ -615,7 +615,12 @@ func _probe_ground(delta: float) -> void:
 			_resolve_surface(col, hit_pos)
 			return
 
-	if floor_hit and vertical_speed <= 1.6:
+	var floor_is_wall := false
+	if floor_hit:
+		var fc0 := get_last_slide_collision()
+		if fc0 and fc0.get_collider() is CollisionObject3D and ((fc0.get_collider() as CollisionObject3D).collision_layer & 2) != 0 and ((fc0.get_collider() as CollisionObject3D).collision_layer & (1 | 4 | 8)) == 0:
+			floor_is_wall = true  # top edge of a wall / rail / prop is never ground: slide off it
+	if floor_hit and vertical_speed <= 1.6 and not floor_is_wall:
 		is_grounded = true
 		coyote_timer = 0.09
 		ground_normal = ground_normal.lerp(get_floor_normal(), minf(1.0, delta * 13.0)).normalized()
@@ -1031,6 +1036,9 @@ func _check_fall_and_progress() -> void:
 	if y_below > 22.0 or global_position.y < -120.0:
 		force_respawn(true)
 		return
+	# resting in a pit / ravine well below the road (missed jump): count as out of bounds
+	if is_grounded and y_below > 7.0 and surface_type != "kicker":
+		_oob_timer += get_physics_process_delta_time()
 	if _oob_timer > 0.45:
 		_oob_timer = 0.0
 		force_respawn(false)

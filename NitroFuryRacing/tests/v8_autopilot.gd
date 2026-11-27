@@ -70,7 +70,8 @@ func step(delta: float) -> void:
 	else:
 		_air_t += delta
 	_was_air = not kart.is_grounded
-	if kart.race_started and v < 3.0 and kart.spinout_timer <= 0.0 and kart.respawn_timer <= 0.0:
+	var real_v := Vector2(kart.velocity.x, kart.velocity.z).length()
+	if kart.race_started and (v < 3.0 or real_v < 3.0) and kart.spinout_timer <= 0.0 and kart.respawn_timer <= 0.0:
 		_stuck_t += delta
 		if _stuck_t > 1.2:
 			stats["stuck_events"] += 1

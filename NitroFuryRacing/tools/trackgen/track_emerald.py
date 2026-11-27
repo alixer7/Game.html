@@ -149,7 +149,7 @@ def build():
     # S1 CORNER-CUT over the void: the hairpin exit climbs to a 90-degree left onto the trestle. A broken railing and a
     # stone ramp on the inner edge let a Sacred-Fire kart leap straight across the corner onto the trestle.
     T.shortcut_auto("emerald_summit_leap", "Summit Corner Leap", "قفزة كسر منعطف القمة", "corner_leap",
-                    launch_d=M["tw_in"] - 16, side="l", yaw_off=34, target_range=(M["tw_out"] - 10, M["tw_out"] + 130),
+                    launch_d=M["tw_in"] - 12, side="l", yaw_off=44, target_range=(M["tw_out"] - 10, M["tw_out"] + 130),
                     required_fire=3, hidden="temple", kw=6.5, kl=8.0)
     T.pad(lat=-6.5, at=M["tw_in"] - 34)
     # S2 FLOATING STEPPING STONE across the lagoon: kicker on the beach -> floating pad (with its own ramp) -> road
@@ -167,9 +167,9 @@ def build():
 
 
 def _world(T):
-    T.env = dict(theme="tiki", sky_top="#3a66c4", sky_horizon="#ffd9a0", ground="#3d6b3a", fog="#cfe3d0",
-                 fog_density=0.0015, sun="#fff0d2", sun_energy=1.25, sun_pitch=-44, sun_yaw=32, ambient=0.6,
-                 exposure=1.0)
+    T.env = dict(theme="tiki", sky_top="#2f5fc0", sky_horizon="#bfe0f0", ground="#3d6b3a", fog="#9fc3c8",
+                 fog_density=0.0006, sun="#fff0d2", sun_energy=1.15, sun_pitch=-46, sun_yaw=32, ambient=0.55,
+                 exposure=0.95)
     gap_pts = [T.S["pos"][i] for i in range(len(T.S["d"])) if T.S["attrs"][i]["gap"] and T.S["attrs"][i]["zone"] == "River Gorge Jump"]
     gx = float(sum(p[0] for p in gap_pts) / len(gap_pts))
     gz = float(sum(p[2] for p in gap_pts) / len(gap_pts))

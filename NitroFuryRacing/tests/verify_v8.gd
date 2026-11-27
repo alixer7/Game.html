@@ -189,7 +189,7 @@ func _test_drive(ti: int) -> void:
 		t += 1.0 / 60.0
 		progress_max = maxf(progress_max, k.total_progress)
 		if int(t * 2.0) != int((t - 1.0 / 60.0) * 2.0):
-			trace.append([snappedf(t, 0.1), snappedf(k.spline_t, 0.001), snappedf(k.forward_speed, 0.1), k.surface_type])
+			trace.append([snappedf(t, 0.1), snappedf(k.spline_t, 0.001), snappedf(k.forward_speed, 0.1), k.surface_type, k.global_position.snapped(Vector3(0.1, 0.1, 0.1)), k.is_grounded, k.velocity.snapped(Vector3(0.1, 0.1, 0.1))])
 	var st: Dictionary = ap.stats
 	var lap_done: bool = flags["lap"]
 	report[tid]["drive"] = {"lap_done": lap_done, "time": t, "stats": st, "progress": progress_max}
@@ -341,14 +341,26 @@ func _test_ai(ti: int) -> void:
 	var t := 0.0
 	var stuck := {}
 	var still := {}
+	var resp_log := []
+	var was_resp := {}
+	var wall0 := Time.get_ticks_msec()
 	while t < 100.0:
 		ap.step(1.0 / 60.0)
 		await get_tree().physics_frame
 		t += 1.0 / 60.0
+		if int(t * 60.0) % 600 == 0:
+			var pp := []
+			for kk2 in race.all_karts:
+				pp.append(snappedf(kk2.total_progress, 0.01))
+			print("    [ai t=%.0fs wall=%.1fs] %s" % [t, float(Time.get_ticks_msec() - wall0) / 1000.0, str(pp)])
 		for kk in race.all_karts:
 			if kk.is_player:
 				continue
 			var id := kk.get_instance_id()
+			if kk.respawn_timer > 0.0 and not bool(was_resp.get(id, false)):
+				var q: Dictionary = race.built_data["spline"].project_point(kk.global_position, kk.spline_t)
+				resp_log.append([kk.racer_id, snappedf(kk.spline_t, 0.001), snappedf(float(q["lateral"]), 0.1), str(q["zone"]), kk.surface_type, snappedf(kk.forward_speed, 0.1)])
+			was_resp[id] = kk.respawn_timer > 0.0
 			if absf(kk.forward_speed) < 2.5 and kk.respawn_timer <= 0.0 and kk.spinout_timer <= 0.0:
 				still[id] = float(still.get(id, 0.0)) + 1.0 / 60.0
 				if float(still[id]) > 2.0:
@@ -362,7 +374,8 @@ func _test_ai(ti: int) -> void:
 		if not kk.is_player:
 			prog.append(snappedf(kk.total_progress, 0.01))
 			min_prog = minf(min_prog, kk.total_progress)
-	report[tid]["ai"] = {"progress_100s": prog, "stuck": stuck.size()}
+	report[tid]["ai"] = {"progress_100s": prog, "stuck": stuck.size(), "respawns": resp_log}
+	print("  AI respawns: ", resp_log)
 	print("  AI progress after 100 s: %s  stuck karts: %d" % [str(prog), stuck.size()])
 	_assert(min_prog >= 0.85, "%s: every AI kart keeps racing (min progress %.2f laps in 100 s)" % [tid, min_prog])
 	race.queue_free()

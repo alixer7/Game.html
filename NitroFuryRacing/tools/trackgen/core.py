@@ -77,6 +77,10 @@ def eval_channel(keys, ds, total, periodic=True):
     for i in range(len(xs)):
         left_lin = i > 0 and modes[i] == "l"
         right_lin = i < len(xs) - 1 and modes[i + 1] == "l"
+        if i < len(xs) - 1 and modes[i + 1] == "g" and not left_lin:
+            # knot before a gap: keep the approach flat (no dive into the gap)
+            m[i] = 0.0 if i == 0 or modes[i] != "s" else min(0.0, m[i]) * 0.0
+            continue
         if left_lin and right_lin:
             m[i] = delta[i]  # unused for linear intervals
         elif left_lin:
@@ -91,7 +95,7 @@ def eval_channel(keys, ds, total, periodic=True):
         x0, x1 = xs[i], xs[i + 1]
         h = x1 - x0
         u = (d - x0) / h if h > 0 else 0.0
-        if modes[i + 1] == "l":
+        if modes[i + 1] in ("l", "g"):
             out[j] = ys[i] + (ys[i + 1] - ys[i]) * u
         else:
             h00 = 2 * u ** 3 - 3 * u ** 2 + 1
@@ -212,7 +216,7 @@ class Track:
         y0 = self.ylast()
         self.seg(ramp_len, 0.0, ymode="l", y=y0 + rise, ramp=True, **a)
         ylip = y0 + rise
-        self.seg(gap, 0.0, ymode="l", y=ylip - drop, gap=True)
+        self.seg(gap, 0.0, ymode="g", y=ylip - drop, gap=True)
         l1 = land_len * 0.45
         y_l1 = ylip - drop - l1 * land_slope
         self.seg(l1, 0.0, ymode="l", y=y_l1)
@@ -222,7 +226,8 @@ class Track:
     def drop_ledge(self, gap=6.0, drop=4.0, land_len=20.0, **a):
         """Road simply ends and continues lower (waterfall / step drop) - flat take-off."""
         y0 = self.ylast()
-        self.seg(gap, 0.0, ymode="l", y=y0 - drop, gap=True, **a)
+        self.keys["y"].append((self.d, y0, "s"))   # pin the lip height: flat take-off
+        self.seg(gap, 0.0, ymode="g", y=y0 - drop, gap=True, **a)
         self.seg(land_len * 0.4, 0.0, ymode="l", y=y0 - drop - land_len * 0.4 * 0.06)
         self.seg(land_len * 0.6, 0.0, ymode="s", y=y0 - drop - land_len * 0.4 * 0.06 - 0.2)
         return self
@@ -274,7 +279,7 @@ class Track:
 
     def shortcut_auto(self, sid, name_en, name_ar, kind, launch_d, side, yaw_off, target_range, required_fire=3,
                       n_plats=0, hidden="rock", kw=6.5, kl=8.0, plat_r=7.0, edge_in=0.6, plat_kind="stone",
-                      lead_m=3.5, max_pitch=24.0):
+                      lead_m=3.5, max_pitch=24.0, min_pitch=8.0, fail_fruit=True):
         """CTR-style shortcut solver (resolved in finalize): kicker at the road edge, yawed `yaw_off` degrees from
         the road heading toward `side` ('l' / 'r'); the landing is where that line meets the road between
         target_range=(d0, d1); the pitch is solved so the REQUIRED fire tier (no fruit) lands `lead_m` past the near
@@ -283,7 +288,8 @@ class Track:
         self.feat.setdefault("shortcuts_auto", []).append(dict(
             id=sid, name_en=name_en, name_ar=name_ar, kind=kind, launch_d=launch_d, side=side, yaw_off=yaw_off,
             target_range=target_range, required_fire=required_fire, n_plats=n_plats, hidden=hidden, kw=kw, kl=kl,
-            plat_r=plat_r, edge_in=edge_in, plat_kind=plat_kind, lead_m=lead_m, max_pitch=max_pitch))
+            plat_r=plat_r, edge_in=edge_in, plat_kind=plat_kind, lead_m=lead_m, max_pitch=max_pitch,
+            min_pitch=min_pitch, fail_fruit=fail_fruit))
 
     def shortcut(self, sid, name_en, name_ar, kind, launch_d, launch_lat, target_d, target_lat,
                  pitch=18.0, kw=7.0, kl=8.0, required_fire=3, platforms=None, hidden="rock", note="",
@@ -480,8 +486,8 @@ class Track:
             kl = sc["kl"]
             best = None
             v_req = self.TIER_V[sc["required_fire"]]
-            v_fail = self.TIER_V[0] * 1.18
-            for pitch in np.arange(8.0, sc["max_pitch"] + 0.01, 0.5):
+            v_fail = self.TIER_V[0] * (1.18 if sc.get("fail_fruit", True) else 1.0)
+            for pitch in np.arange(sc.get("min_pitch", 8.0), sc["max_pitch"] + 0.01, 0.5):
                 lip_h = math.tan(math.radians(pitch)) * kl
                 lip_xz = np.array([p[0], p[2]]) + dirv * kl
                 lip_y = p[1] + lip_h
@@ -744,6 +750,7 @@ def build_poly(T, verts, verbose=True):
             T.mark(v["mark_in"])
         if i > 0 and abs(plan["turns"][i]) > 0.3 and v.get("r", 0) > 0:
             keys = dict(v.get("keys", {}))
+            keys.setdefault("bank", 0.0)   # banking is explicit per corner (auto_bank adds curvature banking)
             T.turn(v["r"], plan["turns"][i], ease=v.get("ease", 0.22), **keys)
         elif "keys" in v and i > 0:
             pass
@@ -751,6 +758,8 @@ def build_poly(T, verts, verbose=True):
             T.mark(v["mark"])
         L = plan["edges"][i]
         if L < -0.5:
+            for jj, vv in enumerate(verts):
+                print(f"  v{jj:02d} {vv.get('name',''):16s} turn={plan['turns'][jj]:7.1f} R={vv.get('r',0):5.1f} tan={plan['tans'][jj]:6.1f} edge={plan['edges'][jj]:7.1f}")
             raise ValueError(f"edge {i} too short for fillets: {L:.1f} m (vertex {v.get('name', i)})")
         rem = L
         fill_keys = {}
