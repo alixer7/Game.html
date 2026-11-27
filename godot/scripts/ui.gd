@@ -41,6 +41,7 @@ var cs := {}
 var post_desat := 0.08
 
 func _ready() -> void:
+	get_tree().quit_on_go_back = false
 	theme = Theme.new()
 	theme.default_font = Mats.font_ar
 	theme.default_font_size = 22
@@ -575,13 +576,26 @@ func _vlist(parent: Control, items: Array, top := 0.4) -> VBoxContainer:
 		(v.get_child(0) as Button).call_deferred("grab_focus")
 	return v
 
-func _unhandled_input(event: InputEvent) -> void:
-	if custom_key != null and event.is_pressed() and not event.is_echo():
+## Menu-level handler runs in _input so it sees taps/clicks before full-screen Controls consume them.
+func _input(event: InputEvent) -> void:
+	if custom_key != null and not event.is_echo():
 		if custom_key.call(event): get_viewport().set_input_as_handled()
-		return
+
+func _unhandled_input(event: InputEvent) -> void:
 	if back_fn != null and event.is_action_pressed("ui_cancel"):
 		back_fn.call()
 		get_viewport().set_input_as_handled()
+
+## Android back button / gesture: go back in menus, pause during a fight, quit from the title.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		if back_fn != null: back_fn.call()
+		elif G.f.size() == 2 and G.phase != "menu": G.toggle_pause()
+		elif G.phase == "menu": get_tree().quit()
+
+## Run fn shortly after the current tap so the same touch can't also "click" the next screen.
+func _soon(fn: Callable, t := 0.12) -> void:
+	get_tree().create_timer(t, true, false, true).timeout.connect(fn)
 
 func show_title() -> void:
 	G.f = []
@@ -612,10 +626,18 @@ func show_title() -> void:
 	ft.anchor_top = 1.0; ft.anchor_bottom = 1.0; ft.anchor_left = 0.0; ft.anchor_right = 1.0
 	ft.offset_top = -34
 	ft.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var gone := [false]
+	var go := func():
+		if gone[0]: return
+		gone[0] = true
+		SFX.play("bell", 0.7)
+		_soon(show_main)
 	custom_key = func(e):
-		if e is InputEventKey or e is InputEventJoypadButton or e is InputEventMouseButton or e is InputEventScreenTouch:
-			SFX.play("bell", 0.7)
-			show_main()
+		if e is InputEventScreenTouch or e is InputEventMouseButton:
+			if not e.pressed: go.call()
+			return true
+		if (e is InputEventKey or e is InputEventJoypadButton) and e.pressed:
+			go.call()
 			return true
 		return false
 
@@ -690,8 +712,29 @@ func show_select(mode: String) -> void:
 		inf.anchor_bottom = 0.62
 		inf.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		s.add_child(inf)
+	var ok := Button.new()
+	ok.name = "ok"
+	ok.text = "تأكيد ✓"
+	ok.add_theme_font_size_override("font_size", 26)
+	ok.anchor_left = 1.0; ok.anchor_right = 1.0; ok.anchor_top = 1.0; ok.anchor_bottom = 1.0
+	ok.offset_left = -230; ok.offset_right = -24; ok.offset_top = -96; ok.offset_bottom = -30
+	ok.pressed.connect(func():
+		var sd := 1 if ((cs.mode != "2p" and cs.step == 1) or (cs.mode == "2p" and cs.lock[0])) else 0
+		_confirm(sd))
+	s.add_child(ok)
+	var bk := Button.new()
+	bk.text = "→ رجوع"
+	bk.add_theme_font_size_override("font_size", 22)
+	bk.anchor_top = 1.0; bk.anchor_bottom = 1.0
+	bk.offset_left = 24; bk.offset_right = 190; bk.offset_top = -90; bk.offset_bottom = -34
+	bk.pressed.connect(func(): back_fn.call())
+	s.add_child(bk)
 	custom_key = func(e): return _select_key(e)
-	back_fn = show_main
+	back_fn = func():
+		if cs.mode != "2p" and cs.step == 1:
+			cs.step = 0; cs.lock[0] = false
+			_refresh_select()
+		else: show_main()
 	_refresh_select()
 
 func D_name(id: String) -> String:
@@ -1060,6 +1103,13 @@ class TouchPad extends Control:
 
 	func _input(e: InputEvent) -> void:
 		if not visible: return
+		if G.paused:
+			if stick_id != -1 or not btn_ids.is_empty():
+				stick_id = -1
+				btn_ids.clear()
+				G.touch.clear()
+				queue_redraw()
+			return
 		var vs := get_viewport_rect().size
 		if e is InputEventScreenTouch:
 			if e.pressed:
@@ -1072,7 +1122,7 @@ class TouchPad extends Control:
 					for b in _layout():
 						if e.position.distance_to(b[1]) < b[2] * 1.15:
 							if b[0] == "ST":
-								G.toggle_pause()
+								G.ui._soon(G.toggle_pause)
 							else:
 								btn_ids[e.index] = b[0]
 								G.touch[b[0]] = true

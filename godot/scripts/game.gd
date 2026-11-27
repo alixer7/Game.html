@@ -110,6 +110,9 @@ func _boot() -> void:
 	if args.has("quick"):
 		start_match(args.get("p1", "kharos"), args.get("p2", "vorgath"), args.quick, int(args.get("lvl", "1")))
 		if args.has("test"): cine.run_test(args.test)
+	elif args.has("touchtest"):
+		ui.show_title()
+		_touch_test()
 	elif args.has("menu"):
 		match str(args.menu):
 			"main": ui.show_main()
@@ -532,7 +535,8 @@ func update_camera(dt: float) -> void:
 		"menu":
 			var t: float = cam.t * 0.06
 			var k2 := 1.0 - exp(-dt * 1.5)
-			cam.pos = cam.pos.lerp(Vector3(sin(t) * 7.5, 2.2 + sin(t * 1.7) * 0.6, -3.5 + cos(t) * 8.5), k2)
+			# slow sway inside the central nave (stays clear of the pillar rows at z=-5.2 / x=±4.6)
+			cam.pos = cam.pos.lerp(Vector3(sin(t) * 2.6, 2.1 + sin(t * 1.7) * 0.5, 4.4 + cos(t * 0.8) * 1.2), k2)
 			cam.look = cam.look.lerp(Vector3(0, 3.2, -11), k2)
 			cam.fov = lerpf(cam.fov, 42.0, k2)
 		"select":
@@ -569,4 +573,158 @@ func _soak() -> void:
 			if phase == "over": break
 		print("SOAK %s vs %s: phase=%s hp=%s wins=%s phases=%s dmg=%s ms=%d" % [pr[0], pr[1], phase, [f[0].hp, f[1].hp], wins, phases, stats.dmg, Time.get_ticks_msec() - t0])
 		quit_match()
+	get_tree().quit()
+
+
+# ======================================================================= automated touch test (--touchtest)
+func _tt_wait(t: float) -> void:
+	await get_tree().create_timer(t, true, false, true).timeout
+
+## Canvas (UI) coordinates -> window pixels, which is what a real touchscreen reports.
+func _tt_w(p: Vector2) -> Vector2:
+	return get_tree().root.get_final_transform() * p
+
+func _tt_tap(p: Vector2, hold := 0.08, idx := 0) -> void:
+	p = _tt_w(p)
+	var e := InputEventScreenTouch.new()
+	e.index = idx; e.position = p; e.pressed = true
+	Input.parse_input_event(e)
+	await _tt_wait(hold)
+	var r := InputEventScreenTouch.new()
+	r.index = idx; r.position = p; r.pressed = false
+	Input.parse_input_event(r)
+	await _tt_wait(0.25)
+
+func _tt_find(root: Node, text: String) -> Control:
+	for c in root.get_children():
+		if c is Button and c.visible and (c as Button).text.begins_with(text): return c
+		var r := _tt_find(c, text)
+		if r: return r
+	return null
+
+func _tt_screen() -> String:
+	if paused: return "pause"
+	if f.size() == 2: return "fight:" + phase
+	if _tt_find(ui.menu, "قتال ضد الحاسوب"): return "main"
+	if _tt_find(ui.menu, "تأكيد"): return "select step=%d" % ui.cs.step
+	if _tt_find(ui.menu, "كابوس"): return "difficulty"
+	return "title" if ui.menu.get_child_count() > 0 else "none"
+
+func _tt_shot(name: String) -> void:
+	if args.has("ttdir"):
+		var img := get_viewport().get_texture().get_image()
+		if img: img.save_png(str(args.ttdir) + "/tt_" + name + ".png")
+
+func _tt_check(label: String, ok: bool) -> void:
+	print("TOUCHTEST %s %s  [screen=%s]" % ["PASS" if ok else "FAIL", label, _tt_screen()])
+
+func _tt_button(text: String) -> void:
+	var b := _tt_find(ui.menu, text)
+	if b == null:
+		print("TOUCHTEST FAIL no button '%s'  [screen=%s]" % [text, _tt_screen()])
+		return
+	await _tt_tap(b.get_global_rect().get_center())
+
+func _touch_test() -> void:
+	var vs := get_viewport().get_visible_rect().size
+	await _tt_wait(1.5)
+	_tt_shot("1_title")
+	await _tt_tap(Vector2(vs.x * 0.5, vs.y * 0.7))
+	await _tt_wait(0.4)
+	_tt_check("title tap opens main menu", _tt_screen() == "main")
+	if args.has("ttonly"):
+		get_tree().quit()
+		return
+	_tt_shot("2_main")
+	await _tt_button("قتال ضد الحاسوب")
+	await _tt_wait(0.6)
+	_tt_check("main menu button opens character select", _tt_screen().begins_with("select"))
+	var cards: Control = ui.menu.get_child(0).get_node("cards")
+	await _tt_tap(cards.get_child(2).get_global_rect().get_center())
+	_tt_check("tapping a card selects it (Kharos)", ui.cs.cur[0] == 2)
+	await _tt_button("تأكيد")
+	await _tt_wait(0.3)
+	_tt_check("confirm advances to opponent pick", ui.cs.step == 1)
+	await _tt_tap(cards.get_child(1).get_global_rect().get_center())
+	_tt_check("tapping opponent card (Nyxara)", ui.cs.cur[1] == 1)
+	_tt_shot("3_select")
+	await _tt_button("تأكيد")
+	await _tt_wait(1.2)
+	_tt_check("opponent confirm opens difficulty", _tt_screen() == "difficulty")
+	await _tt_button("مبتدئ")
+	await _tt_wait(0.5)
+	_tt_check("difficulty starts the match", f.size() == 2 and f[0].def.id == "kharos" and f[1].def.id == "nyxara")
+	if f.size() != 2:
+		print("TOUCHTEST ABORT")
+		get_tree().quit()
+		return
+	_tt_check("touch controls visible in fight", ui.touch_pad.visible)
+	var guard := 0
+	while phase != "fight" and guard < 100:
+		await _tt_wait(0.2); guard += 1
+	await _tt_wait(0.5)
+	var A = f[0]
+	var x0: float = A.x
+	# stick: press on the left side and drag right, hold
+	var sc := Vector2(vs.x * 0.12, vs.y * 0.74)
+	var d := InputEventScreenTouch.new(); d.index = 0; d.position = _tt_w(sc); d.pressed = true
+	Input.parse_input_event(d)
+	var dr := InputEventScreenDrag.new(); dr.index = 0; dr.position = _tt_w(sc + Vector2(55, 0)); dr.relative = Vector2(55, 0)
+	Input.parse_input_event(dr)
+	await _tt_wait(0.9)
+	_tt_shot("4_fight_walk")
+	var u := InputEventScreenTouch.new(); u.index = 0; u.position = _tt_w(sc + Vector2(55, 0)); u.pressed = false
+	Input.parse_input_event(u)
+	_tt_check("stick drag right walks forward (x %.2f -> %.2f)" % [x0, A.x], A.x > x0 + 0.3)
+	await _tt_wait(0.3)
+	f[1].ai.mode = "stand"   # keep the CPU passive so P1 is actionable for the button checks
+	guard = 0
+	while A.state != "stand" and guard < 100:
+		await _tt_wait(0.05); guard += 1
+	var lay: Array = ui.touch_pad._layout()
+	var bpos := {}
+	for b in lay: bpos[b[0]] = b[1]
+	var saw := false
+	var e1 := InputEventScreenTouch.new(); e1.index = 1; e1.position = _tt_w(bpos["1"]); e1.pressed = true
+	Input.parse_input_event(e1)
+	for i in 6:
+		await _tt_wait(0.05)
+		if A.move != null: saw = true
+	var e2 := InputEventScreenTouch.new(); e2.index = 1; e2.position = _tt_w(bpos["1"]); e2.pressed = false
+	Input.parse_input_event(e2)
+	_tt_check("button 1 starts an attack", saw)
+	await _tt_wait(0.6)
+	# multi-touch: hold stick left (finger 0) while tapping block (finger 1)
+	d.position = _tt_w(sc); Input.parse_input_event(d)
+	dr.position = _tt_w(sc + Vector2(-55, 0)); dr.relative = Vector2(-55, 0); Input.parse_input_event(dr)
+	var bl := InputEventScreenTouch.new(); bl.index = 1; bl.position = _tt_w(bpos["BL"]); bl.pressed = true
+	Input.parse_input_event(bl)
+	await _tt_wait(0.3)
+	_tt_check("multi-touch: stick + block held together (L=%s BL=%s)" % [touch.get("L", false), touch.get("BL", false)], touch.get("L", false) and touch.get("BL", false))
+	bl.pressed = false; Input.parse_input_event(bl)
+	u.position = _tt_w(sc + Vector2(-55, 0)); Input.parse_input_event(u)
+	await _tt_wait(0.3)
+	_tt_check("all touch inputs released", not touch.values().has(true))
+	await _tt_tap(bpos["ST"])
+	await _tt_wait(0.5)
+	_tt_check("pause button opens pause menu (and stays open)", paused)
+	_tt_shot("5_pause")
+	await _tt_button("استئناف")
+	await _tt_wait(0.4)
+	_tt_check("resume button closes pause", not paused)
+	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	await _tt_wait(0.4)
+	_tt_check("Android back pauses the fight", paused)
+	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	await _tt_wait(0.4)
+	_tt_check("Android back again resumes", not paused)
+	toggle_pause()
+	await _tt_wait(0.3)
+	await _tt_button("القائمة الرئيسية")
+	await _tt_wait(0.6)
+	_tt_check("pause -> main menu", _tt_screen() == "main")
+	get_tree().root.propagate_notification(NOTIFICATION_WM_GO_BACK_REQUEST)
+	await _tt_wait(0.4)
+	_tt_check("Android back from main menu returns to title", _tt_screen() == "title")
+	print("TOUCHTEST DONE")
 	get_tree().quit()
