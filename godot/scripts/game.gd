@@ -95,6 +95,7 @@ func _boot() -> void:
 	ui.show_loading(1.0, "تُشحذ الشفرات...")
 	await get_tree().process_frame
 	booted = true
+	if args.has("timing"): print("boot done at %d ms" % Time.get_ticks_msec())
 	ui.hide_loading()
 	if args.has("dumptex"):
 		for k in ["lava", "metal_c", "muscle_c", "stone_c", "skin_n", "mottle", "wall_c"]:
@@ -131,6 +132,8 @@ func _boot() -> void:
 		ui.show_title()
 
 func on_audio_ready() -> void:
+	print_verbose("audio ready at %d ms" % Time.get_ticks_msec())
+	if args.has("timing"): print("audio ready at %d ms" % Time.get_ticks_msec())
 	if phase == "menu" or phase == "boot": SFX.start_music("menu")
 
 # ======================================================================= settings / quality
