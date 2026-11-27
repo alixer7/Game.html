@@ -1,0 +1,37 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://c8lkwv81rup6x"
+path="res://.godot/imported/prop_alpine_lodge_wall_glacier_normal.png-c9779f23fd76bfc3f0facb7e69bae5df.ctex"
+metadata={
+"vram_texture": false
+}
+generator_parameters={
+"md5": "7b7c383bbc961cd344b328111e0ff24f"
+}
+
+[deps]
+
+source_file="res://assets/models/prop_alpine_lodge_wall_glacier_normal.png"
+dest_files=["res://.godot/imported/prop_alpine_lodge_wall_glacier_normal.png-c9779f23fd76bfc3f0facb7e69bae5df.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=1

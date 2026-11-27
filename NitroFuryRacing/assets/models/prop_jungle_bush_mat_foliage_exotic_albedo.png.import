@@ -1,0 +1,37 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://dv1a5nwbxhnqg"
+path="res://.godot/imported/prop_jungle_bush_mat_foliage_exotic_albedo.png-a58efec71f4c1f444265ef4226b5259c.ctex"
+metadata={
+"vram_texture": false
+}
+generator_parameters={
+"md5": "05c8f0936c2e7c5671a7b4e8a42b2f0f"
+}
+
+[deps]
+
+source_file="res://assets/models/prop_jungle_bush_mat_foliage_exotic_albedo.png"
+dest_files=["res://.godot/imported/prop_jungle_bush_mat_foliage_exotic_albedo.png-a58efec71f4c1f444265ef4226b5259c.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=1
